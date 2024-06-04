@@ -43,6 +43,7 @@ public class SysRoleController {
      * @return Result
      */
     @GetMapping(BASE_URL_PATH + "/list.json")
+    @ResponseBody
     public Result selectRolePage(SysRoleQuery sysRoleQuery) {
         Page<SysRole> ipage = sysRoleService.getRoleList(sysRoleQuery);
         return Result.success(ipage);
@@ -52,7 +53,6 @@ public class SysRoleController {
      * 进入角色添加页面
      */
     @GetMapping(BASE_URL_PATH + "/add.html")
-    @ResponseBody
     public ModelAndView add() {
         ModelAndView view = new ModelAndView(BASE_HTML_PATH + "/role_add");
         return view;
