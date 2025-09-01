@@ -58,7 +58,7 @@
             <dependency>
                 <groupId>com.baomidou</groupId>
                 <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
-                <version>3.5.5</version>
+                <version>3.5.14</version>
             </dependency>
             <dependency>
                 <groupId>com.alibaba</groupId>
@@ -73,7 +73,7 @@
             <dependency>
                 <groupId>cn.hutool</groupId>
                 <artifactId>hutool-all</artifactId>
-                <version>5.8.1</version>
+                <version>5.8.40</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
