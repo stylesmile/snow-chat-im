@@ -2,6 +2,10 @@
 spring:
   profiles:
     active: dev
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
   freemarker:
     #freemarker默认后缀为.ftl  修改为.html
     suffix: .html
