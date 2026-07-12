@@ -12,28 +12,29 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <java.version>17</java.version>
-        <snow.version>2.0.1-SNAPSHOT</snow.version>
-        <snow.util.version>2.0.1-SNAPSHOT</snow.util.version>
-        <snow.common.version>2.0.1-SNAPSHOT</snow.common.version>
-        <snow.console.version>2.0.1-SNAPSHOT</snow.console.version>
+        <snow.version>1.0.1-SNAPSHOT</snow.version>
+        <snow.util.version>1.0.1-SNAPSHOT</snow.util.version>
+        <snow.common.version>1.0.1-SNAPSHOT</snow.common.version>
+        <snow.console.version>1.0.1-SNAPSHOT</snow.console.version>
+        <snow.im.api.version>1.0.1-SNAPSHOT</snow.im.api.version>
         <!-- 打包时忽略测试 -->
-        <skipTests>true</skipTests>
+<!--        <skipTests>true</skipTests>-->
     </properties>
 
-    <name>snow</name>
+    <name>snow-chat-im-backend</name>
 
     <groupId>com.stylesmile</groupId>
-    <artifactId>snow</artifactId>
-    <version>${snow.version}</version>
+    <artifactId>snow-chat-im-backend</artifactId>
+    <version>1.0.1-SNAPSHOT</version>
     <packaging>pom</packaging>
 
 
     <description>Demo project for Spring Boot</description>
     <modules>
-        <module>snow-util</module>
+<!--        <module>snow-util</module>-->
         <module>snow-common</module>
         <module>snow-system</module>
-        <module>snow-eureka</module>
+        <module>snow-im-api</module>
     </modules>
 
     <dependencies>

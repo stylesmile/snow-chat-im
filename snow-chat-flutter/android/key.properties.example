@@ -1,0 +1,7 @@
+# Android 릴리즈 서명 설정 예시
+# 이 파일을 복사하여 key.properties로 저장하세요 (git에 포함되지 않음)
+
+storePassword=YOUR_KEYSTORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=upload
+storeFile=/path/to/your/keystore.jks

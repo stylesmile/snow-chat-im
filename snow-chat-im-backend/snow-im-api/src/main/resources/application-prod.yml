@@ -1,0 +1,59 @@
+server:
+  port: 8091
+
+spring:
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/snow_chat_im?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=GMT&allowPublicKeyRetrieval=true
+    username: root
+    password: 12345678
+    druid:
+      initial-size: 1
+      max-active: 20
+      min-idle: 1
+      validation-query: select 'x'
+      test-on-borrow: false
+      test-on-return: false
+      test-while-idle: true
+      time-between-eviction-runs-millis: 60000
+      min-evictable-idle-time-millis: 300000
+      max-evictable-idle-time-millis: 900000
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/*/**Mapper.xml
+  type-aliases-package: com.stylesmile.chat.entity
+  global-config:
+    db-config:
+      id-type: AUTO
+      field-strategy: not_empty
+      column-underline: true
+      logic-delete-value: 0
+      logic-not-delete-value: 1
+      db-type: MYSQL
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+flyway:
+  enabled: true
+  locations: classpath:db/migration
+  baseline-on-migrate: true
+
+chat:
+  mqtt:
+    broker-url: tcp://127.0.0.1:1883
+    username:
+    password:
+
+mica:
+  mqtt:
+    enabled: true
+    server:
+      enabled: true
+      port: 1883
+
+logging:
+  level:
+    com.stylesmile: debug

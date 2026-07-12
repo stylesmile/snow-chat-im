@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.stylesmile.chat.mapper.ChatMessageMapper">
+    <resultMap id="chatMessage" type="com.stylesmile.chat.entity.ChatMessage"/>
+
+    <!-- 根据目标查询消息 -->
+    <select id="getMessagesByTarget" resultMap="chatMessage">
+        SELECT * FROM chat_message
+        WHERE ((to_user_id = #{userId} AND group_id IS NULL) OR group_id = #{groupId})
+        AND create_time &gt; #{sinceTime}
+        ORDER BY create_time ASC
+    </select>
+</mapper>

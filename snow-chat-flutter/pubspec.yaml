@@ -1,0 +1,70 @@
+name: snow_chat
+description: A real-time chat application.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+  flutter: '>=3.16.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  
+  # State management
+  provider: ^6.1.1
+  
+  # MQTT
+  mqtt_client: ^10.5.1
+  
+  # Local storage
+  sqflite: ^2.3.0
+  sqlite3_flutter_libs: ^0.5.0
+  
+  # Network
+  dio: ^5.4.0
+  
+  # Multimedia
+  image_picker: ^1.0.0
+  video_player: ^2.8.0
+  cached_network_image: ^3.3.0
+  
+  # Internationalization
+  intl: ^0.20.2
+  
+  # Utilities
+  uuid: ^4.2.0
+  path_provider: ^2.1.0
+  permission_handler: ^11.2.0
+  shared_preferences: ^2.2.2
+  
+  # UI
+  flutter_slidable: ^3.0.1
+  flutter_staggered_grid_view: ^0.7.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  
+  # Enable localization
+  generate: true
+  
+  assets:
+    - assets/images/
+    - assets/icons/
+
+flutter_intl:
+  enabled: true
+  class_name: AppLocalizations
+  locales:
+    - zh
+    - en
+    - zh_TW
+    - ja
+    - ko

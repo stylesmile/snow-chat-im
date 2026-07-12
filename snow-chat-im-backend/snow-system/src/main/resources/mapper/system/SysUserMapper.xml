@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.stylesmile.modules.system.mapper.SysUserMapper">
+    <resultMap id="user" type="com.stylesmile.modules.system.entity.SysUser"/>
+    <parameterMap id="user2" type="com.stylesmile.modules.system.entity.SysUser"/>
+
+    <!-- 通过用户名密码查询用户 -->
+    <select id="getSysUserByName" resultMap="user">
+        SELECT  * FROM sys_user WHERE  username=#{username} limit 1
+    </select>
+
+    <!-- 编辑用户 -->
+    <update id="updateUser">
+        UPDATE sys_user
+        <set>
+            <if test="username!=null and username !=''">username=#{username},</if>
+            <if test="password!=null and password !=''">password=#{password},</if>
+            <if test="nickname!=null and nickname !=''">nickname=#{nickname},</if>
+            <if test="phone!=null and phone !=''">phone=#{phone},</if>
+            <if test="email!=null and email !=''">email=#{email}</if>
+        </set>
+        WHERE id=#{id}
+    </update>
+
+    <!-- 根据url查询用户是否有该url的权限 -->
+    <update id="deleteUser">
+        UPDATE sys_user set del_flag=1 WHERE id=#{id}
+    </update>
+
+    <!-- 查询用户list -->
+    <select id="getUserList" resultMap="user">
+        SELECT su.id,su.username,su.nickname,su.phone,su.email
+        FROM sys_user su
+            left join sys_user_depart sud on su.id = sud.user_id
+            left join sys_depart sd on sd.id = sud.depart_id
+        WHERE su.del_flag = 0
+        <if test="username!=null and username !=''">and su.username like"%"#{username}"%"</if>
+        <if test="nickname!=null and nickname !=''">and su.nickname like concat(concat(#{nickname},'%'),'%')</if>
+        <if test="phone!=null and phone !=''">and su.phone like '%${phone}%'</if>
+        <if test="email!=null and email !=''">and su.email=#{email}</if>
+        <if test="departId!=null and departId !=''">
+            and depart_id=#{departId}
+        </if>
+
+    </select>
+
+    <!-- 根据url查询用户是否有该url的权限 -->
+    <select id="queryPermission" resultType="java.lang.Integer">
+        select count(1) from (select * from sys_menu where url = #{url}) sm
+        left join sys_role_menu srm on srm.menu_id = sm.id
+        left join sys_role sr on  sr.id = srm.role_id
+        left join sys_user_role sur on sur.role_id = sr.id
+        left join sys_user su on su.id =sur.user_id
+        where su.id = #{userId}
+    </select>
+</mapper>
