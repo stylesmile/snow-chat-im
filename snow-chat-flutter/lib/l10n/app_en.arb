@@ -250,4 +250,10 @@
   "@alreadyHaveAccount": {"description": "Redirect to sign in"},
   "noAccountYet": "Don't have an account? Sign up",
   "@noAccountYet": {"description": "Redirect to sign up"}
+,
+  "deleteFriend": "Delete Friend",
+  "@deleteFriend": {"description": "Delete friend confirmation"}
+,
+  "search": "Search",
+  "@search": {"description": "Search button"}
 }

@@ -1,3 +1,5 @@
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -34,7 +36,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get addFriend => '添加好友';
 
   @override
-  String get sendFriendRequest => '发送好友请求';
+  String get sendFriendRequest => '发送请求';
 
   @override
   String get accept => '接受';
@@ -380,6 +382,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get noAccountYet => '还没有账号？去注册';
+
+  @override
+  String get search => '搜索';
+
+  @override
+  String get deleteFriend => '删除好友';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -760,4 +768,10 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get noAccountYet => '還沒有帳號？去註冊';
+
+  @override
+  String get search => '搜尋';
+
+  @override
+  String get deleteFriend => '刪除好友';
 }

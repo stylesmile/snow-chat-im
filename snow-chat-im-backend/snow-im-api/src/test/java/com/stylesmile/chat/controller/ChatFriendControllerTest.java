@@ -1,0 +1,92 @@
+package com.stylesmile.chat.controller;
+
+import com.stylesmile.chat.entity.ChatFriend;
+import com.stylesmile.chat.entity.ChatFriendRequest;
+import com.stylesmile.chat.service.ChatFriendRequestService;
+import com.stylesmile.chat.service.ChatFriendService;
+import com.stylesmile.common.util.Result;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class ChatFriendControllerTest {
+
+    @Mock
+    private ChatFriendService chatFriendService;
+
+    @Mock
+    private ChatFriendRequestService chatFriendRequestService;
+
+    @InjectMocks
+    private ChatFriendController controller;
+
+    @Test
+    void listsFriendsForUser() {
+        List<ChatFriend> friends = List.of(new ChatFriend());
+        when(chatFriendService.getFriendsByUserId(7)).thenReturn(friends);
+
+        Result<List<ChatFriend>> result = controller.list(7);
+
+        assertSuccess(result);
+        assertEquals(friends, result.getData());
+        verify(chatFriendService).getFriendsByUserId(7);
+    }
+
+    @Test
+    void sendsFriendRequestFromDto() {
+        ChatFriendController.FriendRequestDTO dto = new ChatFriendController.FriendRequestDTO();
+        dto.setFromUserId(1);
+        dto.setToUserId(2);
+        dto.setRemark("朋友");
+
+        Result<Void> result = controller.request(dto);
+
+        assertSuccess(result);
+        verify(chatFriendRequestService).sendRequest(1, 2, "朋友");
+    }
+
+    @Test
+    void handlesFriendRequestFromDto() {
+        ChatFriendController.FriendHandleDTO dto = new ChatFriendController.FriendHandleDTO();
+        dto.setFromUserId(1);
+        dto.setToUserId(2);
+        dto.setAccept(true);
+
+        Result<Void> result = controller.handle(dto);
+
+        assertSuccess(result);
+        verify(chatFriendRequestService).handleRequest(1, 2, true);
+    }
+
+    @Test
+    void listsPendingRequests() {
+        List<ChatFriendRequest> requests = List.of(new ChatFriendRequest());
+        when(chatFriendRequestService.getPendingRequests(2)).thenReturn(requests);
+
+        Result<List<ChatFriendRequest>> result = controller.pending(2);
+
+        assertSuccess(result);
+        assertEquals(requests, result.getData());
+    }
+
+    @Test
+    void deletesBothDirectionsOfFriendship() {
+        Result<Void> result = controller.delete(1, 2);
+
+        assertSuccess(result);
+        verify(chatFriendService, org.mockito.Mockito.times(2)).remove(org.mockito.ArgumentMatchers.any());
+    }
+
+    private void assertSuccess(Result<?> result) {
+        assertEquals("200", result.getCode());
+    }
+}

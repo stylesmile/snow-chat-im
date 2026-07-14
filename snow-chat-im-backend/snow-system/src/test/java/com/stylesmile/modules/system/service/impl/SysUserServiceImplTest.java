@@ -9,14 +9,19 @@ import com.stylesmile.modules.system.vo.query.SysUserQuery;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
+@ExtendWith(MockitoExtension.class)
 class SysUserServiceImplTest {
 
     private SysUserServiceImpl sysUserServiceImplUnderTest;
@@ -26,6 +31,7 @@ class SysUserServiceImplTest {
     @BeforeEach
     void setUp() {
         sysUserServiceImplUnderTest = new SysUserServiceImpl();
+        ReflectionTestUtils.setField(sysUserServiceImplUnderTest, "baseMapper", baseMapper);
     }
 
     @Test
@@ -46,7 +52,9 @@ class SysUserServiceImplTest {
         loginVo.setUsername("username");
         loginVo.setPassword("password");
 
-        final HttpSession session = null;
+        final HttpSession session = new MockHttpServletRequest().getSession();
+
+        when(baseMapper.getSysUserByName("username")).thenReturn(null);
 
         // Run the test
         final Result<String> result = sysUserServiceImplUnderTest.getSysUserByNameAndPassword(loginVo, session);
@@ -65,6 +73,8 @@ class SysUserServiceImplTest {
         sysUserQuery.setDepartId("departId");
 
         // Run the test
+        when(baseMapper.getUserList(any(SysUserQuery.class))).thenReturn(new Page<>(1, 10));
+
         final Page<SysUser> result = sysUserServiceImplUnderTest.getUserList(sysUserQuery);
 
         // Verify the results
@@ -74,6 +84,8 @@ class SysUserServiceImplTest {
     void testUpdateUser() {
         // Setup
         final SysUser user = new SysUser("username", "password");
+
+        when(baseMapper.updateUser(any(SysUser.class))).thenReturn(false);
 
         // Run the test
         final Boolean result = sysUserServiceImplUnderTest.updateUser(user);
@@ -85,6 +97,8 @@ class SysUserServiceImplTest {
     @Test
     void testDeleteUser() {
         // Setup
+        when(baseMapper.deleteUser(0)).thenReturn(false);
+
         // Run the test
         final Boolean result = sysUserServiceImplUnderTest.deleteUser(0);
 
@@ -95,6 +109,8 @@ class SysUserServiceImplTest {
     @Test
     void testQueryPermission() {
         // Setup
+        when(baseMapper.queryPermission("url", 0)).thenReturn(0);
+
         // Run the test
         final Integer result = sysUserServiceImplUnderTest.queryPermission("url", 0);
 

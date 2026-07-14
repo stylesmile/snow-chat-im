@@ -57,7 +57,7 @@ public class SysUserServiceImpl extends BaseServiceImpl<SysUserMapper, SysUser> 
     public Result<String> getSysUserByNameAndPassword(LoginVo loginVo, HttpSession session) {
         SysUser user = baseMapper.getSysUserByName(loginVo.getUsername());
         if (null == user) {
-            Result.failMessage("用户不存在");
+            return Result.failMessage("用户不存在");
         }
         String pwd = SecureUtil.md5(loginVo.getPassword() + user.getId());
         if (user.getPassword().equals(loginVo.getPassword())) {

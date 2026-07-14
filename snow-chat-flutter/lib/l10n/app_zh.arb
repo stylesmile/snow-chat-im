@@ -250,5 +250,14 @@
   "@alreadyHaveAccount": {"description": "已有账号跳转登录"},
   "noAccountYet": "还没有账号？去注册",
   "@noAccountYet": {"description": "没有账号跳转注册"},
+  "search": "搜索",
+  "@search": {"description": "搜索按钮"},
+  "sendFriendRequest": "发送请求",
+  "@sendFriendRequest": {"description": "发送好友请求按钮"},
+  "friendRequestSent": "好友请求已发送",
+  "@friendRequestSent": {"description": "好友请求发送成功"},
   "@register": {"description": "注册按钮"}
+,
+  "deleteFriend": "删除好友",
+  "@deleteFriend": {"description": "删除好友确认"}
 }

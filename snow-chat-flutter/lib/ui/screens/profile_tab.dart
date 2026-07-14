@@ -3,10 +3,9 @@ import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/auth_provider.dart';
-import 'contact_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+class ProfileTab extends StatelessWidget {
+  const ProfileTab({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +32,6 @@ class ProfileScreen extends StatelessWidget {
           ),
           const Divider(height: 1),
 
-          // Language selection
           ExpansionTile(
             leading: const Icon(Icons.language),
             title: Text(l10n.language),
@@ -54,7 +52,6 @@ class ProfileScreen extends StatelessWidget {
           ),
           const Divider(height: 1),
 
-          // Settings options
           ListTile(
             leading: const Icon(Icons.privacy_tip),
             title: Text(l10n.privacy),
@@ -71,7 +68,6 @@ class ProfileScreen extends StatelessWidget {
           ),
           const Divider(height: 1),
 
-          // Logout
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
             title: Text(l10n.logout, style: const TextStyle(color: Colors.red)),
@@ -97,22 +93,6 @@ class ProfileScreen extends StatelessWidget {
             },
           ),
         ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: 2,
-        type: BottomNavigationBarType.fixed,
-        items: [
-          BottomNavigationBarItem(icon: const Icon(Icons.chat), label: l10n.chat),
-          BottomNavigationBarItem(icon: const Icon(Icons.people), label: l10n.contacts),
-          BottomNavigationBarItem(icon: const Icon(Icons.person), label: l10n.profile),
-        ],
-        onTap: (index) {
-          if (index == 0) {
-            Navigator.of(context).pop();
-          } else if (index == 1) {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactScreen()));
-          }
-        },
       ),
     );
   }

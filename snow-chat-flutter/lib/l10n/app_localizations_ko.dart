@@ -1,3 +1,5 @@
+// ignore: unused_import
+import 'package:intl/intl.dart' as intl;
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -380,4 +382,10 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get noAccountYet => '계정이 없으신가요? 회원가입';
+
+  @override
+  String get search => '검색';
+
+  @override
+  String get deleteFriend => '친구 삭제';
 }

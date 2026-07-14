@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import 'providers/settings_provider.dart';
 import 'providers/auth_provider.dart';
 import 'ui/screens/login_screen.dart';
-import 'ui/screens/chat_list_screen.dart';
+import 'ui/screens/home_screen.dart';
 
 class SnowChatApp extends StatelessWidget {
   const SnowChatApp({super.key});
@@ -81,7 +81,7 @@ class AuthScreenWrapper extends StatelessWidget {
     final auth = context.watch<AuthProvider>();
 
     if (auth.isLoggedIn) {
-      return const ChatListScreen();
+      return const HomeScreen();
     }
     return const LoginScreen();
   }

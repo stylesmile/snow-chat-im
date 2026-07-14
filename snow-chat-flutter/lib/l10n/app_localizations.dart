@@ -154,10 +154,10 @@ abstract class AppLocalizations {
   /// **'添加好友'**
   String get addFriend;
 
-  /// 发送好友请求
+  /// 发送好友请求按钮
   ///
   /// In zh, this message translates to:
-  /// **'发送好友请求'**
+  /// **'发送请求'**
   String get sendFriendRequest;
 
   /// 接受
@@ -849,6 +849,18 @@ abstract class AppLocalizations {
   /// In zh, this message translates to:
   /// **'还没有账号？去注册'**
   String get noAccountYet;
+
+  /// 搜索按钮
+  ///
+  /// In zh, this message translates to:
+  /// **'搜索'**
+  String get search;
+
+  /// 删除好友确认
+  ///
+  /// In zh, this message translates to:
+  /// **'删除好友'**
+  String get deleteFriend;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

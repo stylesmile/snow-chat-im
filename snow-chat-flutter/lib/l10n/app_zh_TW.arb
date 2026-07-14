@@ -250,4 +250,10 @@
   "@alreadyHaveAccount": {"description": "已有帳號跳轉登入"},
   "noAccountYet": "還沒有帳號？去註冊",
   "@noAccountYet": {"description": "沒有帳號跳轉註冊"}
+,
+  "deleteFriend": "刪除好友",
+  "@deleteFriend": {"description": "刪除好友確認"}
+,
+  "search": "搜尋",
+  "@search": {"description": "搜尋按鈕"}
 }

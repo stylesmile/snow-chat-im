@@ -29,6 +29,14 @@ public class ChatFriendRequest {
      * 创建时间
      */
     private java.util.Date createTime;
+    /**
+     * 发起人昵称（JOIN查询）
+     */
+    private String fromNickname;
+    /**
+     * 发起人头像（JOIN查询）
+     */
+    private String fromAvatar;
 
     public ChatFriendRequest() {
     }
@@ -79,5 +87,21 @@ public class ChatFriendRequest {
 
     public void setCreateTime(java.util.Date createTime) {
         this.createTime = createTime;
+    }
+
+    public String getFromNickname() {
+        return fromNickname;
+    }
+
+    public void setFromNickname(String fromNickname) {
+        this.fromNickname = fromNickname;
+    }
+
+    public String getFromAvatar() {
+        return fromAvatar;
+    }
+
+    public void setFromAvatar(String fromAvatar) {
+        this.fromAvatar = fromAvatar;
     }
 }

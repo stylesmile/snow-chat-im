@@ -25,6 +25,18 @@ public class ChatFriend {
      * 创建时间
      */
     private java.util.Date createTime;
+    /**
+     * 好友昵称（JOIN查询）
+     */
+    private String nickname;
+    /**
+     * 好友头像（JOIN查询）
+     */
+    private String avatar;
+    /**
+     * 好友在线状态（JOIN查询）
+     */
+    private String status;
 
     public ChatFriend() {
     }
@@ -67,5 +79,29 @@ public class ChatFriend {
 
     public void setCreateTime(java.util.Date createTime) {
         this.createTime = createTime;
+    }
+
+    public String getNickname() {
+        return nickname;
+    }
+
+    public void setNickname(String nickname) {
+        this.nickname = nickname;
+    }
+
+    public String getAvatar() {
+        return avatar;
+    }
+
+    public void setAvatar(String avatar) {
+        this.avatar = avatar;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 }

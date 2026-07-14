@@ -250,4 +250,10 @@
   "@alreadyHaveAccount": {"description": "サインインへのリダイレクト"},
   "noAccountYet": "アカウントがありませんか？サインアップ",
   "@noAccountYet": {"description": "サインアップへのリダイレクト"}
+,
+  "deleteFriend": "フレンド削除",
+  "@deleteFriend": {"description": "フレンド削除の確認"}
+,
+  "search": "検索",
+  "@search": {"description": "検索ボタン"}
 }
