@@ -25,15 +25,22 @@ class AuthProvider extends ChangeNotifier {
   ApiClient get apiClient => _apiClient;
 
   Future<bool> login(String username, String password) async {
+    _lastError = null;
     try {
       final result = await _apiClient.request('/chat/user/login', data: {
         'username': username,
         'password': password,
       });
 
-      if (result['code'] == '200' || result['code'] == 200) {
+      // 后端返回 code 为字符串 "200"
+      final code = result['code'];
+      if (code == '200' || code == 200) {
         final data = result['data'];
-        _userId = data['id'] as int?;
+        if (data == null) {
+          _lastError = '登录成功但返回数据为空';
+          return false;
+        }
+        _userId = _parseInt(data['id']);
         _username = data['username'] as String?;
         _nickname = data['nickname'] as String?;
         _avatar = data['avatar'] as String?;
@@ -41,8 +48,12 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
         return true;
       }
+
+      // 登录失败，保存后端返回的错误信息
+      _lastError = result['msg'] as String? ?? '登录失败 (code: $code)';
       return false;
-    } catch (e) {
+    } on Exception catch (e) {
+      _lastError = '网络错误: $e';
       if (kDebugMode) print('Login error: $e');
       return false;
     }
@@ -58,9 +69,14 @@ class AuthProvider extends ChangeNotifier {
         'email': email,
       });
 
-      if (result['code'] == '200' || result['code'] == 200) {
+      final code = result['code'];
+      if (code == '200' || code == 200) {
         final data = result['data'];
-        _userId = data['id'] as int?;
+        if (data == null) {
+          _lastError = '注册成功但返回数据为空';
+          return false;
+        }
+        _userId = _parseInt(data['id']);
         _username = data['username'] as String?;
         _nickname = data['nickname'] as String?;
         _avatar = data['avatar'] as String?;
@@ -68,10 +84,10 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
         return true;
       }
-      _lastError = result['msg'] as String? ?? 'Registration failed';
+      _lastError = result['msg'] as String? ?? '注册失败 (code: $code)';
       return false;
-    } catch (e) {
-      _lastError = e.toString();
+    } on Exception catch (e) {
+      _lastError = '网络错误: $e';
       if (kDebugMode) print('Register error: $e');
       return false;
     }
@@ -85,5 +101,14 @@ class AuthProvider extends ChangeNotifier {
     _isLoggedIn = false;
     _lastError = null;
     notifyListeners();
+  }
+
+  /// 安全解析 int，支持 int/double/String 类型
+  static int? _parseInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
   }
 }

@@ -20,7 +20,7 @@ class SnowChatApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1A73E8),
+          seedColor: const Color(0xFF6750A4),
           brightness: Brightness.light,
         ),
         useMaterial3: true,
@@ -49,7 +49,7 @@ class SnowChatApp extends StatelessWidget {
       ),
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1A73E8),
+          seedColor: const Color(0xFF6750A4),
           brightness: Brightness.dark,
         ),
         useMaterial3: true,
