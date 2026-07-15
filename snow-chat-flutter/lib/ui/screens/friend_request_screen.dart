@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/friend_request_provider.dart';
 import '../../services/contact_service.dart';
 import '../widgets/avatar_widget.dart';
 
@@ -20,6 +21,10 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
   void initState() {
     super.initState();
     _loadData();
+    // 进入"新的朋友"页面，清除未读标记
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<FriendRequestProvider>().markAsRead();
+    });
   }
 
   Future<void> _loadData() async {

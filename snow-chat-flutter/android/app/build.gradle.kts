@@ -16,7 +16,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.cotalk.co_talk_flutter"
+    namespace = "com.snow.chat.im"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "28.2.13676358"
 
@@ -31,7 +31,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.cotalk.co_talk_flutter"
+        applicationId = "com.snow.chat.im"
         minSdk = flutter.minSdkVersion  // super_native_extensions 라이브러리 요구사항
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

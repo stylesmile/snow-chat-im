@@ -3,6 +3,7 @@ import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
+import '../../providers/friend_request_provider.dart';
 import 'chat_list_tab.dart';
 import 'contact_tab.dart';
 import 'profile_tab.dart';
@@ -21,25 +22,37 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    // 启动好友请求轮询
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = context.read<AuthProvider>();
+      final friendReqProvider = context.read<FriendRequestProvider>();
+      if (auth.userId != null) {
+        friendReqProvider.startPolling(auth.userId!);
+      }
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    // 停止好友请求轮询
+    context.read<FriendRequestProvider>().stopPolling();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final friendReqProvider = context.watch<FriendRequestProvider>();
+    final hasFriendRequest = friendReqProvider.hasUnread;
 
     return Scaffold(
       body: TabBarView(
         controller: _tabController,
         children: [
           const ChatListTab(),
-          ContactTab(),
-          ProfileTab(),
+          const ContactTab(),
+          const ProfileTab(),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -54,8 +67,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             label: l10n.chat,
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.people_outline),
-            activeIcon: const Icon(Icons.people),
+            icon: _buildBadgeIcon(
+              icon: Icons.people_outline,
+              showBadge: hasFriendRequest,
+            ),
+            activeIcon: _buildBadgeIcon(
+              icon: Icons.people,
+              showBadge: hasFriendRequest,
+            ),
             label: l10n.contacts,
           ),
           BottomNavigationBarItem(
@@ -68,6 +87,29 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           _tabController.animateTo(index);
         },
       ),
+    );
+  }
+
+  /// 带小红点的图标
+  Widget _buildBadgeIcon({required IconData icon, required bool showBadge}) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Icon(icon),
+        if (showBadge)
+          Positioned(
+            right: -2,
+            top: -2,
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: const BoxDecoration(
+                color: Colors.red,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

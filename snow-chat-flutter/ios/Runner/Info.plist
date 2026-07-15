@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>co_talk_flutter</string>
+	<string>snow_chat_im</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -74,10 +74,10 @@
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLName</key>
-			<string>com.cotalk.app</string>
+			<string>com.snow.chat.im</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>cotalk</string>
+				<string>snowchat</string>
 			</array>
 		</dict>
 	</array>

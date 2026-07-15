@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/friend_request_provider.dart';
 import '../../services/contact_service.dart';
 import '../../models/friend_model.dart';
 import '../../core/utils/pinyin_helper.dart';
@@ -140,6 +141,8 @@ class _ContactTabState extends State<ContactTab> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final friendReqProvider = context.watch<FriendRequestProvider>();
+    final unreadCount = friendReqProvider.unreadCount;
 
     return Scaffold(
       appBar: AppBar(
@@ -160,12 +163,12 @@ class _ContactTabState extends State<ContactTab> {
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _loadData,
-              child: _buildBody(l10n),
+              child: _buildBody(l10n, unreadCount),
             ),
     );
   }
 
-  Widget _buildBody(AppLocalizations l10n) {
+  Widget _buildBody(AppLocalizations l10n, int unreadCount) {
     final grouped = _groupByLetter();
     final availableLetters = _getAvailableLetters(grouped);
 
@@ -185,6 +188,7 @@ class _ContactTabState extends State<ContactTab> {
               icon: Icons.person_add,
               iconColor: const Color(0xFFFFA726),
               title: l10n.newFriendRequest,
+              badgeCount: unreadCount,
               onTap: () {
                 Navigator.push(
                   context,
@@ -260,6 +264,7 @@ class _ContactTabState extends State<ContactTab> {
     required Color iconColor,
     required String title,
     VoidCallback? onTap,
+    int badgeCount = 0,
   }) {
     return ListTile(
       leading: Container(
@@ -272,7 +277,29 @@ class _ContactTabState extends State<ContactTab> {
         child: Icon(icon, color: Colors.white, size: 22),
       ),
       title: Text(title, style: const TextStyle(fontSize: 16)),
-      trailing: const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (badgeCount > 0)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.red,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                badgeCount > 99 ? '99+' : '$badgeCount',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          const SizedBox(width: 4),
+          const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+        ],
+      ),
       onTap: onTap,
     );
   }

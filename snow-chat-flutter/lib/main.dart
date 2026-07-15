@@ -6,6 +6,7 @@ import 'app.dart';
 import 'providers/auth_provider.dart';
 import 'providers/settings_provider.dart';
 import 'providers/chat_provider.dart';
+import 'providers/friend_request_provider.dart';
 import 'core/constants/api_constants.dart';
 
 void main() async {
@@ -29,6 +30,11 @@ void main() async {
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
         ChangeNotifierProvider(create: (_) => AuthProvider(ApiConstants.baseUrl)),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
+        ChangeNotifierProvider(
+          create: (context) => FriendRequestProvider(
+            context.read<AuthProvider>().apiClient,
+          ),
+        ),
       ],
       child: const SnowChatApp(),
     ),

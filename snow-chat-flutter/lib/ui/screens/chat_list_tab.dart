@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/auth_provider.dart';
 import 'chat_detail_screen.dart';
+import 'login_screen.dart';
 
 class ChatListTab extends StatelessWidget {
   const ChatListTab({super.key});
@@ -31,6 +32,10 @@ class ChatListTab extends StatelessWidget {
             onSelected: (value) {
               if (value == 'logout') {
                 context.read<AuthProvider>().logout();
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (route) => false,
+                );
               }
             },
           ),

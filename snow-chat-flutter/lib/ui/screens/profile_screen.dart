@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/auth_provider.dart';
 import 'contact_tab.dart';
+import 'login_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -78,15 +79,22 @@ class ProfileScreen extends StatelessWidget {
             onTap: () {
               showDialog(
                 context: context,
-                builder: (_) => AlertDialog(
+                builder: (dialogContext) => AlertDialog(
                   title: Text(l10n.logout),
                   content: Text(l10n.logout),
                   actions: [
-                    TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.cancel)),
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      child: Text(l10n.cancel),
+                    ),
                     ElevatedButton(
                       onPressed: () {
+                        Navigator.pop(dialogContext);
                         auth.logout();
-                        Navigator.of(context).popUntil((r) => r.isFirst);
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(builder: (_) => const LoginScreen()),
+                          (route) => false,
+                        );
                       },
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                       child: Text(l10n.confirm),
