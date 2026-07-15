@@ -138,6 +138,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get confirm => '확인';
 
   @override
+  String get ok => 'OK';
+
+  @override
   String get cancel => '취소';
 
   @override
@@ -384,8 +387,8 @@ class AppLocalizationsKo extends AppLocalizations {
   String get noAccountYet => '계정이 없으신가요? 회원가입';
 
   @override
-  String get search => '검색';
+  String get deleteFriend => '친구 삭제';
 
   @override
-  String get deleteFriend => '친구 삭제';
+  String get search => '검색';
 }

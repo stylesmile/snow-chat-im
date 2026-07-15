@@ -86,6 +86,8 @@
   "@error": {"description": "Error"},
   "confirm": "Confirm",
   "@confirm": {"description": "Confirm button"},
+  "ok": "OK",
+  "@ok": {"description": "OK button"},
   "cancel": "Cancel",
   "@cancel": {"description": "Cancel button"},
   "save": "Save",

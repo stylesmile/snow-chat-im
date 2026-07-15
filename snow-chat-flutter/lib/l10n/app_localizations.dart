@@ -100,767 +100,773 @@ abstract class AppLocalizations {
     Locale('zh', 'TW')
   ];
 
-  /// 应用标题
+  /// App title
   ///
-  /// In zh, this message translates to:
+  /// In en, this message translates to:
   /// **'SnowChat'**
   String get appTitle;
 
-  /// 登录按钮文字
+  /// Login button
   ///
-  /// In zh, this message translates to:
-  /// **'登录'**
+  /// In en, this message translates to:
+  /// **'Login'**
   String get login;
 
-  /// 用户名输入框标签
+  /// Username field
   ///
-  /// In zh, this message translates to:
-  /// **'用户名'**
+  /// In en, this message translates to:
+  /// **'Username'**
   String get username;
 
-  /// 密码输入框标签
+  /// Password field
   ///
-  /// In zh, this message translates to:
-  /// **'密码'**
+  /// In en, this message translates to:
+  /// **'Password'**
   String get password;
 
-  /// 退出登录按钮
+  /// Logout button
   ///
-  /// In zh, this message translates to:
-  /// **'退出登录'**
+  /// In en, this message translates to:
+  /// **'Logout'**
   String get logout;
 
-  /// 通讯录 tab
+  /// Contacts tab
   ///
-  /// In zh, this message translates to:
-  /// **'通讯录'**
+  /// In en, this message translates to:
+  /// **'Contacts'**
   String get contacts;
 
-  /// 聊天 tab
+  /// Chat tab
   ///
-  /// In zh, this message translates to:
-  /// **'聊天'**
+  /// In en, this message translates to:
+  /// **'Chat'**
   String get chat;
 
-  /// 个人中心 tab
+  /// Profile tab
   ///
-  /// In zh, this message translates to:
-  /// **'个人中心'**
+  /// In en, this message translates to:
+  /// **'Profile'**
   String get profile;
 
-  /// 添加好友
+  /// Add friend
   ///
-  /// In zh, this message translates to:
-  /// **'添加好友'**
+  /// In en, this message translates to:
+  /// **'Add Friend'**
   String get addFriend;
 
-  /// 发送好友请求按钮
+  /// Send friend request
   ///
-  /// In zh, this message translates to:
-  /// **'发送请求'**
+  /// In en, this message translates to:
+  /// **'Send Friend Request'**
   String get sendFriendRequest;
 
-  /// 接受
+  /// Accept
   ///
-  /// In zh, this message translates to:
-  /// **'接受'**
+  /// In en, this message translates to:
+  /// **'Accept'**
   String get accept;
 
-  /// 拒绝
+  /// Reject
   ///
-  /// In zh, this message translates to:
-  /// **'拒绝'**
+  /// In en, this message translates to:
+  /// **'Reject'**
   String get reject;
 
-  /// 群名称
+  /// Group name
   ///
-  /// In zh, this message translates to:
-  /// **'群名称'**
+  /// In en, this message translates to:
+  /// **'Group Name'**
   String get groupName;
 
-  /// 创建群组
+  /// Create group
   ///
-  /// In zh, this message translates to:
-  /// **'创建群组'**
+  /// In en, this message translates to:
+  /// **'Create Group'**
   String get createGroup;
 
-  /// 群成员
+  /// Group members
   ///
-  /// In zh, this message translates to:
-  /// **'群成员'**
+  /// In en, this message translates to:
+  /// **'Group Members'**
   String get groupMembers;
 
-  /// 退出群聊
+  /// Leave group
   ///
-  /// In zh, this message translates to:
-  /// **'退出群聊'**
+  /// In en, this message translates to:
+  /// **'Leave Group'**
   String get leaveGroup;
 
-  /// 文本消息类型
+  /// Text message type
   ///
-  /// In zh, this message translates to:
-  /// **'文本消息'**
+  /// In en, this message translates to:
+  /// **'Text Message'**
   String get textMessage;
 
-  /// 图片消息类型
+  /// Image message type
   ///
-  /// In zh, this message translates to:
-  /// **'图片消息'**
+  /// In en, this message translates to:
+  /// **'Image'**
   String get imageMessage;
 
-  /// 视频消息类型
+  /// Video message type
   ///
-  /// In zh, this message translates to:
-  /// **'视频消息'**
+  /// In en, this message translates to:
+  /// **'Video'**
   String get videoMessage;
 
-  /// 撤回消息
+  /// Recall message
   ///
-  /// In zh, this message translates to:
-  /// **'撤回消息'**
+  /// In en, this message translates to:
+  /// **'Recall'**
   String get recallMessage;
 
-  /// 搜索用户
+  /// Search users
   ///
-  /// In zh, this message translates to:
-  /// **'搜索用户'**
+  /// In en, this message translates to:
+  /// **'Search'**
   String get searchUser;
 
-  /// 搜索输入框提示文字
+  /// Search hint
   ///
-  /// In zh, this message translates to:
-  /// **'请输入用户名或昵称'**
+  /// In en, this message translates to:
+  /// **'Enter username or nickname'**
   String get searchHint;
 
-  /// 在线状态
+  /// Online status
   ///
-  /// In zh, this message translates to:
-  /// **'在线'**
+  /// In en, this message translates to:
+  /// **'Online'**
   String get online;
 
-  /// 离线状态
+  /// Offline status
   ///
-  /// In zh, this message translates to:
-  /// **'离线'**
+  /// In en, this message translates to:
+  /// **'Offline'**
   String get offline;
 
-  /// 对方正在输入
+  /// User is typing
   ///
-  /// In zh, this message translates to:
-  /// **'正在输入...'**
+  /// In en, this message translates to:
+  /// **'Typing...'**
   String get typing;
 
-  /// 无消息时的提示
+  /// No messages
   ///
-  /// In zh, this message translates to:
-  /// **'暂无消息'**
+  /// In en, this message translates to:
+  /// **'No messages yet'**
   String get noMessages;
 
-  /// 无联系人时的提示
+  /// No contacts
   ///
-  /// In zh, this message translates to:
-  /// **'暂无联系人'**
+  /// In en, this message translates to:
+  /// **'No contacts yet'**
   String get noContacts;
 
-  /// 无群组时的提示
+  /// No groups
   ///
-  /// In zh, this message translates to:
-  /// **'暂无群组'**
+  /// In en, this message translates to:
+  /// **'No groups yet'**
   String get noGroups;
 
-  /// 设置
+  /// Settings
   ///
-  /// In zh, this message translates to:
-  /// **'设置'**
+  /// In en, this message translates to:
+  /// **'Settings'**
   String get settings;
 
-  /// 语言设置
+  /// Language setting
   ///
-  /// In zh, this message translates to:
-  /// **'语言'**
+  /// In en, this message translates to:
+  /// **'Language'**
   String get language;
 
-  /// 昵称
+  /// Nickname
   ///
-  /// In zh, this message translates to:
-  /// **'昵称'**
+  /// In en, this message translates to:
+  /// **'Nickname'**
   String get nickname;
 
-  /// 个性签名
+  /// Personal signature
   ///
-  /// In zh, this message translates to:
-  /// **'个性签名'**
+  /// In en, this message translates to:
+  /// **'Signature'**
   String get signature;
 
-  /// 头像
+  /// Avatar
   ///
-  /// In zh, this message translates to:
-  /// **'头像'**
+  /// In en, this message translates to:
+  /// **'Avatar'**
   String get avatar;
 
-  /// 好友请求
+  /// Friend requests
   ///
-  /// In zh, this message translates to:
-  /// **'好友请求'**
+  /// In en, this message translates to:
+  /// **'Friend Requests'**
   String get friendRequests;
 
-  /// 待处理的好友请求
+  /// Pending friend requests
   ///
-  /// In zh, this message translates to:
-  /// **'待处理请求'**
+  /// In en, this message translates to:
+  /// **'Pending Requests'**
   String get pendingRequests;
 
-  /// 我的好友列表
+  /// My friends list
   ///
-  /// In zh, this message translates to:
-  /// **'我的好友'**
+  /// In en, this message translates to:
+  /// **'My Friends'**
   String get myFriends;
 
-  /// 我的群组列表
+  /// My groups list
   ///
-  /// In zh, this message translates to:
-  /// **'我的群组'**
+  /// In en, this message translates to:
+  /// **'My Groups'**
   String get myGroups;
 
-  /// 消息发送成功
+  /// Message sent successfully
   ///
-  /// In zh, this message translates to:
-  /// **'消息已发送'**
+  /// In en, this message translates to:
+  /// **'Message sent'**
   String get messageSent;
 
-  /// 消息发送失败
+  /// Message send failed
   ///
-  /// In zh, this message translates to:
-  /// **'消息发送失败'**
+  /// In en, this message translates to:
+  /// **'Message failed'**
   String get messageFailed;
 
-  /// 消息撤回提示
+  /// Message recalled
   ///
-  /// In zh, this message translates to:
-  /// **'消息已撤回'**
+  /// In en, this message translates to:
+  /// **'Message recalled'**
   String get messageRecalled;
 
-  /// 加载状态
+  /// Loading state
   ///
-  /// In zh, this message translates to:
-  /// **'加载中...'**
+  /// In en, this message translates to:
+  /// **'Loading...'**
   String get loading;
 
-  /// 错误提示
+  /// Error
   ///
-  /// In zh, this message translates to:
-  /// **'错误'**
+  /// In en, this message translates to:
+  /// **'Error'**
   String get error;
 
-  /// 确认按钮
+  /// Confirm button
   ///
-  /// In zh, this message translates to:
-  /// **'确定'**
+  /// In en, this message translates to:
+  /// **'Confirm'**
   String get confirm;
 
-  /// 取消按钮
+  /// OK button
   ///
-  /// In zh, this message translates to:
-  /// **'取消'**
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get ok;
+
+  /// Cancel button
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
   String get cancel;
 
-  /// 保存按钮
+  /// Save button
   ///
-  /// In zh, this message translates to:
-  /// **'保存'**
+  /// In en, this message translates to:
+  /// **'Save'**
   String get save;
 
-  /// 删除按钮
+  /// Delete button
   ///
-  /// In zh, this message translates to:
-  /// **'删除'**
+  /// In en, this message translates to:
+  /// **'Delete'**
   String get delete;
 
-  /// 编辑按钮
+  /// Edit button
   ///
-  /// In zh, this message translates to:
-  /// **'编辑'**
+  /// In en, this message translates to:
+  /// **'Edit'**
   String get edit;
 
-  /// 返回按钮
+  /// Back button
   ///
-  /// In zh, this message translates to:
-  /// **'返回'**
+  /// In en, this message translates to:
+  /// **'Back'**
   String get back;
 
-  /// 完成按钮
+  /// Done button
   ///
-  /// In zh, this message translates to:
-  /// **'完成'**
+  /// In en, this message translates to:
+  /// **'Done'**
   String get done;
 
-  /// 未知
+  /// Unknown
   ///
-  /// In zh, this message translates to:
-  /// **'未知'**
+  /// In en, this message translates to:
+  /// **'Unknown'**
   String get unknown;
 
-  /// 自己
+  /// Self reference
   ///
-  /// In zh, this message translates to:
-  /// **'你'**
+  /// In en, this message translates to:
+  /// **'You'**
   String get you;
 
-  /// 消息输入框提示
+  /// Message input hint
   ///
-  /// In zh, this message translates to:
-  /// **'输入消息...'**
+  /// In en, this message translates to:
+  /// **'Type a message...'**
   String get inputMessage;
 
-  /// 选择图片
+  /// Select image
   ///
-  /// In zh, this message translates to:
-  /// **'选择图片'**
+  /// In en, this message translates to:
+  /// **'Select Image'**
   String get selectImage;
 
-  /// 选择视频
+  /// Select video
   ///
-  /// In zh, this message translates to:
-  /// **'选择视频'**
+  /// In en, this message translates to:
+  /// **'Select Video'**
   String get selectVideo;
 
-  /// 拍照
+  /// Take photo
   ///
-  /// In zh, this message translates to:
-  /// **'拍照'**
+  /// In en, this message translates to:
+  /// **'Take Photo'**
   String get takePhoto;
 
-  /// 录像
+  /// Record video
   ///
-  /// In zh, this message translates to:
-  /// **'录像'**
+  /// In en, this message translates to:
+  /// **'Record Video'**
   String get takeVideo;
 
-  /// 添加群成员
+  /// Add group member
   ///
-  /// In zh, this message translates to:
-  /// **'添加成员'**
+  /// In en, this message translates to:
+  /// **'Add Member'**
   String get addMember;
 
-  /// 移除群成员
+  /// Remove group member
   ///
-  /// In zh, this message translates to:
-  /// **'移除成员'**
+  /// In en, this message translates to:
+  /// **'Remove Member'**
   String get removeMember;
 
-  /// 用户名无效提示
+  /// Invalid username
   ///
-  /// In zh, this message translates to:
-  /// **'请输入用户名'**
+  /// In en, this message translates to:
+  /// **'Please enter username'**
   String get invalidUsername;
 
-  /// 密码无效提示
+  /// Invalid password
   ///
-  /// In zh, this message translates to:
-  /// **'请输入密码'**
+  /// In en, this message translates to:
+  /// **'Please enter password'**
   String get invalidPassword;
 
-  /// 登录失败提示
+  /// Login failed
   ///
-  /// In zh, this message translates to:
-  /// **'登录失败，请重试'**
+  /// In en, this message translates to:
+  /// **'Login failed, please try again'**
   String get loginFailed;
 
-  /// 好友请求发送成功
+  /// Friend request sent successfully
   ///
-  /// In zh, this message translates to:
-  /// **'好友请求已发送'**
+  /// In en, this message translates to:
+  /// **'Friend request sent'**
   String get friendRequestSent;
 
-  /// 好友添加成功
+  /// Friend added successfully
   ///
-  /// In zh, this message translates to:
-  /// **'好友已添加'**
+  /// In en, this message translates to:
+  /// **'Friend added'**
   String get friendAdded;
 
-  /// 群组创建成功
+  /// Group created successfully
   ///
-  /// In zh, this message translates to:
-  /// **'群组已创建'**
+  /// In en, this message translates to:
+  /// **'Group created'**
   String get groupCreated;
 
-  /// 个人资料更新成功
+  /// Profile updated successfully
   ///
-  /// In zh, this message translates to:
-  /// **'个人资料已更新'**
+  /// In en, this message translates to:
+  /// **'Profile updated'**
   String get profileUpdated;
 
-  /// 加入群组成功
+  /// Joined group successfully
   ///
-  /// In zh, this message translates to:
-  /// **'已加入群组'**
+  /// In en, this message translates to:
+  /// **'Joined group'**
   String get groupJoined;
 
-  /// 退出群组成功
+  /// Left group successfully
   ///
-  /// In zh, this message translates to:
-  /// **'已退出群组'**
+  /// In en, this message translates to:
+  /// **'Left group'**
   String get leftGroup;
 
-  /// 好友删除成功
+  /// Friend deleted successfully
   ///
-  /// In zh, this message translates to:
-  /// **'好友已删除'**
+  /// In en, this message translates to:
+  /// **'Friend deleted'**
   String get friendDeleted;
 
-  /// 今天
+  /// Today
   ///
-  /// In zh, this message translates to:
-  /// **'今天'**
+  /// In en, this message translates to:
+  /// **'Today'**
   String get today;
 
-  /// 昨天
+  /// Yesterday
   ///
-  /// In zh, this message translates to:
-  /// **'昨天'**
+  /// In en, this message translates to:
+  /// **'Yesterday'**
   String get yesterday;
 
-  /// 群名称输入提示
+  /// Group name input hint
   ///
-  /// In zh, this message translates to:
-  /// **'请输入群名称'**
+  /// In en, this message translates to:
+  /// **'Enter group name'**
   String get enterGroupName;
 
-  /// 备注输入提示
+  /// Remark input hint
   ///
-  /// In zh, this message translates to:
-  /// **'请输入备注'**
+  /// In en, this message translates to:
+  /// **'Enter remark'**
   String get enterRemark;
 
-  /// 消息内容输入提示
+  /// Message input hint
   ///
-  /// In zh, this message translates to:
-  /// **'请输入消息内容'**
+  /// In en, this message translates to:
+  /// **'Enter message'**
   String get enterMessage;
 
-  /// 系统欢迎消息
+  /// System welcome message
   ///
-  /// In zh, this message translates to:
-  /// **'欢迎使用 SnowChat'**
+  /// In en, this message translates to:
+  /// **'Welcome to SnowChat'**
   String get systemWelcome;
 
-  /// 加入群组系统消息
+  /// Joined group system message
   ///
-  /// In zh, this message translates to:
-  /// **'加入了群组'**
+  /// In en, this message translates to:
+  /// **'joined the group'**
   String get joinedGroup;
 
-  /// 被移出群组系统消息
+  /// Removed from group system message
   ///
-  /// In zh, this message translates to:
-  /// **'被移出了群组'**
+  /// In en, this message translates to:
+  /// **'was removed from the group'**
   String get wasRemoved;
 
-  /// 新好友请求通知
+  /// New friend request notification
   ///
-  /// In zh, this message translates to:
-  /// **'新的好友请求'**
+  /// In en, this message translates to:
+  /// **'New friend request'**
   String get newFriendRequest;
 
-  /// 来自某人的请求
+  /// From someone
   ///
-  /// In zh, this message translates to:
-  /// **'来自'**
+  /// In en, this message translates to:
+  /// **'from'**
   String get from;
 
-  /// 备注
+  /// Remark
   ///
-  /// In zh, this message translates to:
-  /// **'备注'**
+  /// In en, this message translates to:
+  /// **'Remark'**
   String get remark;
 
-  /// 在线人数统计
+  /// Online user count
   ///
-  /// In zh, this message translates to:
-  /// **'在线人数'**
+  /// In en, this message translates to:
+  /// **'Online users'**
   String get onlineUsers;
 
-  /// 总成员数
+  /// Total member count
   ///
-  /// In zh, this message translates to:
-  /// **'总成员数'**
+  /// In en, this message translates to:
+  /// **'Total members'**
   String get totalMembers;
 
-  /// 会话列表标题
+  /// Chat list title
   ///
-  /// In zh, this message translates to:
-  /// **'会话'**
+  /// In en, this message translates to:
+  /// **'Chats'**
   String get chatList;
 
-  /// 最近聊天
+  /// Recent chats
   ///
-  /// In zh, this message translates to:
-  /// **'最近聊天'**
+  /// In en, this message translates to:
+  /// **'Recent'**
   String get recentChats;
 
-  /// 全部会话
+  /// All chats
   ///
-  /// In zh, this message translates to:
-  /// **'全部会话'**
+  /// In en, this message translates to:
+  /// **'All Chats'**
   String get allChats;
 
-  /// 加载完所有历史消息
+  /// All messages loaded
   ///
-  /// In zh, this message translates to:
-  /// **'没有更多消息了'**
+  /// In en, this message translates to:
+  /// **'No more messages'**
   String get noMoreMessages;
 
-  /// 下拉刷新提示
+  /// Pull to refresh hint
   ///
-  /// In zh, this message translates to:
-  /// **'下拉刷新'**
+  /// In en, this message translates to:
+  /// **'Pull to refresh'**
   String get pullToRefresh;
 
-  /// 释放刷新提示
+  /// Release to refresh hint
   ///
-  /// In zh, this message translates to:
-  /// **'释放刷新'**
+  /// In en, this message translates to:
+  /// **'Release to refresh'**
   String get releaseToRefresh;
 
-  /// 刷新中
+  /// Refreshing
   ///
-  /// In zh, this message translates to:
-  /// **'正在刷新...'**
+  /// In en, this message translates to:
+  /// **'Refreshing...'**
   String get refreshing;
 
-  /// 复制成功提示
+  /// Copy successful
   ///
-  /// In zh, this message translates to:
-  /// **'已复制'**
+  /// In en, this message translates to:
+  /// **'Copied'**
   String get copied;
 
-  /// 复制操作
+  /// Copy action
   ///
-  /// In zh, this message translates to:
-  /// **'复制'**
+  /// In en, this message translates to:
+  /// **'Copy'**
   String get copy;
 
-  /// 转发操作
+  /// Forward action
   ///
-  /// In zh, this message translates to:
-  /// **'转发'**
+  /// In en, this message translates to:
+  /// **'Forward'**
   String get forward;
 
-  /// 回复操作
+  /// Reply action
   ///
-  /// In zh, this message translates to:
-  /// **'回复'**
+  /// In en, this message translates to:
+  /// **'Reply'**
   String get reply;
 
-  /// 置顶操作
+  /// Pin action
   ///
-  /// In zh, this message translates to:
-  /// **'置顶'**
+  /// In en, this message translates to:
+  /// **'Pin'**
   String get pin;
 
-  /// 免打扰开关
+  /// Mute notifications
   ///
-  /// In zh, this message translates to:
-  /// **'免打扰'**
+  /// In en, this message translates to:
+  /// **'Mute'**
   String get mute;
 
-  /// 关闭免打扰
+  /// Unmute notifications
   ///
-  /// In zh, this message translates to:
-  /// **'关闭免打扰'**
+  /// In en, this message translates to:
+  /// **'Unmute'**
   String get unmute;
 
-  /// 聊天置顶
+  /// Pin chat
   ///
-  /// In zh, this message translates to:
-  /// **'聊天置顶'**
+  /// In en, this message translates to:
+  /// **'Pin chat'**
   String get topChat;
 
-  /// 聊天取消置顶
+  /// Unpin chat
   ///
-  /// In zh, this message translates to:
-  /// **'聊天取消置顶'**
+  /// In en, this message translates to:
+  /// **'Unpin chat'**
   String get untopChat;
 
-  /// 选择联系人
+  /// Select contacts
   ///
-  /// In zh, this message translates to:
-  /// **'选择联系人'**
+  /// In en, this message translates to:
+  /// **'Select Contacts'**
   String get selectContacts;
 
-  /// 全选
+  /// Select all
   ///
-  /// In zh, this message translates to:
-  /// **'全选'**
+  /// In en, this message translates to:
+  /// **'Select All'**
   String get selectAll;
 
-  /// 取消全选
+  /// Deselect all
   ///
-  /// In zh, this message translates to:
-  /// **'取消全选'**
+  /// In en, this message translates to:
+  /// **'Deselect All'**
   String get deselectAll;
 
-  /// 隐私设置
+  /// Privacy settings
   ///
-  /// In zh, this message translates to:
-  /// **'隐私'**
+  /// In en, this message translates to:
+  /// **'Privacy'**
   String get privacy;
 
-  /// 黑名单
+  /// Blocked users list
   ///
-  /// In zh, this message translates to:
-  /// **'黑名单'**
+  /// In en, this message translates to:
+  /// **'Blocked Users'**
   String get blockedUsers;
 
-  /// 已读回执开关
+  /// Read receipts toggle
   ///
-  /// In zh, this message translates to:
-  /// **'已读回执'**
+  /// In en, this message translates to:
+  /// **'Read Receipts'**
   String get readReceipts;
 
-  /// 显示在线状态开关
+  /// Show online status toggle
   ///
-  /// In zh, this message translates to:
-  /// **'显示在线状态'**
+  /// In en, this message translates to:
+  /// **'Show Online Status'**
   String get showOnlineStatus;
 
-  /// 关于页面
+  /// About page
   ///
-  /// In zh, this message translates to:
-  /// **'关于'**
+  /// In en, this message translates to:
+  /// **'About'**
   String get about;
 
-  /// 版本号
+  /// Version number
   ///
-  /// In zh, this message translates to:
-  /// **'版本'**
+  /// In en, this message translates to:
+  /// **'Version'**
   String get version;
 
-  /// 检查更新
+  /// Check for updates
   ///
-  /// In zh, this message translates to:
-  /// **'检查更新'**
+  /// In en, this message translates to:
+  /// **'Check for Updates'**
   String get checkUpdate;
 
-  /// 清除缓存
+  /// Clear cache
   ///
-  /// In zh, this message translates to:
-  /// **'清除缓存'**
+  /// In en, this message translates to:
+  /// **'Clear Cache'**
   String get clearCache;
 
-  /// 缓存清除成功
+  /// Cache cleared successfully
   ///
-  /// In zh, this message translates to:
-  /// **'缓存已清除'**
+  /// In en, this message translates to:
+  /// **'Cache cleared'**
   String get cacheCleared;
 
-  /// 网络错误提示
+  /// Network error
   ///
-  /// In zh, this message translates to:
-  /// **'网络连接异常'**
+  /// In en, this message translates to:
+  /// **'Network error'**
   String get networkError;
 
-  /// 服务器错误提示
+  /// Server error
   ///
-  /// In zh, this message translates to:
-  /// **'服务器错误'**
+  /// In en, this message translates to:
+  /// **'Server error'**
   String get serverError;
 
-  /// 超时提示
+  /// Timeout
   ///
-  /// In zh, this message translates to:
-  /// **'请求超时'**
+  /// In en, this message translates to:
+  /// **'Request timeout'**
   String get timeoutError;
 
-  /// 未知错误提示
+  /// Unknown error
   ///
-  /// In zh, this message translates to:
-  /// **'未知错误'**
+  /// In en, this message translates to:
+  /// **'Unknown error'**
   String get unknownError;
 
-  /// 登录成功欢迎语
+  /// Welcome back after login
   ///
-  /// In zh, this message translates to:
-  /// **'欢迎回来'**
+  /// In en, this message translates to:
+  /// **'Welcome back'**
   String get welcomeBack;
 
-  /// 请登录提示
+  /// Please login prompt
   ///
-  /// In zh, this message translates to:
-  /// **'请登录'**
+  /// In en, this message translates to:
+  /// **'Please login'**
   String get pleaseLogin;
 
-  /// 注册按钮
+  /// Register button
   ///
-  /// In zh, this message translates to:
-  /// **'注册'**
+  /// In en, this message translates to:
+  /// **'Register'**
   String get register;
 
-  /// 邮箱输入框标签
+  /// Email input label
   ///
-  /// In zh, this message translates to:
-  /// **'邮箱'**
+  /// In en, this message translates to:
+  /// **'Email'**
   String get email;
 
-  /// 确认密码输入框标签
+  /// Confirm password input label
   ///
-  /// In zh, this message translates to:
-  /// **'确认密码'**
+  /// In en, this message translates to:
+  /// **'Confirm Password'**
   String get confirmPassword;
 
-  /// 邮箱格式无效提示
+  /// Invalid email format hint
   ///
-  /// In zh, this message translates to:
-  /// **'请输入有效的邮箱地址'**
+  /// In en, this message translates to:
+  /// **'Please enter a valid email address'**
   String get invalidEmail;
 
-  /// 密码不一致提示
+  /// Password mismatch hint
   ///
-  /// In zh, this message translates to:
-  /// **'两次输入的密码不一致'**
+  /// In en, this message translates to:
+  /// **'Passwords do not match'**
   String get passwordNotMatch;
 
-  /// 注册成功提示
+  /// Registration success hint
   ///
-  /// In zh, this message translates to:
-  /// **'注册成功'**
+  /// In en, this message translates to:
+  /// **'Registration successful'**
   String get registerSuccess;
 
-  /// 注册失败提示
+  /// Registration failure hint
   ///
-  /// In zh, this message translates to:
-  /// **'注册失败，请重试'**
+  /// In en, this message translates to:
+  /// **'Registration failed, please try again'**
   String get registerFailed;
 
-  /// 确认密码必填提示
+  /// Confirm password required hint
   ///
-  /// In zh, this message translates to:
-  /// **'请确认密码'**
+  /// In en, this message translates to:
+  /// **'Please confirm password'**
   String get confirmPasswordRequired;
 
-  /// 已有账号跳转登录
+  /// Redirect to sign in
   ///
-  /// In zh, this message translates to:
-  /// **'已有账号？去登录'**
+  /// In en, this message translates to:
+  /// **'Already have an account? Sign in'**
   String get alreadyHaveAccount;
 
-  /// 没有账号跳转注册
+  /// Redirect to sign up
   ///
-  /// In zh, this message translates to:
-  /// **'还没有账号？去注册'**
+  /// In en, this message translates to:
+  /// **'Don\'t have an account? Sign up'**
   String get noAccountYet;
 
-  /// 搜索按钮
+  /// Delete friend confirmation
   ///
-  /// In zh, this message translates to:
-  /// **'搜索'**
-  String get search;
-
-  /// 删除好友确认
-  ///
-  /// In zh, this message translates to:
-  /// **'删除好友'**
+  /// In en, this message translates to:
+  /// **'Delete Friend'**
   String get deleteFriend;
+
+  /// Search button
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get search;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

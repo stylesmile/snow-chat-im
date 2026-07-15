@@ -86,6 +86,8 @@
   "@error": {"description": "エラー表示"},
   "confirm": "確認",
   "@confirm": {"description": "確認ボタン"},
+  "ok": "OK",
+  "@ok": {"description": "OKボタン"},
   "cancel": "キャンセル",
   "@cancel": {"description": "キャンセルボタン"},
   "save": "保存",

@@ -86,6 +86,8 @@
   "@error": {"description": "错误提示"},
   "confirm": "确定",
   "@confirm": {"description": "确认按钮"},
+  "ok": "确定",
+  "@ok": {"description": "确定按钮"},
   "cancel": "取消",
   "@cancel": {"description": "取消按钮"},
   "save": "保存",

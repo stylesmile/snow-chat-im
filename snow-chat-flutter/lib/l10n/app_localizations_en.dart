@@ -138,6 +138,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get confirm => 'Confirm';
 
   @override
+  String get ok => 'OK';
+
+  @override
   String get cancel => 'Cancel';
 
   @override
@@ -384,8 +387,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noAccountYet => 'Don\'t have an account? Sign up';
 
   @override
-  String get search => 'Search';
+  String get deleteFriend => 'Delete Friend';
 
   @override
-  String get deleteFriend => 'Delete Friend';
+  String get search => 'Search';
 }

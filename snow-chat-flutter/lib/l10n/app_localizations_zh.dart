@@ -138,6 +138,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get confirm => '确定';
 
   @override
+  String get ok => '确定';
+
+  @override
   String get cancel => '取消';
 
   @override
@@ -384,10 +387,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noAccountYet => '还没有账号？去注册';
 
   @override
-  String get search => '搜索';
+  String get deleteFriend => '删除好友';
 
   @override
-  String get deleteFriend => '删除好友';
+  String get search => '搜索';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -522,6 +525,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get confirm => '確定';
+
+  @override
+  String get ok => '確定';
 
   @override
   String get cancel => '取消';
@@ -770,8 +776,8 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get noAccountYet => '還沒有帳號？去註冊';
 
   @override
-  String get search => '搜尋';
+  String get deleteFriend => '刪除好友';
 
   @override
-  String get deleteFriend => '刪除好友';
+  String get search => '搜尋';
 }
