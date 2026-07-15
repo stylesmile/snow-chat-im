@@ -44,8 +44,8 @@ flyway:
 chat:
   mqtt:
     broker-url: tcp://127.0.0.1:1883
-    username:
-    password:
+    username: mica
+    password: 123456
 
 mica:
   mqtt:

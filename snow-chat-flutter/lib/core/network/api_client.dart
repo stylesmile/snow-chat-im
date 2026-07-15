@@ -6,9 +6,11 @@ class ApiClient {
   ApiClient._internal();
 
   late Dio _dio;
+  late String _baseUrl;
   String? _token;
 
   init(String baseUrl) {
+    _baseUrl = baseUrl;
     _dio = Dio(BaseOptions(
       baseUrl: baseUrl,
       connectTimeout: const Duration(seconds: 10),
@@ -32,6 +34,7 @@ class ApiClient {
   }
 
   Dio get dio => _dio;
+  String get baseUrl => _baseUrl;
 
   String? get token => _token;
   set token(String? value) {

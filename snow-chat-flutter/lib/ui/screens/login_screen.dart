@@ -22,7 +22,6 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    // 如果已登录（如 AuthScreenWrapper 重建后），自动跳转到首页
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = context.read<AuthProvider>();
       if (auth.isLoggedIn && mounted) {
@@ -68,9 +67,64 @@ class _LoginScreenState extends State<LoginScreen> {
         SnackBar(
           content: Text(errorMsg),
           backgroundColor: Colors.red.shade700,
+          action: SnackBarAction(
+            label: l10n.settings,
+            textColor: Colors.white,
+            onPressed: () => _showSettingsDialog(),
+          ),
         ),
       );
     }
+  }
+
+  void _showSettingsDialog() {
+    final l10n = AppLocalizations.of(context)!;
+    final auth = context.read<AuthProvider>();
+    final currentUrl = auth.apiClient.baseUrl;
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(l10n.settings),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '当前服务器地址:',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 4),
+            SelectableText(
+              currentUrl,
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '请在终端中重新启动应用并指定正确的 IP:',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const SelectableText(
+                'flutter run --dart-define=API_BASE_URL=http://YOUR_IP:8091',
+                style: TextStyle(fontSize: 11, fontFamily: 'monospace'),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(l10n.ok),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -80,6 +134,15 @@ class _LoginScreenState extends State<LoginScreen> {
     final purple = theme.colorScheme.primary;
 
     return Scaffold(
+      appBar: AppBar(
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => _showSettingsDialog(),
+            tooltip: l10n.settings,
+          ),
+        ],
+      ),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -102,7 +165,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Logo 容器带紫色背景
                     Container(
                       width: 96,
                       height: 96,
@@ -134,7 +196,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 48),
-                    // 用户名输入框
                     TextFormField(
                       controller: _usernameController,
                       decoration: InputDecoration(
@@ -148,7 +209,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       validator: (v) => v == null || v.isEmpty ? l10n.invalidUsername : null,
                     ),
                     const SizedBox(height: 16),
-                    // 密码输入框
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
@@ -171,7 +231,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       onFieldSubmitted: (_) => _handleLogin(),
                     ),
                     const SizedBox(height: 32),
-                    // 登录按钮 - 紫色填充
                     ElevatedButton(
                       onPressed: _isLoading ? null : _handleLogin,
                       style: ElevatedButton.styleFrom(
@@ -201,7 +260,6 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                     ),
                     const SizedBox(height: 20),
-                    // 注册按钮
                     TextButton(
                       onPressed: () {
                         Navigator.of(context).push(

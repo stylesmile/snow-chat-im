@@ -35,28 +35,23 @@ class ContactService {
 
   /// 发送好友请求
   Future<bool> sendFriendRequest(int fromUserId, int toUserId, String remark) async {
-    try {
-      await apiClient.dio.post(
-        '/chat/friend/request',
-        data: {'fromUserId': fromUserId, 'toUserId': toUserId, 'remark': remark},
-      );
-      return true;
-    } catch (e) {
-      return false;
-    }
+    final response = await apiClient.dio.post(
+      '/chat/friend/request',
+      data: {'fromUserId': fromUserId, 'toUserId': toUserId, 'remark': remark},
+    );
+    // 检查响应码
+    final code = response.data['code'] as String?;
+    return code == '200';
   }
 
   /// 处理好友请求（接受/拒绝）
   Future<bool> handleFriendRequest(int fromUserId, int toUserId, bool accept) async {
-    try {
-      await apiClient.dio.post(
-        '/chat/friend/handle',
-        data: {'fromUserId': fromUserId, 'toUserId': toUserId, 'accept': accept},
-      );
-      return true;
-    } catch (e) {
-      return false;
-    }
+    final response = await apiClient.dio.post(
+      '/chat/friend/handle',
+      data: {'fromUserId': fromUserId, 'toUserId': toUserId, 'accept': accept},
+    );
+    final code = response.data['code'] as String?;
+    return code == '200';
   }
 
   /// 获取收到的待处理好友请求
@@ -90,8 +85,9 @@ class ContactService {
   /// 删除好友
   Future<bool> deleteFriend(int userId, int friendId) async {
     try {
-      await apiClient.dio.delete('/chat/friend/$userId/$friendId');
-      return true;
+      final response = await apiClient.dio.delete('/chat/friend/$userId/$friendId');
+      final code = response.data['code'] as String?;
+      return code == '200';
     } catch (e) {
       return false;
     }

@@ -1,4 +1,5 @@
 class ApiConstants {
+  // 通过 --dart-define=API_BASE_URL=http://your-ip:8091 覆盖默认值
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
     defaultValue: 'http://192.168.0.103:8091',

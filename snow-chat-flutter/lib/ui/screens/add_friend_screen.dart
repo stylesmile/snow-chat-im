@@ -20,6 +20,7 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
   List<UserSearchResult> _results = [];
   List<FriendModel> _friends = [];
   Set<int> _addedUsers = {};
+  Set<int> _sendingUsers = {};
 
   @override
   void initState() {
@@ -57,12 +58,35 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
     final auth = context.read<AuthProvider>();
     final l10n = AppLocalizations.of(context)!;
     final service = ContactService(auth.apiClient);
-    final success = await service.sendFriendRequest(auth.userId!, user.id, '');
-    if (success) {
-      setState(() => _addedUsers.add(user.id));
+
+    // 防止重复点击
+    if (_sendingUsers.contains(user.id)) return;
+    setState(() => _sendingUsers.add(user.id));
+
+    try {
+      final success = await service.sendFriendRequest(auth.userId!, user.id, '');
+      setState(() => _sendingUsers.remove(user.id));
+
+      if (success) {
+        setState(() => _addedUsers.add(user.id));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(l10n.friendRequestSent)),
+          );
+        }
+      } else {
+        // 后端返回失败
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('发送失败，请稍后重试')),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() => _sendingUsers.remove(user.id));
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.friendRequestSent)),
+          SnackBar(content: Text('网络错误: $e')),
         );
       }
     }
@@ -126,6 +150,7 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
                           final user = _results[index];
                           final isFriend = _isAlreadyFriend(user.id);
                           final isAdded = _addedUsers.contains(user.id);
+                          final isSending = _sendingUsers.contains(user.id);
 
                           return ListTile(
                             leading: CircleAvatar(
@@ -138,10 +163,16 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
                                 ? const Icon(Icons.check_circle, color: Colors.green)
                                 : isAdded
                                     ? const Icon(Icons.check, color: Colors.grey)
-                                    : ElevatedButton(
-                                        onPressed: () => _sendFriendRequest(user),
-                                        child: Text(l10n.sendFriendRequest),
-                                      ),
+                                    : isSending
+                                        ? const SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: CircularProgressIndicator(strokeWidth: 2),
+                                          )
+                                        : ElevatedButton(
+                                            onPressed: () => _sendFriendRequest(user),
+                                            child: Text(l10n.sendFriendRequest),
+                                          ),
                           );
                         },
                       ),
