@@ -1,17 +1,14 @@
 package com.stylesmile.chat.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.stylesmile.chat.mapper.ChatFriendMapper;
+import com.stylesmile.chat.mapper.ChatFriendRequestMapper;
 import com.stylesmile.common.service.BaseServiceImpl;
 import com.stylesmile.chat.entity.ChatFriend;
 import com.stylesmile.chat.entity.ChatFriendRequest;
-import com.stylesmile.chat.entity.ChatUser;
-import com.stylesmile.chat.mapper.ChatFriendMapper;
-import com.stylesmile.chat.mapper.ChatFriendRequestMapper;
-import com.stylesmile.chat.mapper.ChatUserMapper;
 import com.stylesmile.chat.mqtt.MqttPushService;
 import com.stylesmile.chat.mqtt.MqttTopics;
 import com.stylesmile.chat.service.ChatFriendRequestService;
-import com.stylesmile.chat.service.ChatFriendService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -32,16 +29,9 @@ public class ChatFriendRequestServiceImpl extends BaseServiceImpl<ChatFriendRequ
     private ChatFriendRequestMapper chatFriendRequestMapper;
 
     @Resource
-    private ChatFriendService chatFriendService;
-
+    private MqttPushService mqttPushService;
     @Resource
     private ChatFriendMapper chatFriendMapper;
-
-    @Resource
-    private ChatUserMapper chatUserMapper;
-
-    @Resource
-    private MqttPushService mqttPushService;
 
     @Override
     public List<ChatFriendRequest> getPendingRequests(Integer toUserId) {
@@ -65,12 +55,7 @@ public class ChatFriendRequestServiceImpl extends BaseServiceImpl<ChatFriendRequ
             throw new IllegalArgumentException("Cannot send friend request to yourself");
         }
 
-        // 检查是否已经是好友
-        if (chatFriendService.isFriend(fromUserId, toUserId)) {
-            throw new IllegalArgumentException("Already friends");
-        }
-
-        // 检查是否已经发送过请求（无论pending状态）
+        // 检查是否已经发送过 pending 请求
         ChatFriendRequest existing = lambdaQuery()
                 .eq(ChatFriendRequest::getFromUserId, fromUserId)
                 .eq(ChatFriendRequest::getToUserId, toUserId)
@@ -86,12 +71,37 @@ public class ChatFriendRequestServiceImpl extends BaseServiceImpl<ChatFriendRequ
                 .eq(ChatFriendRequest::getToUserId, fromUserId)
                 .eq(ChatFriendRequest::getStatus, "pending")
                 .one();
+
         if (reverse != null) {
-            // 双向请求，直接建立好友关系
-            handleRequest(toUserId, fromUserId, true);
+            // 双向请求：标记原请求为 accepted，然后建立好友关系
+            reverse.setStatus("accepted");
+            updateById(reverse);
+
+            // 创建双向好友关系
+            ChatFriend f1 = new ChatFriend();
+            f1.setUserId(fromUserId);
+            f1.setFriendId(toUserId);
+            f1.setCreateTime(new Date());
+            chatFriendMapper.insert(f1);
+
+            ChatFriend f2 = new ChatFriend();
+            f2.setUserId(toUserId);
+            f2.setFriendId(fromUserId);
+            f2.setCreateTime(new Date());
+            chatFriendMapper.insert(f2);
+
+            // 也保存新请求
+            ChatFriendRequest request = new ChatFriendRequest();
+            request.setFromUserId(fromUserId);
+            request.setToUserId(toUserId);
+            request.setStatus("accepted");
+            request.setRemark(remark);
+            request.setCreateTime(new Date());
+            save(request);
             return;
         }
 
+        // 正常发送好友请求
         ChatFriendRequest request = new ChatFriendRequest();
         request.setFromUserId(fromUserId);
         request.setToUserId(toUserId);
@@ -129,8 +139,19 @@ public class ChatFriendRequestServiceImpl extends BaseServiceImpl<ChatFriendRequ
 
         if (accept) {
             // 双向好友关系
-            chatFriendService.addFriend(fromUserId, toUserId);
-            chatFriendService.addFriend(toUserId, fromUserId);
+            ChatFriend f1 = new ChatFriend();
+            f1.setUserId(fromUserId);
+            f1.setFriendId(toUserId);
+            f1.setCreateTime(new Date());
+            chatFriendMapper.insert(f1);
+
+
+            ChatFriend f2 = new ChatFriend();
+            f2.setUserId(toUserId);
+            f2.setFriendId(fromUserId);
+            f2.setCreateTime(new Date());
+            chatFriendMapper.insert(f2);
+
         }
     }
 }
