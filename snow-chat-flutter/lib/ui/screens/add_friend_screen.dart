@@ -4,12 +4,11 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/contact_service.dart';
 import '../../models/friend_model.dart';
-import '../widgets/avatar_widget.dart';
 
 class AddFriendScreen extends StatefulWidget {
-  final String keyword;
+  final String? keyword;
 
-  const AddFriendScreen({super.key, required this.keyword});
+  const AddFriendScreen({super.key, this.keyword});
 
   @override
   State<AddFriendScreen> createState() => _AddFriendScreenState();
@@ -25,8 +24,10 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
   @override
   void initState() {
     super.initState();
-    _searchController.text = widget.keyword;
-    _search(_searchController.text);
+    if (widget.keyword != null && widget.keyword!.isNotEmpty) {
+      _searchController.text = widget.keyword!;
+      _search(_searchController.text);
+    }
     _loadFriends();
   }
 

@@ -1,15 +1,20 @@
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
 
+/// MQTT 消息回调签名
+typedef MessageCallback = void Function(int cmd, dynamic data);
+
+/// MQTT 聊天客户端
 class MqttChatClient {
   MqttServerClient? _client;
   final String host;
   final int port;
-  final Function(int cmd, dynamic data)? onMessage;
-  final Function()? onConnected;
-  final Function()? onDisconnected;
+  final MessageCallback? onMessage;
+  final VoidCallback? onConnected;
+  final VoidCallback? onDisconnected;
 
   MqttChatClient({
     required this.host,
@@ -30,7 +35,7 @@ class MqttChatClient {
     client.onConnected = onConnected;
     client.onDisconnected = onDisconnected;
     client.onAutoReconnect = () {};
-    client.onAutoReconnected = () => _subscribe(userId);
+    client.onAutoReconnected = () => _subscribeAll(userId);
     client.connectionMessage = MqttConnectMessage()
         .withClientIdentifier('snow-chat-$userId')
         .startClean()
@@ -40,7 +45,7 @@ class MqttChatClient {
     try {
       await client.connect(username, password);
       if (isConnected) {
-        _subscribe(userId);
+        _subscribeAll(userId);
         client.updates?.listen(_handleMessages);
       }
     } catch (_) {
@@ -50,12 +55,24 @@ class MqttChatClient {
     }
   }
 
+  /// 订阅所有主题（用户 + 已加入的群）
+  void _subscribeAll(int userId) {
+    _client?.subscribe('chat/user/$userId', MqttQos.atLeastOnce);
+    // 群主题由 subscribeGroup 单独管理
+  }
+
   void _subscribe(int userId) {
     _client?.subscribe('chat/user/$userId', MqttQos.atLeastOnce);
   }
 
+  /// 订阅群主题
   void subscribeGroup(int groupId) {
     _client?.subscribe('chat/group/$groupId', MqttQos.atLeastOnce);
+  }
+
+  /// 取消订阅群主题
+  void unsubscribeGroup(int groupId) {
+    _client?.unsubscribe('chat/group/$groupId');
   }
 
   void _handleMessages(List<MqttReceivedMessage<MqttMessage>> messages) {
@@ -64,18 +81,30 @@ class MqttChatClient {
       final text = MqttPublishPayload.bytesToStringAsString(publish.payload.message);
       try {
         final packet = jsonDecode(text) as Map<String, dynamic>;
-        onMessage?.call(packet['cmd'] as int? ?? 0, packet['data']);
+        final cmd = packet['cmd'] as int? ?? 0;
+        final data = packet['data'];
+        onMessage?.call(cmd, data);
       } on FormatException {
         // Ignore malformed broker payloads.
       }
     }
   }
 
-  void send(Map<String, dynamic> message, {required int targetId, int? groupId}) {
+  /// 发布消息到指定主题
+  void publish(Map<String, dynamic> message, {required String topic}) {
     if (!isConnected) return;
-    final topic = groupId == null ? 'chat/user/$targetId' : 'chat/group/$groupId';
     final builder = MqttClientPayloadBuilder()..addString(jsonEncode(message));
     _client!.publishMessage(topic, MqttQos.atLeastOnce, builder.payload!);
+  }
+
+  /// 发送私聊消息（通过MQTT）
+  void sendPrivateMessage(Map<String, dynamic> message, int targetUserId) {
+    publish(message, topic: 'chat/user/$targetUserId');
+  }
+
+  /// 发送群消息（通过MQTT）
+  void sendGroupMessage(Map<String, dynamic> message, int groupId) {
+    publish(message, topic: 'chat/group/$groupId');
   }
 
   void disconnect() {

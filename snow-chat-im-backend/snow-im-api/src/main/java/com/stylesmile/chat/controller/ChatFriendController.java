@@ -12,9 +12,6 @@ import java.util.List;
 
 /**
  * 好友控制器
- *
- * @author chenye
- * @date 2018/12/10
  */
 @RestController
 @RequestMapping("/chat/friend")
@@ -28,9 +25,6 @@ public class ChatFriendController {
 
     /**
      * 获取好友列表
-     *
-     * @param userId 用户ID
-     * @return Result
      */
     @GetMapping("/list")
     public Result<List<ChatFriend>> list(@RequestParam Integer userId) {
@@ -40,11 +34,6 @@ public class ChatFriendController {
 
     /**
      * 发送好友请求
-     *
-     * @param fromUserId 发起人ID
-     * @param toUserId   接收人ID
-     * @param remark     备注
-     * @return Result
      */
     @PostMapping("/request")
     public Result<Void> request(@RequestBody FriendRequestDTO dto) {
@@ -54,11 +43,6 @@ public class ChatFriendController {
 
     /**
      * 处理好友请求
-     *
-     * @param fromUserId 发起人ID
-     * @param toUserId   接收人ID
-     * @param accept     是否同意
-     * @return Result
      */
     @PostMapping("/handle")
     public Result<Void> handle(@RequestBody FriendHandleDTO dto) {
@@ -67,10 +51,7 @@ public class ChatFriendController {
     }
 
     /**
-     * 获取待处理的好友请求
-     *
-     * @param toUserId 接收人ID
-     * @return Result
+     * 获取待处理的好友请求（接收到的）
      */
     @GetMapping("/pending")
     public Result<List<ChatFriendRequest>> pending(@RequestParam Integer toUserId) {
@@ -79,90 +60,46 @@ public class ChatFriendController {
     }
 
     /**
-     * 删除好友
-     *
-     * @param userId   用户ID
-     * @param friendId 好友ID
-     * @return Result
+     * 获取已发送的待处理请求
      */
-    @DeleteMapping("/{userId}/{friendId}")
-    public Result<Void> delete(@PathVariable Integer userId, @PathVariable Integer friendId) {
-        chatFriendService.remove(
-                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ChatFriend>()
-                        .eq(ChatFriend::getUserId, userId)
-                        .eq(ChatFriend::getFriendId, friendId)
-        );
-        chatFriendService.remove(
-                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ChatFriend>()
-                        .eq(ChatFriend::getUserId, friendId)
-                        .eq(ChatFriend::getFriendId, userId)
-        );
-        return Result.success();
+    @GetMapping("/sent")
+    public Result<List<ChatFriendRequest>> sent(@RequestParam Integer fromUserId) {
+        List<ChatFriendRequest> requests = chatFriendRequestService.getSentRequests(fromUserId);
+        return Result.success(requests);
     }
 
     /**
-     * 好友请求DTO
+     * 删除好友（双向删除）
      */
+    @DeleteMapping("/{userId}/{friendId}")
+    public Result<Void> delete(@PathVariable Integer userId, @PathVariable Integer friendId) {
+        chatFriendService.removeFriend(userId, friendId);
+        return Result.success();
+    }
+
     public static class FriendRequestDTO {
         private Integer fromUserId;
         private Integer toUserId;
         private String remark;
 
-        public Integer getFromUserId() {
-            return fromUserId;
-        }
-
-        public void setFromUserId(Integer fromUserId) {
-            this.fromUserId = fromUserId;
-        }
-
-        public Integer getToUserId() {
-            return toUserId;
-        }
-
-        public void setToUserId(Integer toUserId) {
-            this.toUserId = toUserId;
-        }
-
-        public String getRemark() {
-            return remark;
-        }
-
-        public void setRemark(String remark) {
-            this.remark = remark;
-        }
+        public Integer getFromUserId() { return fromUserId; }
+        public void setFromUserId(Integer fromUserId) { this.fromUserId = fromUserId; }
+        public Integer getToUserId() { return toUserId; }
+        public void setToUserId(Integer toUserId) { this.toUserId = toUserId; }
+        public String getRemark() { return remark; }
+        public void setRemark(String remark) { this.remark = remark; }
     }
 
-    /**
-     * 好友请求处理DTO
-     */
     public static class FriendHandleDTO {
         private Integer fromUserId;
         private Integer toUserId;
         private Boolean accept;
 
-        public Integer getFromUserId() {
-            return fromUserId;
-        }
-
-        public void setFromUserId(Integer fromUserId) {
-            this.fromUserId = fromUserId;
-        }
-
-        public Integer getToUserId() {
-            return toUserId;
-        }
-
-        public void setToUserId(Integer toUserId) {
-            this.toUserId = toUserId;
-        }
-
-        public Boolean getAccept() {
-            return accept;
-        }
-
-        public void setAccept(Boolean accept) {
-            this.accept = accept;
-        }
+        public Integer getFromUserId() { return fromUserId; }
+        public void setFromUserId(Integer fromUserId) { this.fromUserId = fromUserId; }
+        public Integer getToUserId() { return toUserId; }
+        public void setToUserId(Integer toUserId) { this.toUserId = toUserId; }
+        public Boolean getAccept() { return accept; }
+        public void setAccept(Boolean accept) { this.accept = accept; }
     }
 }

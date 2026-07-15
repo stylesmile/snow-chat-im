@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/auth_provider.dart';
 import 'chat_detail_screen.dart';
-import 'contact_screen.dart';
+import 'contact_tab.dart';
 import 'profile_screen.dart';
 
 class ChatListScreen extends StatelessWidget {
@@ -99,7 +99,7 @@ class ChatListScreen extends StatelessWidget {
         ],
         onTap: (index) {
           if (index == 1) {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactScreen()));
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactTab()));
           } else if (index == 2) {
             Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen()));
           }

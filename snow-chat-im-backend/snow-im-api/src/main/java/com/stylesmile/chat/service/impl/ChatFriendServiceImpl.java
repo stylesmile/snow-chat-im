@@ -11,9 +11,6 @@ import java.util.List;
 
 /**
  * 好友服务实现
- *
- * @author chenye
- * @date 2018/12/10
  */
 @Service
 public class ChatFriendServiceImpl extends BaseServiceImpl<ChatFriendMapper, ChatFriend> implements ChatFriendService {
@@ -36,9 +33,25 @@ public class ChatFriendServiceImpl extends BaseServiceImpl<ChatFriendMapper, Cha
     @Override
     @Transactional
     public void addFriend(Integer userId, Integer friendId) {
+        // 避免重复添加
+        if (isFriend(userId, friendId)) {
+            return;
+        }
         ChatFriend chatFriend = new ChatFriend();
         chatFriend.setUserId(userId);
         chatFriend.setFriendId(friendId);
         save(chatFriend);
+    }
+
+    @Override
+    @Transactional
+    public void removeFriend(Integer userId, Integer friendId) {
+        // 双向删除好友关系
+        remove(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ChatFriend>()
+                .eq(ChatFriend::getUserId, userId)
+                .eq(ChatFriend::getFriendId, friendId));
+        remove(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ChatFriend>()
+                .eq(ChatFriend::getUserId, friendId)
+                .eq(ChatFriend::getFriendId, userId));
     }
 }

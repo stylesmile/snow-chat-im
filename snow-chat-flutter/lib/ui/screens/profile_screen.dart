@@ -3,7 +3,7 @@ import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/auth_provider.dart';
-import 'contact_screen.dart';
+import 'contact_tab.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -110,7 +110,7 @@ class ProfileScreen extends StatelessWidget {
           if (index == 0) {
             Navigator.of(context).pop();
           } else if (index == 1) {
-            Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactScreen()));
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const ContactTab()));
           }
         },
       ),

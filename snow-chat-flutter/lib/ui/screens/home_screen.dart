@@ -38,8 +38,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         controller: _tabController,
         children: [
           const ChatListTab(),
-          const ContactTab(),
-          const ProfileTab(),
+          ContactTab(),
+          ProfileTab(),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(

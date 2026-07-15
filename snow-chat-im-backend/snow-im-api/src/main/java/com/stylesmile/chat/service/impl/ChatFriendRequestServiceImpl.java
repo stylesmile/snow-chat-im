@@ -1,25 +1,32 @@
 package com.stylesmile.chat.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.stylesmile.common.service.BaseServiceImpl;
+import com.stylesmile.chat.entity.ChatFriend;
 import com.stylesmile.chat.entity.ChatFriendRequest;
+import com.stylesmile.chat.entity.ChatUser;
+import com.stylesmile.chat.mapper.ChatFriendMapper;
 import com.stylesmile.chat.mapper.ChatFriendRequestMapper;
+import com.stylesmile.chat.mapper.ChatUserMapper;
+import com.stylesmile.chat.mqtt.MqttPushService;
+import com.stylesmile.chat.mqtt.MqttTopics;
 import com.stylesmile.chat.service.ChatFriendRequestService;
 import com.stylesmile.chat.service.ChatFriendService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 /**
  * 好友请求服务实现
- *
- * @author chenye
- * @date 2018/12/10
  */
 @Service
 public class ChatFriendRequestServiceImpl extends BaseServiceImpl<ChatFriendRequestMapper, ChatFriendRequest> implements ChatFriendRequestService {
+
+    private static final Logger log = LoggerFactory.getLogger(ChatFriendRequestServiceImpl.class);
 
     @Resource
     private ChatFriendRequestMapper chatFriendRequestMapper;
@@ -27,14 +34,64 @@ public class ChatFriendRequestServiceImpl extends BaseServiceImpl<ChatFriendRequ
     @Resource
     private ChatFriendService chatFriendService;
 
+    @Resource
+    private ChatFriendMapper chatFriendMapper;
+
+    @Resource
+    private ChatUserMapper chatUserMapper;
+
+    @Resource
+    private MqttPushService mqttPushService;
+
     @Override
     public List<ChatFriendRequest> getPendingRequests(Integer toUserId) {
         return baseMapper.getPendingRequests(toUserId);
     }
 
     @Override
+    public List<ChatFriendRequest> getSentRequests(Integer fromUserId) {
+        return lambdaQuery()
+                .eq(ChatFriendRequest::getFromUserId, fromUserId)
+                .eq(ChatFriendRequest::getStatus, "pending")
+                .orderByDesc(ChatFriendRequest::getCreateTime)
+                .list();
+    }
+
+    @Override
     @Transactional
     public void sendRequest(Integer fromUserId, Integer toUserId, String remark) {
+        // 不能向自己发送请求
+        if (fromUserId.equals(toUserId)) {
+            throw new IllegalArgumentException("Cannot send friend request to yourself");
+        }
+
+        // 检查是否已经是好友
+        if (chatFriendService.isFriend(fromUserId, toUserId)) {
+            throw new IllegalArgumentException("Already friends");
+        }
+
+        // 检查是否已经发送过请求（无论pending状态）
+        ChatFriendRequest existing = lambdaQuery()
+                .eq(ChatFriendRequest::getFromUserId, fromUserId)
+                .eq(ChatFriendRequest::getToUserId, toUserId)
+                .eq(ChatFriendRequest::getStatus, "pending")
+                .one();
+        if (existing != null) {
+            throw new IllegalArgumentException("Friend request already sent");
+        }
+
+        // 检查对方是否已经发送过请求给自己（双向请求，直接变成好友）
+        ChatFriendRequest reverse = lambdaQuery()
+                .eq(ChatFriendRequest::getFromUserId, toUserId)
+                .eq(ChatFriendRequest::getToUserId, fromUserId)
+                .eq(ChatFriendRequest::getStatus, "pending")
+                .one();
+        if (reverse != null) {
+            // 双向请求，直接建立好友关系
+            handleRequest(toUserId, fromUserId, true);
+            return;
+        }
+
         ChatFriendRequest request = new ChatFriendRequest();
         request.setFromUserId(fromUserId);
         request.setToUserId(toUserId);
@@ -42,6 +99,17 @@ public class ChatFriendRequestServiceImpl extends BaseServiceImpl<ChatFriendRequ
         request.setRemark(remark);
         request.setCreateTime(new Date());
         save(request);
+
+        // 通过MQTT通知接收方有新的好友请求
+        try {
+            Map<String, Object> data = new HashMap<>();
+            data.put("fromUserId", fromUserId);
+            data.put("toUserId", toUserId);
+            data.put("remark", remark);
+            mqttPushService.publish(MqttTopics.user(toUserId), 2002, data);
+        } catch (Exception e) {
+            log.warn("Failed to publish friend request notification via MQTT", e);
+        }
     }
 
     @Override
@@ -52,12 +120,17 @@ public class ChatFriendRequestServiceImpl extends BaseServiceImpl<ChatFriendRequ
                 .eq(ChatFriendRequest::getToUserId, toUserId)
                 .eq(ChatFriendRequest::getStatus, "pending")
                 .one();
-        if (request != null) {
-            request.setStatus(accept ? "accepted" : "rejected");
-            updateById(request);
+        if (request == null) {
+            return;
         }
+
+        request.setStatus(accept ? "accepted" : "rejected");
+        updateById(request);
+
         if (accept) {
+            // 双向好友关系
             chatFriendService.addFriend(fromUserId, toUserId);
+            chatFriendService.addFriend(toUserId, fromUserId);
         }
     }
 }

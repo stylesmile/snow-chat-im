@@ -4,8 +4,12 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/contact_service.dart';
 import '../../models/friend_model.dart';
+import '../../core/utils/pinyin_helper.dart';
 import '../widgets/avatar_widget.dart';
 import 'add_friend_screen.dart';
+import 'chat_detail_screen.dart';
+import 'group_screen.dart';
+import 'friend_request_screen.dart';
 
 class ContactTab extends StatefulWidget {
   const ContactTab({super.key});
@@ -17,9 +21,14 @@ class ContactTab extends StatefulWidget {
 class _ContactTabState extends State<ContactTab> {
   bool _isLoading = true;
   List<FriendModel> _friends = [];
-  final _searchController = TextEditingController();
-  int _activeSection = 0;
-  int _pendingCount = 0;
+  final ScrollController _scrollController = ScrollController();
+  final Map<String, GlobalKey> _sectionKeys = {};
+
+  static const List<String> _indexLetters = [
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
+    'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
+    'U', 'V', 'W', 'X', 'Y', 'Z', '#'
+  ];
 
   @override
   void initState() {
@@ -43,24 +52,28 @@ class _ContactTabState extends State<ContactTab> {
 
   void _handleDeleteFriend(FriendModel friend) {
     final l10n = AppLocalizations.of(context)!;
+    final auth = context.read<AuthProvider>();
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: Text(l10n.delete),
         content: Text('"${friend.nickname}" ${l10n.deleteFriend}?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.cancel)),
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(l10n.cancel)),
           ElevatedButton(
             onPressed: () async {
-              final auth = context.read<AuthProvider>();
               final dio = auth.apiClient.dio;
               try {
                 await dio.delete('/chat/friend/${auth.userId}/${friend.userId}');
-                setState(() => _friends.remove(friend));
+                if (mounted) {
+                  setState(() => _friends.remove(friend));
+                }
               } catch (e) {
                 // ignore
               }
-              Navigator.pop(context);
+              if (dialogContext.mounted) {
+                Navigator.pop(dialogContext);
+              }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: Text(l10n.confirm),
@@ -70,157 +83,278 @@ class _ContactTabState extends State<ContactTab> {
     );
   }
 
+  /// 按拼音首字母分组
+  Map<String, List<FriendModel>> _groupByLetter() {
+    final Map<String, List<FriendModel>> grouped = {};
+    for (final friend in _friends) {
+      final name = friend.remark.isNotEmpty ? friend.remark : friend.nickname;
+      final letter = PinyinHelper.getFirstLetter(name);
+      grouped.putIfAbsent(letter, () => []);
+      grouped[letter]!.add(friend);
+    }
+    // 每组内部按名称排序
+    for (final entry in grouped.entries) {
+      entry.value.sort((a, b) {
+        final nameA = a.remark.isNotEmpty ? a.remark : a.nickname;
+        final nameB = b.remark.isNotEmpty ? b.remark : b.nickname;
+        return nameA.compareTo(nameB);
+      });
+    }
+    return grouped;
+  }
+
+  List<String> _getAvailableLetters(Map<String, List<FriendModel>> grouped) {
+    final letters = grouped.keys.toList()..sort(PinyinHelper.compareLetter);
+    return letters;
+  }
+
+  void _scrollToLetter(String letter) {
+    final key = _sectionKeys[letter];
+    if (key != null) {
+      final context = key.currentContext;
+      if (context != null) {
+        Scrollable.ensureVisible(
+          context,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          alignment: 0.0,
+        );
+      }
+    }
+  }
+
+  void _onSearchTap() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const AddFriendScreen()),
+    );
+  }
+
+  void _onAddFriendTap() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const AddFriendScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.contacts)),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: l10n.searchUser,
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(24)),
-                filled: true,
-              ),
-              onSubmitted: (value) {
-                if (value.isNotEmpty) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => AddFriendScreen(keyword: value)),
-                  );
-                }
+      appBar: AppBar(
+        title: Text(l10n.contacts),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: _onSearchTap,
+          ),
+          IconButton(
+            icon: const Icon(Icons.person_add),
+            onPressed: _onAddFriendTap,
+          ),
+        ],
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _loadData,
+              child: _buildBody(l10n),
+            ),
+    );
+  }
+
+  Widget _buildBody(AppLocalizations l10n) {
+    final grouped = _groupByLetter();
+    final availableLetters = _getAvailableLetters(grouped);
+
+    // 预创建 GlobalKey
+    _sectionKeys.clear();
+    for (final letter in availableLetters) {
+      _sectionKeys[letter] = GlobalKey();
+    }
+
+    return Stack(
+      children: [
+        ListView(
+          controller: _scrollController,
+          children: [
+            // --- 新的朋友 ---
+            _buildFeatureItem(
+              icon: Icons.person_add,
+              iconColor: const Color(0xFFFFA726),
+              title: l10n.newFriendRequest,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const FriendRequestScreen()),
+                );
               },
             ),
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: _buildTab(l10n.myFriends, _activeSection == 0, () => setState(() => _activeSection = 0)),
-              ),
-              Expanded(
-                child: _buildTab(
-                  l10n.friendRequests,
-                  _activeSection == 1,
-                  () => setState(() => _activeSection = 1),
-                  badge: _pendingCount,
+            // --- 群聊 ---
+            _buildFeatureItem(
+              icon: Icons.groups,
+              iconColor: const Color(0xFF43A047),
+              title: l10n.myGroups,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const GroupScreen()),
+                );
+              },
+            ),
+            // --- 按字母分组的好友列表 ---
+            ..._buildAlphabeticalList(l10n, grouped, availableLetters),
+            // 底部留白，避免被导航栏遮挡
+            const SizedBox(height: 20),
+          ],
+        ),
+        // 右侧字母索引条
+        if (availableLetters.isNotEmpty)
+          Positioned(
+            right: 0,
+            top: 0,
+            bottom: 0,
+            child: Center(
+              child: Container(
+                width: 28,
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: _indexLetters.map((letter) {
+                    final hasData = availableLetters.contains(letter);
+                    return GestureDetector(
+                      onTap: hasData ? () => _scrollToLetter(letter) : null,
+                      child: Container(
+                        width: 20,
+                        height: 16,
+                        alignment: Alignment.center,
+                        child: Text(
+                          letter,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                            color: hasData
+                                ? Colors.grey.shade600
+                                : Colors.grey.shade300,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
                 ),
               ),
-            ],
+            ),
           ),
-          const Divider(height: 1),
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _activeSection == 0
-                    ? _buildFriendsList(l10n)
-                    : _buildPendingRequests(l10n),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showSearchDialog(context),
-        icon: const Icon(Icons.person_add),
-        label: Text(l10n.addFriend),
-      ),
+      ],
     );
   }
 
-  Widget _buildTab(String title, bool isActive, VoidCallback onTap, {int? badge}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+  Widget _buildFeatureItem({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    VoidCallback? onTap,
+  }) {
+    return ListTile(
+      leading: Container(
+        width: 40,
+        height: 40,
         decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: isActive ? Theme.of(context).colorScheme.primary : Colors.transparent,
-              width: 2,
+          color: iconColor,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Icon(icon, color: Colors.white, size: 22),
+      ),
+      title: Text(title, style: const TextStyle(fontSize: 16)),
+      trailing: const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+      onTap: onTap,
+    );
+  }
+
+  List<Widget> _buildAlphabeticalList(
+    AppLocalizations l10n,
+    Map<String, List<FriendModel>> grouped,
+    List<String> sortedKeys,
+  ) {
+    if (_friends.isEmpty) {
+      return [
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 60),
+            child: Text(
+              l10n.noContacts,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
             ),
           ),
         ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Text(title, style: TextStyle(fontWeight: isActive ? FontWeight.bold : FontWeight.normal, color: isActive ? Theme.of(context).colorScheme.primary : null)),
-            if (badge != null && badge > 0)
-              Positioned(
-                right: 8, top: 4,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-                  constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-                  child: Text('$badge', style: const TextStyle(color: Colors.white, fontSize: 10)),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFriendsList(AppLocalizations l10n) {
-    if (_friends.isEmpty) {
-      return Center(child: Text(l10n.noContacts, style: TextStyle(color: Colors.grey.shade600)));
+      ];
     }
-    return ListView.separated(
-      itemCount: _friends.length,
-      separatorBuilder: (_, __) => const Divider(height: 1),
-      itemBuilder: (context, index) {
-        final friend = _friends[index];
-        return ListTile(
-          leading: AvatarWidget(imageUrl: friend.avatar, initials: friend.nickname.isNotEmpty ? friend.nickname[0] : '?', size: 40),
-          title: Text(friend.nickname),
-          subtitle: Text(friend.remark.isNotEmpty ? friend.remark : friend.status),
-          trailing: friend.status == 'online'
-              ? Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle))
-              : null,
-          onLongPress: () => _handleDeleteFriend(friend),
-        );
-      },
-    );
-  }
 
-  Widget _buildPendingRequests(AppLocalizations l10n) {
-    return const Center(child: Text('Coming soon'));
-  }
-
-  void _showSearchDialog(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(l10n.addFriend),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(hintText: l10n.searchUser),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.cancel)),
-          ElevatedButton(
-            onPressed: () {
-              if (controller.text.isNotEmpty) {
-                Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => AddFriendScreen(keyword: controller.text)));
-              }
-            },
-            child: Text(l10n.search),
+    final List<Widget> items = [];
+    for (final key in sortedKeys) {
+      // Section header with GlobalKey for scroll-to-letter
+      items.add(
+        Container(
+          key: _sectionKeys[key],
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          color: const Color(0xFFF5F5F5),
+          child: Text(
+            key,
+            style: const TextStyle(fontSize: 13, color: Colors.grey, fontWeight: FontWeight.w500),
           ),
-        ],
-      ),
-    );
+        ),
+      );
+
+      // Friends in this section
+      final friends = grouped[key]!;
+      for (int i = 0; i < friends.length; i++) {
+        final friend = friends[i];
+        final name = friend.remark.isNotEmpty ? friend.remark : friend.nickname;
+        items.add(
+          ListTile(
+            leading: AvatarWidget(
+              imageUrl: friend.avatar,
+              initials: name.isNotEmpty ? name[0] : '?',
+              size: 40,
+            ),
+            title: Text(name, style: const TextStyle(fontSize: 15)),
+            trailing: friend.status == 'online'
+                ? Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle),
+                  )
+                : null,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ChatDetailScreen(
+                    targetId: friend.userId,
+                    targetType: 'user',
+                    targetName: name,
+                  ),
+                ),
+              );
+            },
+            onLongPress: () => _handleDeleteFriend(friend),
+          ),
+        );
+      }
+    }
+    return items;
   }
 
   @override
   void dispose() {
-    _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 }

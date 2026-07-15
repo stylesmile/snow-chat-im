@@ -7,45 +7,31 @@ import java.util.List;
 
 /**
  * 消息服务
- *
- * @author chenye
- * @date 2018/12/10
  */
 public interface ChatMessageService extends BaseService<ChatMessage> {
 
     /**
-     * 查询历史消息
-     *
-     * @param userId     用户ID
-     * @param targetId   目标ID
-     * @param targetType 目标类型
-     * @param page       页码
-     * @param size       每页大小
-     * @return 消息列表
+     * 查询历史消息（按时间倒序，最新在前）
      */
     List<ChatMessage> getHistoryMessages(Integer userId, Integer targetId, String targetType, int page, int size);
 
     /**
-     * 发送消息
-     *
-     * @param message 消息
+     * 查询历史消息（游标分页，基于 messageId）
+     */
+    List<ChatMessage> getHistoryMessagesByCursor(Integer userId, Integer targetId, String targetType, Integer beforeMessageId, int size);
+
+    /**
+     * 发送消息并广播
      */
     void sendMessage(ChatMessage message);
 
     /**
      * 撤回消息
-     *
-     * @param userId    用户ID
-     * @param messageId 消息ID
      */
     void recallMessage(Integer userId, Long messageId);
 
     /**
-     * 标记为已读
-     *
-     * @param userId     用户ID
-     * @param targetId   目标ID
-     * @param targetType 目标类型
+     * 标记为已读（按会话维度）
      */
     void markAsRead(Integer userId, Integer targetId, String targetType);
 }

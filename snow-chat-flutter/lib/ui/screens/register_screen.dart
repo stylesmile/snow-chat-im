@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
-import 'chat_list_screen.dart';
+import 'home_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -63,7 +63,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         SnackBar(content: Text(l10n.registerSuccess)),
       );
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const ChatListScreen()),
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
         (_) => false,
       );
     } else {
