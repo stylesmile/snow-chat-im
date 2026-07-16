@@ -20,8 +20,10 @@ class SnowChatApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF6750A4),
+          seedColor: const Color(0xFF9C6BEF),
           brightness: Brightness.light,
+        ).copyWith(
+          primary: const Color(0xFFD4BBFF),
         ),
         useMaterial3: true,
         appBarTheme: const AppBarTheme(
@@ -49,8 +51,10 @@ class SnowChatApp extends StatelessWidget {
       ),
       darkTheme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF6750A4),
+          seedColor: const Color(0xFFC5AAF0),
           brightness: Brightness.dark,
+        ).copyWith(
+          primary: const Color(0xFFD4BBFF),
         ),
         useMaterial3: true,
       ),

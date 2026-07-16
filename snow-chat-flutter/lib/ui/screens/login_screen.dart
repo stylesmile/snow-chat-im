@@ -149,9 +149,9 @@ class _LoginScreenState extends State<LoginScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              purple.withAlpha(25),
-              Colors.white,
-              Colors.white,
+              purple.withAlpha(45),
+              purple.withAlpha(18),
+              const Color(0xFFF9F5FF),
             ],
           ),
         ),
