@@ -1,5 +1,7 @@
 package com.stylesmile.chat.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
+
 /**
  * @author chenye
  * @date 2018/12/10
@@ -32,10 +34,12 @@ public class ChatFriendRequest {
     /**
      * 发起人昵称（JOIN查询）
      */
+    @TableField(exist = false)
     private String fromNickname;
     /**
      * 发起人头像（JOIN查询）
      */
+    @TableField(exist = false)
     private String fromAvatar;
 
     public ChatFriendRequest() {
