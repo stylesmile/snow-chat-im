@@ -97,9 +97,10 @@ class MqttChatClient {
   void _handleMessages(List<MqttReceivedMessage<MqttMessage>> messages) {
     // 收到 broker 推送的消息列表，逐条处理
     for (final received in messages) {
-      // 将 payload 转为 MqttPublishMessage 并提取字节内容
+      // 将 payload 转为 MqttPublishMessage 并用 UTF-8 解码（修复中文乱码）
+      // bytesToStringAsString 默认用 latin1 解码，中文会乱码
       final publish = received.payload as MqttPublishMessage;
-      final text = MqttPublishPayload.bytesToStringAsString(publish.payload.message);
+      final text = utf8.decode(publish.payload.message);
       // 接收日志：打印主题和消息内容前 200 字符，便于追踪消息流向
       final preview = text.length > 200 ? '${text.substring(0, 200)}...' : text;
       debugPrint('[MQTT] received on ${received.topic}: $preview');
