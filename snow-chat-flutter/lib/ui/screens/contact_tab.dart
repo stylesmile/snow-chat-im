@@ -372,7 +372,7 @@ class _ContactTabState extends State<ContactTab> {
                 MaterialPageRoute(
                   builder: (_) => ChatDetailScreen(
                     targetId: friend.userId,
-                    targetType: 'user',
+                    targetType: 'friend',
                     targetName: name,
                   ),
                 ),

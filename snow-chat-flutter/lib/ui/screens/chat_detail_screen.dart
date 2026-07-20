@@ -10,6 +10,8 @@ import '../../core/utils/date_utils.dart' as app_date;
 import '../../core/utils/message_status_parser.dart';
 import '../../models/message_model.dart';
 import '../../core/cache/message_cache_manager.dart';
+import '../../services/conversation_service.dart';
+import '../../providers/chat_provider.dart';
 
 class ChatDetailScreen extends StatefulWidget {
   final int targetId;
@@ -39,8 +41,36 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _ensureConversationSaved();
     _initCache();
     _initMqtt();
+  }
+
+  /// 进入聊天页时把该对话保存到本地会话列表，确保返回聊天列表后仍可见。
+  Future<void> _ensureConversationSaved() async {
+    final auth = context.read<AuthProvider>();
+    if (auth.userId == null) return;
+
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await ConversationService().saveSession(
+      userId: auth.userId!,
+      targetId: widget.targetId,
+      targetType: widget.targetType,
+      lastMsg: widget.targetName ?? '',
+      lastMsgTime: now,
+      unreadCount: 0,
+    );
+
+    if (!mounted) return;
+    context.read<ChatProvider>().updateConversation(
+      Conversation(
+        targetId: widget.targetId,
+        targetType: widget.targetType,
+        lastMsg: widget.targetName ?? '',
+        lastMsgTime: now,
+        unreadCount: 0,
+      ),
+    );
   }
 
   Future<void> _initCache() async {
@@ -68,15 +98,19 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   void _initMqtt() {
     final auth = context.read<AuthProvider>();
+    final userId = auth.userId ?? 0;
+    // 使用独立 clientId，避免与 HomeScreen 的全局 MQTT 连接互踢
+    final chatClientId = 'user_${userId}_chat_${widget.targetId}_${widget.targetType}';
     _mqttClient = MqttChatClient(
       host: ApiConstants.mqttHost,
       port: ApiConstants.mqttPort,
       onMessage: _handleMqttMessage,
     );
     _mqttClient?.connect(
-      userId: auth.userId ?? 0,
+      userId: userId,
       username: ApiConstants.mqttUsername,
       password: ApiConstants.mqttPassword,
+      clientId: chatClientId,
     );
     // 群聊需要额外订阅群主题
     if (widget.targetType == 'group') {
@@ -105,12 +139,24 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
       if (isRelated) {
         final incoming = _DisplayMessage.fromJson(data);
-        MessageCacheManager().appendMessage(_sessionId, incoming.toModel());
+        final localSeq = (data['localSeq'] as num?)?.toInt();
         setState(() {
-          // 检查是否已存在（去重）
+          // 发送方群消息回显：用 localSeq 匹配本地乐观消息（id == localSeq）并替换为服务器消息
+          if (localSeq != null) {
+            final idx = _messages.indexWhere(
+              (m) => m.id == localSeq && m.fromUserId == incoming.fromUserId,
+            );
+            if (idx != -1) {
+              _messages[idx] = incoming;
+              MessageCacheManager().appendMessage(_sessionId, incoming.toModel());
+              return;
+            }
+          }
+          // 按 id 去重，不存在才新增
           final exists = _messages.any((m) => m.id == incoming.id);
           if (!exists) {
             _messages.add(incoming);
+            MessageCacheManager().appendMessage(_sessionId, incoming.toModel());
           }
         });
         // 滚动到底部
@@ -225,6 +271,26 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     }
     if (success) {
       await MessageCacheManager().appendMessage(_sessionId, sentModel.copyWith(status: 'sent').toModel());
+      // 更新会话列表 lastMsg（私聊已去掉服务端回显，需客户端主动更新）
+      if (mounted) {
+        context.read<ChatProvider>().updateConversation(
+          Conversation(
+            targetId: widget.targetId,
+            targetType: widget.targetType,
+            lastMsg: text,
+            lastMsgTime: now,
+            unreadCount: 0,
+          ),
+        );
+        await ConversationService().saveSession(
+          userId: auth.userId!,
+          targetId: widget.targetId,
+          targetType: widget.targetType,
+          lastMsg: text,
+          lastMsgTime: now,
+          unreadCount: 0,
+        );
+      }
     }
 
     if (!success) {

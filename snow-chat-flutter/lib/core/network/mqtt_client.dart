@@ -26,9 +26,14 @@ class MqttChatClient {
 
   bool get isConnected => _client?.connectionStatus?.state == MqttConnectionState.connected;
 
-  Future<void> connect({required int userId, String? username, String? password}) async {
-    final clientId = 'user_$userId';
-    final client = MqttServerClient.withPort(host, clientId, port);
+  Future<void> connect({
+    required int userId,
+    String? username,
+    String? password,
+    String? clientId,
+  }) async {
+    final effectiveClientId = clientId ?? 'user_$userId';
+    final client = MqttServerClient.withPort(host, effectiveClientId, port);
     client.logging(on: false);
     client.keepAlivePeriod = 30;
     client.autoReconnect = true;
@@ -38,7 +43,7 @@ class MqttChatClient {
     client.onAutoReconnect = () {};
     client.onAutoReconnected = () => _subscribeAll(userId);
     client.connectionMessage = MqttConnectMessage()
-        .withClientIdentifier(clientId)
+        .withClientIdentifier(effectiveClientId)
         .startClean()
         .withWillQos(MqttQos.atLeastOnce);
 

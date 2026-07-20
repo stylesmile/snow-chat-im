@@ -3,13 +3,41 @@ import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/conversation_service.dart';
 import 'chat_detail_screen.dart';
 import 'contact_tab.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
 
-class ChatListScreen extends StatelessWidget {
+class ChatListScreen extends StatefulWidget {
   const ChatListScreen({super.key});
+
+  @override
+  State<ChatListScreen> createState() => _ChatListScreenState();
+}
+
+class _ChatListScreenState extends State<ChatListScreen> {
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadConversations();
+  }
+
+  Future<void> _loadConversations() async {
+    final auth = context.read<AuthProvider>();
+    if (auth.userId == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+
+    final conversations = await ConversationService().loadSessions(auth.userId!);
+    if (!mounted) return;
+
+    context.read<ChatProvider>().setConversations(conversations);
+    setState(() => _isLoading = false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +48,7 @@ class ChatListScreen extends StatelessWidget {
         title: Text(l10n.chatList),
         actions: [
           IconButton(
-            icon: const Icon(Icons.person_add),
+            icon: const Icon(Icons.search),
             tooltip: l10n.addFriend,
             onPressed: () {},
           ),
@@ -51,6 +79,10 @@ class ChatListScreen extends StatelessWidget {
       body: Consumer<ChatProvider>(
         builder: (_, chatProvider, __) {
           final conversations = chatProvider.conversations;
+
+          if (_isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
           if (conversations.isEmpty) {
             return Center(

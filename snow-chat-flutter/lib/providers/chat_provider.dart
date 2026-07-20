@@ -74,6 +74,11 @@ class ChatProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setConversations(List<Conversation> conversations) {
+    _conversations = conversations;
+    notifyListeners();
+  }
+
   void updateConversation(Conversation conv) {
     final index = _conversations.indexWhere(
       (c) => c.targetId == conv.targetId && c.targetType == conv.targetType,
@@ -83,6 +88,14 @@ class ChatProvider extends ChangeNotifier {
     } else {
       _conversations.insert(0, conv);
     }
+    notifyListeners();
+  }
+
+  /// 删除指定会话（从内存列表移除，不删数据库）
+  void removeConversation(int targetId, String targetType) {
+    _conversations.removeWhere(
+      (c) => c.targetId == targetId && c.targetType == targetType,
+    );
     notifyListeners();
   }
 

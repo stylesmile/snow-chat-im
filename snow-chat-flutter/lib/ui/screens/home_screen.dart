@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/chat_provider.dart';
 import '../../providers/friend_request_provider.dart';
+import '../../services/conversation_service.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/constants/ws_cmd.dart';
 import '../../core/network/mqtt_client.dart';
@@ -20,6 +22,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   FriendRequestProvider? _friendRequestProvider;
+  ChatProvider? _chatProvider;
   bool _pollingStarted = false;
   MqttChatClient? _mqttClient;
   final ValueNotifier<int> _friendAcceptedNotifier = ValueNotifier<int>(0);
@@ -34,6 +37,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   void didChangeDependencies() {
     super.didChangeDependencies();
     _friendRequestProvider ??= context.read<FriendRequestProvider>();
+    _chatProvider ??= context.read<ChatProvider>();
     if (!_pollingStarted) {
       _pollingStarted = true;
       final auth = context.read<AuthProvider>();
@@ -49,7 +53,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       host: ApiConstants.mqttHost,
       port: ApiConstants.mqttPort,
       onMessage: (cmd, data) {
-        if (cmd == WsCmd.friendAccepted && mounted) {
+        if (!mounted) return;
+        if (cmd == WsCmd.friendAccepted) {
           // 刷新好友请求列表
           _friendRequestProvider?.refresh();
           // 通知联系人 tab 刷新好友列表
@@ -65,6 +70,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               ),
             );
           }
+        } else if (cmd == WsCmd.msgPush) {
+          // 更新聊天列表：收到新消息时将会话置顶并增加未读数
+          _handleIncomingMessage(data as Map<String, dynamic>? ?? {}, userId);
         }
       },
     );
@@ -72,6 +80,45 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       userId: userId,
       username: ApiConstants.mqttUsername,
       password: ApiConstants.mqttPassword,
+    );
+  }
+
+  /// 处理收到的消息，更新本地会话与内存列表
+  void _handleIncomingMessage(Map<String, dynamic> data, int userId) {
+    final fromUserId = data['fromUserId'] as int?;
+    final toUserId = data['toUserId'] as int?;
+    final groupId = data['groupId'] as int?;
+    final content = data['content'] as String? ?? '';
+    final createTime = data['createTime'] is int
+        ? data['createTime'] as int
+        : DateTime.now().millisecondsSinceEpoch;
+
+    final bool isGroup = groupId != null;
+    final int targetId = isGroup ? groupId : (fromUserId == userId ? toUserId! : fromUserId!);
+    final String targetType = isGroup ? 'group' : 'friend';
+
+    final existing = _chatProvider?.conversations.firstWhere(
+      (c) => c.targetId == targetId && c.targetType == targetType,
+      orElse: () => Conversation(targetId: targetId, targetType: targetType),
+    );
+    if (existing == null) return;
+
+    final updated = Conversation(
+      targetId: targetId,
+      targetType: targetType,
+      lastMsg: content,
+      lastMsgTime: createTime,
+      unreadCount: existing.unreadCount + 1,
+    );
+    _chatProvider?.updateConversation(updated);
+
+    ConversationService().saveSession(
+      userId: userId,
+      targetId: targetId,
+      targetType: targetType,
+      lastMsg: content,
+      lastMsgTime: createTime,
+      unreadCount: updated.unreadCount,
     );
   }
 
