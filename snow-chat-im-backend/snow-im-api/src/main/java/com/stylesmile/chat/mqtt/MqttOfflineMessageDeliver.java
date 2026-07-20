@@ -4,6 +4,7 @@ import com.stylesmile.chat.entity.ChatOfflineMessage;
 import com.stylesmile.chat.mapper.ChatOfflineMessageMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
@@ -20,7 +21,7 @@ public class MqttOfflineMessageDeliver {
     @Resource
     private ChatOfflineMessageMapper chatOfflineMessageMapper;
 
-    @Resource
+    @Autowired(required = false)
     private MqttPushService mqttPushService;
 
     /**

@@ -19,7 +19,7 @@ public interface ChatGroupService extends BaseService<ChatGroup> {
      * @param groupId 群组ID
      * @return 群组
      */
-    ChatGroup getGroupById(Integer groupId);
+    ChatGroup getGroupById(Long groupId);
 
     /**
      * 查询用户所在的群组列表
@@ -27,7 +27,7 @@ public interface ChatGroupService extends BaseService<ChatGroup> {
      * @param userId 用户ID
      * @return 群组列表
      */
-    List<ChatGroup> getGroupsByUserId(Integer userId);
+    List<ChatGroup> getGroupsByUserId(Long userId);
 
     /**
      * 创建群组
@@ -39,5 +39,5 @@ public interface ChatGroupService extends BaseService<ChatGroup> {
      * @param memberIds  初始成员ID列表
      * @return 群组ID
      */
-    Integer createGroup(Integer ownerId, String name, String avatar, Integer maxMembers, List<Integer> memberIds);
+    Long createGroup(Long ownerId, String name, String avatar, Integer maxMembers, List<Long> memberIds);
 }

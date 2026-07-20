@@ -27,9 +27,9 @@ class ChatSessionControllerTest {
     @Test
     void listsSessionsForUser() {
         List<ChatSession> sessions = List.of(new ChatSession());
-        when(chatSessionService.getSessionsByUserId(5)).thenReturn(sessions);
+        when(chatSessionService.getSessionsByUserId(5L)).thenReturn(sessions);
 
-        Result<List<ChatSession>> result = controller.list(5);
+        Result<List<ChatSession>> result = controller.list(5L);
 
         assertSuccess(result);
         assertEquals(sessions, result.getData());
@@ -38,12 +38,12 @@ class ChatSessionControllerTest {
     @Test
     void clearsUnreadCountFromDto() {
         ChatSessionController.ClearUnreadDTO dto = new ChatSessionController.ClearUnreadDTO();
-        dto.setUserId(5);
-        dto.setTargetId(8);
+        dto.setUserId(5L);
+        dto.setTargetId(8L);
 
         assertSuccess(controller.clearUnread(dto));
 
-        verify(chatSessionService).clearUnreadCount(5, 8);
+        verify(chatSessionService).clearUnreadCount(5L, 8L);
     }
 
     private void assertSuccess(Result<?> result) {

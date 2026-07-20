@@ -5,6 +5,7 @@ import com.stylesmile.chat.entity.ChatFriend;
 import com.stylesmile.chat.entity.ChatFriendRequest;
 import com.stylesmile.chat.service.ChatFriendRequestService;
 import com.stylesmile.chat.service.ChatFriendService;
+import lombok.Data;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -27,7 +28,7 @@ public class ChatFriendController {
      * 获取好友列表
      */
     @GetMapping("/list")
-    public Result<List<ChatFriend>> list(@RequestParam Integer userId) {
+    public Result<List<ChatFriend>> list(@RequestParam Long userId) {
         List<ChatFriend> friends = chatFriendService.getFriendsByUserId(userId);
         return Result.success(friends);
     }
@@ -54,7 +55,7 @@ public class ChatFriendController {
      * 获取待处理的好友请求（接收到的）
      */
     @GetMapping("/pending")
-    public Result<List<ChatFriendRequest>> pending(@RequestParam Integer toUserId) {
+    public Result<List<ChatFriendRequest>> pending(@RequestParam Long toUserId) {
         List<ChatFriendRequest> requests = chatFriendRequestService.getPendingRequests(toUserId);
         return Result.success(requests);
     }
@@ -63,7 +64,7 @@ public class ChatFriendController {
      * 获取已发送的待处理请求
      */
     @GetMapping("/sent")
-    public Result<List<ChatFriendRequest>> sent(@RequestParam Integer fromUserId) {
+    public Result<List<ChatFriendRequest>> sent(@RequestParam Long fromUserId) {
         List<ChatFriendRequest> requests = chatFriendRequestService.getSentRequests(fromUserId);
         return Result.success(requests);
     }
@@ -72,34 +73,22 @@ public class ChatFriendController {
      * 删除好友（双向删除）
      */
     @DeleteMapping("/{userId}/{friendId}")
-    public Result<Void> delete(@PathVariable Integer userId, @PathVariable Integer friendId) {
+    public Result<Void> delete(@PathVariable Long userId, @PathVariable Long friendId) {
         chatFriendService.removeFriend(userId, friendId);
         return Result.success();
     }
 
+    @Data
     public static class FriendRequestDTO {
-        private Integer fromUserId;
-        private Integer toUserId;
+        private Long fromUserId;
+        private Long toUserId;
         private String remark;
-
-        public Integer getFromUserId() { return fromUserId; }
-        public void setFromUserId(Integer fromUserId) { this.fromUserId = fromUserId; }
-        public Integer getToUserId() { return toUserId; }
-        public void setToUserId(Integer toUserId) { this.toUserId = toUserId; }
-        public String getRemark() { return remark; }
-        public void setRemark(String remark) { this.remark = remark; }
     }
 
+    @Data
     public static class FriendHandleDTO {
-        private Integer fromUserId;
-        private Integer toUserId;
+        private Long fromUserId;
+        private Long toUserId;
         private Boolean accept;
-
-        public Integer getFromUserId() { return fromUserId; }
-        public void setFromUserId(Integer fromUserId) { this.fromUserId = fromUserId; }
-        public Integer getToUserId() { return toUserId; }
-        public void setToUserId(Integer toUserId) { this.toUserId = toUserId; }
-        public Boolean getAccept() { return accept; }
-        public void setAccept(Boolean accept) { this.accept = accept; }
     }
 }

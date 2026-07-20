@@ -3,7 +3,8 @@ spring:
     active: dev
   application:
     name: snow-im-api
-
+  main:
+    allow-circular-references: true
 # mqtt 服务端配置
 mqtt:
   client:

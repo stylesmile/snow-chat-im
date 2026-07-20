@@ -19,12 +19,12 @@ import java.util.List;
 public class ChatGroupMemberServiceImpl extends BaseServiceImpl<ChatGroupMemberMapper, ChatGroupMember> implements ChatGroupMemberService {
 
     @Override
-    public List<ChatGroupMember> getMembersByGroupId(Integer groupId) {
+    public List<ChatGroupMember> getMembersByGroupId(Long groupId) {
         return baseMapper.getMembersByGroupId(groupId);
     }
 
     @Override
-    public void addMember(Integer groupId, Integer userId) {
+    public void addMember(Long groupId, Long userId) {
         ChatGroupMember member = new ChatGroupMember();
         member.setGroupId(groupId);
         member.setUserId(userId);
@@ -35,7 +35,7 @@ public class ChatGroupMemberServiceImpl extends BaseServiceImpl<ChatGroupMemberM
     }
 
     @Override
-    public void removeMember(Integer groupId, Integer userId) {
+    public void removeMember(Long groupId, Long userId) {
         remove(lambdaQuery()
                 .eq(ChatGroupMember::getGroupId, groupId)
                 .eq(ChatGroupMember::getUserId, userId)
@@ -43,7 +43,7 @@ public class ChatGroupMemberServiceImpl extends BaseServiceImpl<ChatGroupMemberM
     }
 
     @Override
-    public boolean isMember(Integer groupId, Integer userId) {
+    public boolean isMember(Long groupId, Long userId) {
         return lambdaQuery()
                 .eq(ChatGroupMember::getGroupId, groupId)
                 .eq(ChatGroupMember::getUserId, userId)

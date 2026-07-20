@@ -1,24 +1,26 @@
 package com.stylesmile.chat.entity;
 
 import com.baomidou.mybatisplus.annotation.TableField;
+import lombok.Data;
 
 /**
  * @author chenye
  * @date 2018/12/10
  */
+@Data
 public class ChatFriendRequest {
     /**
      * 主键
      */
-    private Integer id;
+    private Long id;
     /**
      * 发起人ID
      */
-    private Integer fromUserId;
+    private Long fromUserId;
     /**
      * 接收人ID
      */
-    private Integer toUserId;
+    private Long toUserId;
     /**
      * 状态 pending/accepted/rejected
      */
@@ -45,67 +47,4 @@ public class ChatFriendRequest {
     public ChatFriendRequest() {
     }
 
-    public Integer getId() {
-        return id;
-    }
-
-    public void setId(Integer id) {
-        this.id = id;
-    }
-
-    public Integer getFromUserId() {
-        return fromUserId;
-    }
-
-    public void setFromUserId(Integer fromUserId) {
-        this.fromUserId = fromUserId;
-    }
-
-    public Integer getToUserId() {
-        return toUserId;
-    }
-
-    public void setToUserId(Integer toUserId) {
-        this.toUserId = toUserId;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public String getRemark() {
-        return remark;
-    }
-
-    public void setRemark(String remark) {
-        this.remark = remark;
-    }
-
-    public java.util.Date getCreateTime() {
-        return createTime;
-    }
-
-    public void setCreateTime(java.util.Date createTime) {
-        this.createTime = createTime;
-    }
-
-    public String getFromNickname() {
-        return fromNickname;
-    }
-
-    public void setFromNickname(String fromNickname) {
-        this.fromNickname = fromNickname;
-    }
-
-    public String getFromAvatar() {
-        return fromAvatar;
-    }
-
-    public void setFromAvatar(String fromAvatar) {
-        this.fromAvatar = fromAvatar;
-    }
-}
+ }

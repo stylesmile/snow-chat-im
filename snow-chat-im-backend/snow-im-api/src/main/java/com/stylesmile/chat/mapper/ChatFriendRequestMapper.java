@@ -22,5 +22,5 @@ public interface ChatFriendRequestMapper extends BaseMapper<ChatFriendRequest> {
      * @param toUserId 接收人ID
      * @return 好友请求列表
      */
-    List<ChatFriendRequest> getPendingRequests(@Param("toUserId") Integer toUserId);
+    List<ChatFriendRequest> getPendingRequests(@Param("toUserId") Long toUserId);
 }

@@ -34,12 +34,12 @@ public class ChatFriendRequestServiceImpl extends BaseServiceImpl<ChatFriendRequ
     private ChatFriendMapper chatFriendMapper;
 
     @Override
-    public List<ChatFriendRequest> getPendingRequests(Integer toUserId) {
+    public List<ChatFriendRequest> getPendingRequests(Long toUserId) {
         return baseMapper.getPendingRequests(toUserId);
     }
 
     @Override
-    public List<ChatFriendRequest> getSentRequests(Integer fromUserId) {
+    public List<ChatFriendRequest> getSentRequests(Long fromUserId) {
         return lambdaQuery()
                 .eq(ChatFriendRequest::getFromUserId, fromUserId)
                 .eq(ChatFriendRequest::getStatus, "pending")
@@ -49,7 +49,7 @@ public class ChatFriendRequestServiceImpl extends BaseServiceImpl<ChatFriendRequ
 
     @Override
     @Transactional
-    public void sendRequest(Integer fromUserId, Integer toUserId, String remark) {
+    public void sendRequest(Long fromUserId, Long toUserId, String remark) {
         // 不能向自己发送请求
         if (fromUserId.equals(toUserId)) {
             throw new IllegalArgumentException("Cannot send friend request to yourself");
@@ -124,7 +124,7 @@ public class ChatFriendRequestServiceImpl extends BaseServiceImpl<ChatFriendRequ
 
     @Override
     @Transactional
-    public void handleRequest(Integer fromUserId, Integer toUserId, boolean accept) {
+    public void handleRequest(Long fromUserId, Long toUserId, boolean accept) {
         ChatFriendRequest request = lambdaQuery()
                 .eq(ChatFriendRequest::getFromUserId, fromUserId)
                 .eq(ChatFriendRequest::getToUserId, toUserId)

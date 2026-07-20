@@ -1,10 +1,12 @@
 package com.stylesmile.chat.controller;
 
+import com.stylesmile.chat.dto.MemberOperationDTO;
 import com.stylesmile.common.util.Result;
 import com.stylesmile.chat.entity.ChatGroup;
 import com.stylesmile.chat.entity.ChatGroupMember;
 import com.stylesmile.chat.service.ChatGroupMemberService;
 import com.stylesmile.chat.service.ChatGroupService;
+import lombok.Data;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -34,14 +36,14 @@ public class ChatGroupController {
      * @return Result
      */
     @PostMapping("/create")
-    public Result<Integer> create(@RequestBody GroupCreateDTO body) {
-        List<Integer> memberIds = body.getMemberIds() != null
+    public Result<Long> create(@RequestBody GroupCreateDTO body) {
+        List<Long> memberIds = body.getMemberIds() != null
                 ? Arrays.stream(body.getMemberIds().split(","))
                 .map(String::trim)
-                .map(Integer::valueOf)
+                .map(Long::valueOf)
                 .toList()
                 : null;
-        Integer groupId = chatGroupService.createGroup(
+        Long groupId = chatGroupService.createGroup(
                 body.getOwnerId(),
                 body.getName(),
                 body.getAvatar(),
@@ -58,7 +60,7 @@ public class ChatGroupController {
      * @return Result
      */
     @GetMapping("/{groupId}")
-    public Result<ChatGroup> getGroup(@PathVariable Integer groupId) {
+    public Result<ChatGroup> getGroup(@PathVariable Long groupId) {
         ChatGroup group = chatGroupService.getGroupById(groupId);
         return Result.success(group);
     }
@@ -70,7 +72,7 @@ public class ChatGroupController {
      * @return Result
      */
     @GetMapping("/list")
-    public Result<List<ChatGroup>> list(@RequestParam Integer userId) {
+    public Result<List<ChatGroup>> list(@RequestParam Long userId) {
         List<ChatGroup> groups = chatGroupService.getGroupsByUserId(userId);
         return Result.success(groups);
     }
@@ -82,7 +84,7 @@ public class ChatGroupController {
      * @return Result
      */
     @GetMapping("/members/{groupId}")
-    public Result<List<ChatGroupMember>> getMembers(@PathVariable Integer groupId) {
+    public Result<List<ChatGroupMember>> getMembers(@PathVariable Long groupId) {
         List<ChatGroupMember> members = chatGroupMemberService.getMembersByGroupId(groupId);
         return Result.success(members);
     }
@@ -95,7 +97,7 @@ public class ChatGroupController {
      */
     @PostMapping("/members/add")
     public Result<Void> addMembers(@RequestBody MemberOperationDTO body) {
-        for (Integer userId : body.getUserIds()) {
+        for (Long userId : body.getUserIds()) {
             chatGroupMemberService.addMember(body.getGroupId(), userId);
         }
         return Result.success();
@@ -109,7 +111,7 @@ public class ChatGroupController {
      */
     @PostMapping("/members/remove")
     public Result<Void> removeMembers(@RequestBody MemberOperationDTO body) {
-        for (Integer userId : body.getUserIds()) {
+        for (Long userId : body.getUserIds()) {
             chatGroupMemberService.removeMember(body.getGroupId(), userId);
         }
         return Result.success();
@@ -118,75 +120,14 @@ public class ChatGroupController {
     /**
      * 创建群组请求DTO
      */
+    @Data
     public static class GroupCreateDTO {
-        private Integer ownerId;
+        private Long ownerId;
         private String name;
         private String avatar;
         private Integer maxMembers;
         private String memberIds;
-
-        public Integer getOwnerId() {
-            return ownerId;
-        }
-
-        public void setOwnerId(Integer ownerId) {
-            this.ownerId = ownerId;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
-
-        public String getAvatar() {
-            return avatar;
-        }
-
-        public void setAvatar(String avatar) {
-            this.avatar = avatar;
-        }
-
-        public Integer getMaxMembers() {
-            return maxMembers;
-        }
-
-        public void setMaxMembers(Integer maxMembers) {
-            this.maxMembers = maxMembers;
-        }
-
-        public String getMemberIds() {
-            return memberIds;
-        }
-
-        public void setMemberIds(String memberIds) {
-            this.memberIds = memberIds;
-        }
     }
 
-    /**
-     * 成员操作DTO
-     */
-    public static class MemberOperationDTO {
-        private Integer groupId;
-        private Integer[] userIds;
 
-        public Integer getGroupId() {
-            return groupId;
-        }
-
-        public void setGroupId(Integer groupId) {
-            this.groupId = groupId;
-        }
-
-        public Integer[] getUserIds() {
-            return userIds;
-        }
-
-        public void setUserIds(Integer[] userIds) {
-            this.userIds = userIds;
-        }
-    }
 }

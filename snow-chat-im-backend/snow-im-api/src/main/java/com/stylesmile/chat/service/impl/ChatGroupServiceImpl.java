@@ -25,18 +25,18 @@ public class ChatGroupServiceImpl extends BaseServiceImpl<ChatGroupMapper, ChatG
     private ChatGroupMemberService chatGroupMemberService;
 
     @Override
-    public ChatGroup getGroupById(Integer groupId) {
+    public ChatGroup getGroupById(Long groupId) {
         return getById(groupId);
     }
 
     @Override
-    public List<ChatGroup> getGroupsByUserId(Integer userId) {
+    public List<ChatGroup> getGroupsByUserId(Long userId) {
         return baseMapper.getGroupsByUserId(userId);
     }
 
     @Override
     @Transactional
-    public Integer createGroup(Integer ownerId, String name, String avatar, Integer maxMembers, List<Integer> memberIds) {
+    public Long createGroup(Long ownerId, String name, String avatar, Integer maxMembers, List<Long> memberIds) {
         ChatGroup group = new ChatGroup();
         group.setOwnerId(ownerId);
         group.setName(name);
@@ -48,7 +48,7 @@ public class ChatGroupServiceImpl extends BaseServiceImpl<ChatGroupMapper, ChatG
         save(group);
 
         if (memberIds != null) {
-            for (Integer memberId : memberIds) {
+            for (Long memberId : memberIds) {
                 chatGroupMemberService.addMember(group.getId(), memberId);
             }
         }

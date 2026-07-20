@@ -19,7 +19,7 @@ public interface ChatSessionService extends BaseService<ChatSession> {
      * @param userId 用户ID
      * @return 会话列表
      */
-    List<ChatSession> getSessionsByUserId(Integer userId);
+    List<ChatSession> getSessionsByUserId(Long userId);
 
     /**
      * 查询或创建会话
@@ -29,7 +29,7 @@ public interface ChatSessionService extends BaseService<ChatSession> {
      * @param targetType 目标类型
      * @return 会话
      */
-    ChatSession getOrCreateSession(Integer userId, Integer targetId, String targetType);
+    ChatSession getOrCreateSession(Long userId, Long targetId, String targetType);
 
     /**
      * 更新最后一条消息
@@ -39,7 +39,7 @@ public interface ChatSessionService extends BaseService<ChatSession> {
      * @param targetType 目标类型
      * @param lastMsg    最后一条消息
      */
-    void updateLastMessage(Integer userId, Integer targetId, String targetType, String lastMsg);
+    void updateLastMessage(Long userId, Long targetId, String targetType, String lastMsg);
 
     /**
      * 清除未读数
@@ -47,5 +47,5 @@ public interface ChatSessionService extends BaseService<ChatSession> {
      * @param userId     用户ID
      * @param targetId   目标ID
      */
-    void clearUnreadCount(Integer userId, Integer targetId);
+    void clearUnreadCount(Long userId, Long targetId);
 }

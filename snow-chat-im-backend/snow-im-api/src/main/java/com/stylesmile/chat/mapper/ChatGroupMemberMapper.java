@@ -22,5 +22,5 @@ public interface ChatGroupMemberMapper extends BaseMapper<ChatGroupMember> {
      * @param groupId 群组ID
      * @return 成员列表
      */
-    List<ChatGroupMember> getMembersByGroupId(@Param("groupId") Integer groupId);
+    List<ChatGroupMember> getMembersByGroupId(@Param("groupId") Long groupId);
 }

@@ -1,22 +1,25 @@
 package com.stylesmile.chat.entity;
 
+import lombok.Data;
+
 /**
  * @author chenye
  * @date 2018/12/10
  */
+@Data
 public class ChatFriend {
     /**
      * 主键
      */
-    private Integer id;
+    private Long id;
     /**
      * 用户ID
      */
-    private Integer userId;
+    private Long userId;
     /**
      * 好友ID
      */
-    private Integer friendId;
+    private Long friendId;
     /**
      * 备注
      */
@@ -41,67 +44,5 @@ public class ChatFriend {
     public ChatFriend() {
     }
 
-    public Integer getId() {
-        return id;
-    }
 
-    public void setId(Integer id) {
-        this.id = id;
-    }
-
-    public Integer getUserId() {
-        return userId;
-    }
-
-    public void setUserId(Integer userId) {
-        this.userId = userId;
-    }
-
-    public Integer getFriendId() {
-        return friendId;
-    }
-
-    public void setFriendId(Integer friendId) {
-        this.friendId = friendId;
-    }
-
-    public String getRemark() {
-        return remark;
-    }
-
-    public void setRemark(String remark) {
-        this.remark = remark;
-    }
-
-    public java.util.Date getCreateTime() {
-        return createTime;
-    }
-
-    public void setCreateTime(java.util.Date createTime) {
-        this.createTime = createTime;
-    }
-
-    public String getNickname() {
-        return nickname;
-    }
-
-    public void setNickname(String nickname) {
-        this.nickname = nickname;
-    }
-
-    public String getAvatar() {
-        return avatar;
-    }
-
-    public void setAvatar(String avatar) {
-        this.avatar = avatar;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
 }

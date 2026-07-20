@@ -16,23 +16,23 @@ import java.util.List;
 public class ChatFriendServiceImpl extends BaseServiceImpl<ChatFriendMapper, ChatFriend> implements ChatFriendService {
 
     @Override
-    public List<ChatFriend> getFriendsByUserId(Integer userId) {
+    public List<ChatFriend> getFriendsByUserId(Long userId) {
         return baseMapper.getFriendsByUserId(userId);
     }
 
     @Override
-    public ChatFriend getFriend(Integer userId, Integer friendId) {
+    public ChatFriend getFriend(Long userId, Long friendId) {
         return baseMapper.getFriend(userId, friendId);
     }
 
     @Override
-    public boolean isFriend(Integer userId, Integer friendId) {
+    public boolean isFriend(Long userId, Long friendId) {
         return getFriend(userId, friendId) != null;
     }
 
     @Override
     @Transactional
-    public void addFriend(Integer userId, Integer friendId) {
+    public void addFriend(Long userId, Long friendId) {
         // 避免重复添加
         if (isFriend(userId, friendId)) {
             return;
@@ -45,7 +45,7 @@ public class ChatFriendServiceImpl extends BaseServiceImpl<ChatFriendMapper, Cha
 
     @Override
     @Transactional
-    public void removeFriend(Integer userId, Integer friendId) {
+    public void removeFriend(Long userId, Long friendId) {
         // 双向删除好友关系
         remove(new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ChatFriend>()
                 .eq(ChatFriend::getUserId, userId)

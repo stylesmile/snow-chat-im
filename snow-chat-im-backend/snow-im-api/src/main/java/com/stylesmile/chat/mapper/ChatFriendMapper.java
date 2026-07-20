@@ -22,7 +22,7 @@ public interface ChatFriendMapper extends BaseMapper<ChatFriend> {
      * @param userId 用户ID
      * @return 好友列表
      */
-    List<ChatFriend> getFriendsByUserId(@Param("userId") Integer userId);
+    List<ChatFriend> getFriendsByUserId(@Param("userId") Long userId);
 
     /**
      * 查询两个用户是否为好友
@@ -31,5 +31,5 @@ public interface ChatFriendMapper extends BaseMapper<ChatFriend> {
      * @param friendId 好友ID
      * @return 好友关系
      */
-    ChatFriend getFriend(@Param("userId") Integer userId, @Param("friendId") Integer friendId);
+    ChatFriend getFriend(@Param("userId") Long userId, @Param("friendId") Long friendId);
 }

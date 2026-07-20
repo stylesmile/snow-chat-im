@@ -32,47 +32,47 @@ class ChatFriendControllerTest {
     @Test
     void listsFriendsForUser() {
         List<ChatFriend> friends = List.of(new ChatFriend());
-        when(chatFriendService.getFriendsByUserId(7)).thenReturn(friends);
+        when(chatFriendService.getFriendsByUserId(7L)).thenReturn(friends);
 
-        Result<List<ChatFriend>> result = controller.list(7);
+        Result<List<ChatFriend>> result = controller.list(7L);
 
         assertSuccess(result);
         assertEquals(friends, result.getData());
-        verify(chatFriendService).getFriendsByUserId(7);
+        verify(chatFriendService).getFriendsByUserId(7L);
     }
 
     @Test
     void sendsFriendRequestFromDto() {
         ChatFriendController.FriendRequestDTO dto = new ChatFriendController.FriendRequestDTO();
-        dto.setFromUserId(1);
-        dto.setToUserId(2);
+        dto.setFromUserId(1L);
+        dto.setToUserId(2L);
         dto.setRemark("朋友");
 
         Result<Void> result = controller.request(dto);
 
         assertSuccess(result);
-        verify(chatFriendRequestService).sendRequest(1, 2, "朋友");
+        verify(chatFriendRequestService).sendRequest(1L, 2L, "朋友");
     }
 
     @Test
     void handlesFriendRequestFromDto() {
         ChatFriendController.FriendHandleDTO dto = new ChatFriendController.FriendHandleDTO();
-        dto.setFromUserId(1);
-        dto.setToUserId(2);
+        dto.setFromUserId(1L);
+        dto.setToUserId(2L);
         dto.setAccept(true);
 
         Result<Void> result = controller.handle(dto);
 
         assertSuccess(result);
-        verify(chatFriendRequestService).handleRequest(1, 2, true);
+        verify(chatFriendRequestService).handleRequest(1L, 2L, true);
     }
 
     @Test
     void listsPendingRequests() {
         List<ChatFriendRequest> requests = List.of(new ChatFriendRequest());
-        when(chatFriendRequestService.getPendingRequests(2)).thenReturn(requests);
+        when(chatFriendRequestService.getPendingRequests(2L)).thenReturn(requests);
 
-        Result<List<ChatFriendRequest>> result = controller.pending(2);
+        Result<List<ChatFriendRequest>> result = controller.pending(2L);
 
         assertSuccess(result);
         assertEquals(requests, result.getData());
@@ -80,7 +80,7 @@ class ChatFriendControllerTest {
 
     @Test
     void deletesBothDirectionsOfFriendship() {
-        Result<Void> result = controller.delete(1, 2);
+        Result<Void> result = controller.delete(1L, 2L);
 
         assertSuccess(result);
         verify(chatFriendService, org.mockito.Mockito.times(2)).remove(org.mockito.ArgumentMatchers.any());

@@ -19,7 +19,7 @@ public interface ChatGroupMemberService extends BaseService<ChatGroupMember> {
      * @param groupId 群组ID
      * @return 成员列表
      */
-    List<ChatGroupMember> getMembersByGroupId(Integer groupId);
+    List<ChatGroupMember> getMembersByGroupId(Long groupId);
 
     /**
      * 添加群组成员
@@ -27,7 +27,7 @@ public interface ChatGroupMemberService extends BaseService<ChatGroupMember> {
      * @param groupId 群组ID
      * @param userId  用户ID
      */
-    void addMember(Integer groupId, Integer userId);
+    void addMember(Long groupId, Long userId);
 
     /**
      * 移除群组成员
@@ -35,7 +35,7 @@ public interface ChatGroupMemberService extends BaseService<ChatGroupMember> {
      * @param groupId 群组ID
      * @param userId  用户ID
      */
-    void removeMember(Integer groupId, Integer userId);
+    void removeMember(Long groupId, Long userId);
 
     /**
      * 判断用户是否在群组中
@@ -44,5 +44,5 @@ public interface ChatGroupMemberService extends BaseService<ChatGroupMember> {
      * @param userId  用户ID
      * @return true-在群组中, false-不在群组中
      */
-    boolean isMember(Integer groupId, Integer userId);
+    boolean isMember(Long groupId, Long userId);
 }

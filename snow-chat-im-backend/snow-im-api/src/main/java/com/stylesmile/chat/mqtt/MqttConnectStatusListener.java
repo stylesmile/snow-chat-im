@@ -3,6 +3,7 @@ package com.stylesmile.chat.mqtt;
 import net.dreamlu.iot.mqtt.core.server.event.IMqttConnectStatusListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.Resource;
@@ -19,7 +20,7 @@ public class MqttConnectStatusListener implements IMqttConnectStatusListener {
 
     private final Set<String> onlineClientIds = ConcurrentHashMap.newKeySet();
 
-    @Resource
+    @Autowired(required = false)
     private MqttOfflineMessageDeliver offlineMessageDeliver;
 
     /**

@@ -28,10 +28,10 @@ public interface ChatMessageService extends BaseService<ChatMessage> {
     /**
      * 撤回消息
      */
-    void recallMessage(Integer userId, Long messageId);
+    void recallMessage(Long userId, Long messageId);
 
     /**
      * 标记为已读（按会话维度）
      */
-    void markAsRead(Integer userId, Integer targetId, String targetType);
+    void markAsRead(Long userId, Long targetId, String targetType);
 }

@@ -1,5 +1,8 @@
 package com.stylesmile.chat.controller;
 
+import com.stylesmile.chat.dto.ReadMessageDTO;
+import com.stylesmile.chat.dto.RecallMessageDTO;
+import com.stylesmile.chat.dto.SendMessageDTO;
 import com.stylesmile.chat.entity.ChatMessage;
 import com.stylesmile.chat.service.ChatMessageService;
 import com.stylesmile.common.util.Result;
@@ -39,26 +42,26 @@ class ChatMessageControllerTest {
 
     @Test
     void recallsAndMarksMessagesAsRead() {
-        ChatMessageController.RecallMessageDTO recall = new ChatMessageController.RecallMessageDTO();
-        recall.setUserId(1);
+        RecallMessageDTO recall = new RecallMessageDTO();
+        recall.setUserId(1L);
         recall.setMessageId(99L);
-        ChatMessageController.ReadMessageDTO read = new ChatMessageController.ReadMessageDTO();
-        read.setUserId(1);
-        read.setTargetId(2);
+        ReadMessageDTO read = new ReadMessageDTO();
+        read.setUserId(1L);
+        read.setTargetId(2L);
         read.setTargetType("group");
 
         assertSuccess(controller.recall(recall));
         assertSuccess(controller.markAsRead(read));
 
-        verify(chatMessageService).recallMessage(1, 99L);
-        verify(chatMessageService).markAsRead(1, 2, "group");
+        verify(chatMessageService).recallMessage(1L, 99L);
+        verify(chatMessageService).markAsRead(1L, 2L, "group");
     }
 
     @Test
     void mapsSendDtoToChatMessage() {
-        ChatMessageController.SendMessageDTO dto = new ChatMessageController.SendMessageDTO();
-        dto.setFromUserId(1);
-        dto.setToUserId(2);
+        SendMessageDTO dto = new SendMessageDTO();
+        dto.setFromUserId(1L);
+        dto.setToUserId(2L);
         dto.setGroupId(null);
         dto.setType("text");
         dto.setContent("hello");

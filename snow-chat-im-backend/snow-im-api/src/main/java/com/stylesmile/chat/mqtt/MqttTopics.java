@@ -10,7 +10,7 @@ public final class MqttTopics {
      * @param userId 用户id
      * @return String
      */
-    public static String user(Integer userId) {
+    public static String user(Long userId) {
         return "chat/user/" + userId;
     }
 
@@ -19,7 +19,7 @@ public final class MqttTopics {
      * @param groupId 群id
      * @return String
      */
-    public static String group(Integer groupId) {
+    public static String group(Long groupId) {
         return "chat/group/" + groupId;
     }
 }

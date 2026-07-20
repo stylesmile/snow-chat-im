@@ -19,7 +19,7 @@ import java.util.List;
 public class ChatSessionServiceImpl extends BaseServiceImpl<ChatSessionMapper, ChatSession> implements ChatSessionService {
 
     @Override
-    public List<ChatSession> getSessionsByUserId(Integer userId) {
+    public List<ChatSession> getSessionsByUserId(Long userId) {
         LambdaQueryWrapper<ChatSession> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ChatSession::getUserId, userId)
                .orderByDesc(ChatSession::getLastMsgTime)
@@ -29,7 +29,7 @@ public class ChatSessionServiceImpl extends BaseServiceImpl<ChatSessionMapper, C
 
     @Override
     @Transactional
-    public ChatSession getOrCreateSession(Integer userId, Integer targetId, String targetType) {
+    public ChatSession getOrCreateSession(Long userId, Long targetId, String targetType) {
         LambdaQueryWrapper<ChatSession> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(ChatSession::getUserId, userId)
                .eq(ChatSession::getTargetId, targetId)
@@ -51,7 +51,7 @@ public class ChatSessionServiceImpl extends BaseServiceImpl<ChatSessionMapper, C
 
     @Override
     @Transactional
-    public void updateLastMessage(Integer userId, Integer targetId, String targetType, String lastMsg) {
+    public void updateLastMessage(Long userId, Long targetId, String targetType, String lastMsg) {
         LambdaUpdateWrapper<ChatSession> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(ChatSession::getUserId, userId)
                .eq(ChatSession::getTargetId, targetId)
@@ -73,7 +73,7 @@ public class ChatSessionServiceImpl extends BaseServiceImpl<ChatSessionMapper, C
 
     @Override
     @Transactional
-    public void clearUnreadCount(Integer userId, Integer targetId) {
+    public void clearUnreadCount(Long userId, Long targetId) {
         LambdaUpdateWrapper<ChatSession> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(ChatSession::getUserId, userId)
                .eq(ChatSession::getTargetId, targetId)

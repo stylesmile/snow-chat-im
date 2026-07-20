@@ -16,9 +16,9 @@ import java.util.Date;
 @Getter
 public class ChatOfflineMessage {
     /** 主键 ID */
-    private Integer id;
+    private Long id;
     /** 接收者用户 ID */
-    private Integer toUserId;
+    private Long toUserId;
     /** MQTT 主题（如 chat/user/{userId}） */
     private String topic;
     /** 消息命令类型（参见 WsCmd） */

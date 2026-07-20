@@ -82,7 +82,7 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
         save(message);
 
         // 更新发送方会话
-        Integer targetId = message.getGroupId() != null ? message.getGroupId() : message.getToUserId();
+        Long targetId = message.getGroupId() != null ? message.getGroupId() : message.getToUserId();
         String targetType = message.getGroupId() != null ? "group" : "friend";
         chatSessionService.getOrCreateSession(message.getFromUserId(), targetId, targetType);
 
@@ -100,6 +100,9 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
         data.put("localSeq", message.getLocalSeq());
         data.put("createTime", message.getCreateTime());
 
+        log.info("Publishing message id={}, from={}, to={}, groupId={}",
+                message.getId(), message.getFromUserId(), message.getToUserId(), message.getGroupId());
+
         if (message.getGroupId() != null) {
             // 群消息：推送给群内所有成员（发送方客户端通过 localSeq 去重自己的消息）
             mqttPushService.publish(MqttTopics.group(message.getGroupId()), 2001, data);
@@ -114,7 +117,7 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
     /**
      * 推送给用户；始终尝试 MQTT 实时推送，用户不在线时额外保存离线消息兜底
      */
-    private void pushToUser(Integer userId, int cmd, Map<String, Object> data, ChatMessage message) {
+    private void pushToUser(Long userId, int cmd, Map<String, Object> data, ChatMessage message) {
         String topic = MqttTopics.user(userId);
         // 始终尝试 MQTT 实时推送（在线客户端直接收到，broker 对 cleanSession 客户端不缓存）
         mqttPushService.publish(topic, cmd, data);
@@ -123,13 +126,13 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
             saveOfflineMessage(userId, topic, cmd, data);
         }
         // 更新接收方会话与未读数
-        Integer targetId = message.getGroupId() != null ? message.getGroupId() : message.getFromUserId();
+        Long targetId = message.getGroupId() != null ? message.getGroupId() : message.getFromUserId();
         String targetType = message.getGroupId() != null ? "group" : "friend";
         chatSessionService.getOrCreateSession(userId, targetId, targetType);
         chatSessionService.updateLastMessage(userId, targetId, targetType, message.getContent());
     }
 
-    private String clientId(Integer userId) {
+    private String clientId(Long userId) {
         return userId == null ? "" : "user_" + userId;
     }
 
@@ -142,7 +145,7 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
             return;
         }
         for (ChatGroupMember member : members) {
-            Integer userId = member.getUserId();
+            Long userId = member.getUserId();
             // 不发给自己
             if (userId.equals(message.getFromUserId())) {
                 continue;
@@ -153,7 +156,7 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
         }
     }
 
-    private void saveOfflineMessage(Integer toUserId, String topic, int cmd, Map<String, Object> data) {
+    private void saveOfflineMessage(Long toUserId, String topic, int cmd, Map<String, Object> data) {
         try {
             String payload = String.format(
                     "{\"cmd\":%d,\"seq\":\"%s\",\"data\":%s}",
@@ -194,7 +197,7 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
     }
 
     @Override
-    public void recallMessage(Integer userId, Long messageId) {
+    public void recallMessage(Long userId, Long messageId) {
         ChatMessage message = getById(messageId);
         if (message != null && message.getFromUserId().equals(userId)) {
             message.setContent("[消息已撤回]");
@@ -221,7 +224,7 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
     }
 
     @Override
-    public void markAsRead(Integer userId, Integer targetId, String targetType) {
+    public void markAsRead(Long userId, Long targetId, String targetType) {
         LambdaUpdateWrapper<ChatMessage> wrapper = new LambdaUpdateWrapper<>();
         wrapper.eq(ChatMessage::getToUserId, userId)
                .eq(ChatMessage::getStatus, 0)

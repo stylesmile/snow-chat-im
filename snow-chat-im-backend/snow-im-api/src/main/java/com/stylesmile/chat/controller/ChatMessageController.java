@@ -1,9 +1,15 @@
 package com.stylesmile.chat.controller;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
+import com.stylesmile.chat.dto.ReadMessageDTO;
+import com.stylesmile.chat.dto.RecallMessageDTO;
+import com.stylesmile.chat.dto.SendMessageDTO;
 import com.stylesmile.common.util.Result;
 import com.stylesmile.chat.entity.ChatMessage;
 import com.stylesmile.chat.service.ChatMessageService;
+import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -82,51 +88,9 @@ public class ChatMessageController {
         return Result.success();
     }
 
-    public static class RecallMessageDTO {
-        private Integer userId;
-        private Long messageId;
-        public Integer getUserId() { return userId; }
-        public void setUserId(Integer userId) { this.userId = userId; }
-        public Long getMessageId() { return messageId; }
-        public void setMessageId(Long messageId) { this.messageId = messageId; }
-    }
 
-    public static class ReadMessageDTO {
-        private Integer userId;
-        private Integer targetId;
-        private String targetType;
-        public Integer getUserId() { return userId; }
-        public void setUserId(Integer userId) { this.userId = userId; }
-        public Integer getTargetId() { return targetId; }
-        public void setTargetId(Integer targetId) { this.targetId = targetId; }
-        public String getTargetType() { return targetType; }
-        public void setTargetType(String targetType) { this.targetType = targetType; }
-    }
 
-    public static class SendMessageDTO {
-        @JsonAlias({"fromUserId", "from_user_id"})
-        private Integer fromUserId;
-        @JsonAlias({"toUserId", "to_user_id"})
-        private Integer toUserId;
-        @JsonAlias({"groupId", "group_id"})
-        private Integer groupId;
-        @JsonAlias({"type", "msgType"})
-        private String type;
-        @JsonAlias({"content"})
-        private String content;
-        @JsonAlias({"localSeq", "local_seq"})
-        private Integer localSeq;
-        public Integer getFromUserId() { return fromUserId; }
-        public void setFromUserId(Integer fromUserId) { this.fromUserId = fromUserId; }
-        public Integer getToUserId() { return toUserId; }
-        public void setToUserId(Integer toUserId) { this.toUserId = toUserId; }
-        public Integer getGroupId() { return groupId; }
-        public void setGroupId(Integer groupId) { this.groupId = groupId; }
-        public String getType() { return type; }
-        public void setType(String type) { this.type = type; }
-        public String getContent() { return content; }
-        public void setContent(String content) { this.content = content; }
-        public Integer getLocalSeq() { return localSeq; }
-        public void setLocalSeq(Integer localSeq) { this.localSeq = localSeq; }
-    }
+
+
+
 }

@@ -3,6 +3,7 @@ package com.stylesmile.chat.controller;
 import com.stylesmile.common.util.Result;
 import com.stylesmile.chat.entity.ChatSession;
 import com.stylesmile.chat.service.ChatSessionService;
+import lombok.Data;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
@@ -28,7 +29,7 @@ public class ChatSessionController {
      * @return Result
      */
     @GetMapping("/list")
-    public Result<List<ChatSession>> list(@RequestParam Integer userId) {
+    public Result<List<ChatSession>> list(@RequestParam Long userId) {
         List<ChatSession> sessions = chatSessionService.getSessionsByUserId(userId);
         return Result.success(sessions);
     }
@@ -48,24 +49,9 @@ public class ChatSessionController {
     /**
      * 清除未读数DTO
      */
+    @Data
     public static class ClearUnreadDTO {
-        private Integer userId;
-        private Integer targetId;
-
-        public Integer getUserId() {
-            return userId;
-        }
-
-        public void setUserId(Integer userId) {
-            this.userId = userId;
-        }
-
-        public Integer getTargetId() {
-            return targetId;
-        }
-
-        public void setTargetId(Integer targetId) {
-            this.targetId = targetId;
-        }
+        private Long userId;
+        private Long targetId;
     }
 }
