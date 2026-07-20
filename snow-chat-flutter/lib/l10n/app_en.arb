@@ -251,11 +251,11 @@
   "alreadyHaveAccount": "Already have an account? Sign in",
   "@alreadyHaveAccount": {"description": "Redirect to sign in"},
   "noAccountYet": "Don't have an account? Sign up",
-  "@noAccountYet": {"description": "Redirect to sign up"}
-,
+  "@noAccountYet": {"description": "Redirect to sign up"},
   "deleteFriend": "Delete Friend",
-  "@deleteFriend": {"description": "Delete friend confirmation"}
-,
+  "@deleteFriend": {"description": "Delete friend confirmation"},
   "search": "Search",
-  "@search": {"description": "Search button"}
+  "@search": {"description": "Search button"},
+  "friendRequestAccepted": "Friend request accepted",
+  "@friendRequestAccepted": {"description": "Friend request accepted notification"}
 }

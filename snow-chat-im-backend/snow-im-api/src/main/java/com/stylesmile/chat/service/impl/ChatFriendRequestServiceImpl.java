@@ -152,6 +152,16 @@ public class ChatFriendRequestServiceImpl extends BaseServiceImpl<ChatFriendRequ
             f2.setCreateTime(new Date());
             chatFriendMapper.insert(f2);
 
+            // 通过MQTT通知发送方，好友请求已被接受
+            try {
+                Map<String, Object> data = new HashMap<>();
+                data.put("fromUserId", fromUserId);
+                data.put("toUserId", toUserId);
+                data.put("status", "accepted");
+                mqttPushService.publish(MqttTopics.user(fromUserId), 2006, data);
+            } catch (Exception e) {
+                log.warn("Failed to publish friend accepted notification via MQTT", e);
+            }
         }
     }
 }

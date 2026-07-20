@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../providers/chat_provider.dart';
 import '../../providers/friend_request_provider.dart';
+import '../../core/constants/api_constants.dart';
+import '../../core/constants/ws_cmd.dart';
+import '../../core/network/mqtt_client.dart';
 import 'chat_list_tab.dart';
 import 'contact_tab.dart';
 import 'profile_tab.dart';
@@ -17,26 +19,69 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  FriendRequestProvider? _friendRequestProvider;
+  bool _pollingStarted = false;
+  MqttChatClient? _mqttClient;
+  final ValueNotifier<int> _friendAcceptedNotifier = ValueNotifier<int>(0);
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    // 启动好友请求轮询
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _friendRequestProvider ??= context.read<FriendRequestProvider>();
+    if (!_pollingStarted) {
+      _pollingStarted = true;
       final auth = context.read<AuthProvider>();
-      final friendReqProvider = context.read<FriendRequestProvider>();
       if (auth.userId != null) {
-        friendReqProvider.startPolling(auth.userId!);
+        _friendRequestProvider?.startPolling(auth.userId!);
+        _initMqtt(auth.userId!);
       }
-    });
+    }
+  }
+
+  void _initMqtt(int userId) {
+    _mqttClient = MqttChatClient(
+      host: ApiConstants.mqttHost,
+      port: ApiConstants.mqttPort,
+      onMessage: (cmd, data) {
+        if (cmd == WsCmd.friendAccepted && mounted) {
+          // 刷新好友请求列表
+          _friendRequestProvider?.refresh();
+          // 通知联系人 tab 刷新好友列表
+          _friendAcceptedNotifier.value++;
+          // 显示提示
+          final l10n = AppLocalizations.of(context);
+          if (l10n != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(l10n.friendRequestAccepted),
+                backgroundColor: const Color(0xFF7C4DFF),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        }
+      },
+    );
+    _mqttClient!.connect(
+      userId: userId,
+      username: ApiConstants.mqttUsername,
+      password: ApiConstants.mqttPassword,
+    );
   }
 
   @override
   void dispose() {
     _tabController.dispose();
-    // 停止好友请求轮询
-    context.read<FriendRequestProvider>().stopPolling();
+    // 停止好友请求轮询，使用缓存的引用，避免在 dispose 中访问 context
+    _friendRequestProvider?.stopPolling();
+    _mqttClient?.disconnect();
+    _friendAcceptedNotifier.dispose();
     super.dispose();
   }
 
@@ -51,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         controller: _tabController,
         children: [
           const ChatListTab(),
-          const ContactTab(),
+          ContactTab(friendAcceptedNotifier: _friendAcceptedNotifier),
           const ProfileTab(),
         ],
       ),

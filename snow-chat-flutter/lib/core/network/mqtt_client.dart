@@ -27,7 +27,8 @@ class MqttChatClient {
   bool get isConnected => _client?.connectionStatus?.state == MqttConnectionState.connected;
 
   Future<void> connect({required int userId, String? username, String? password}) async {
-    final client = MqttServerClient.withPort(host, 'snow-chat-$userId', port);
+    final clientId = 'user_$userId';
+    final client = MqttServerClient.withPort(host, clientId, port);
     client.logging(on: false);
     client.keepAlivePeriod = 30;
     client.autoReconnect = true;
@@ -37,7 +38,7 @@ class MqttChatClient {
     client.onAutoReconnect = () {};
     client.onAutoReconnected = () => _subscribeAll(userId);
     client.connectionMessage = MqttConnectMessage()
-        .withClientIdentifier('snow-chat-$userId')
+        .withClientIdentifier(clientId)
         .startClean()
         .withWillQos(MqttQos.atLeastOnce);
 
@@ -59,10 +60,6 @@ class MqttChatClient {
   void _subscribeAll(int userId) {
     _client?.subscribe('chat/user/$userId', MqttQos.atLeastOnce);
     // 群主题由 subscribeGroup 单独管理
-  }
-
-  void _subscribe(int userId) {
-    _client?.subscribe('chat/user/$userId', MqttQos.atLeastOnce);
   }
 
   /// 订阅群主题

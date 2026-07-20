@@ -391,4 +391,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get search => '검색';
+
+  @override
+  String get friendRequestAccepted => '친구 요청이 수락되었습니다';
 }

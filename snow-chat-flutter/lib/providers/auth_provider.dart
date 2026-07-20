@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/network/api_client.dart';
 
 class AuthProvider extends ChangeNotifier {
@@ -14,6 +15,11 @@ class AuthProvider extends ChangeNotifier {
 
   AuthProvider(this.baseUrl) {
     _apiClient = ApiClient(baseUrl);
+  }
+
+  /// 从本地存储恢复登录状态，应在 main() 中 await 调用。
+  Future<void> init() async {
+    await _loadAuthState();
   }
 
   int? get userId => _userId;
@@ -45,6 +51,7 @@ class AuthProvider extends ChangeNotifier {
         _nickname = data['nickname'] as String?;
         _avatar = data['avatar'] as String?;
         _isLoggedIn = true;
+        await _saveAuthState();
         notifyListeners();
         return true;
       }
@@ -81,6 +88,7 @@ class AuthProvider extends ChangeNotifier {
         _nickname = data['nickname'] as String?;
         _avatar = data['avatar'] as String?;
         _isLoggedIn = true;
+        await _saveAuthState();
         notifyListeners();
         return true;
       }
@@ -93,14 +101,49 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  void logout() {
+  Future<void> logout() async {
     _userId = null;
     _username = null;
     _nickname = null;
     _avatar = null;
     _isLoggedIn = false;
     _lastError = null;
+    await _clearAuthState();
     notifyListeners();
+  }
+
+  /// 持久化登录状态到 SharedPreferences
+  Future<void> _saveAuthState() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('userId', _userId ?? 0);
+    await prefs.setString('username', _username ?? '');
+    await prefs.setString('nickname', _nickname ?? '');
+    await prefs.setString('avatar', _avatar ?? '');
+    await prefs.setBool('isLoggedIn', _isLoggedIn);
+  }
+
+  /// 从 SharedPreferences 恢复登录状态
+  Future<void> _loadAuthState() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
+    if (isLoggedIn) {
+      _userId = prefs.getInt('userId');
+      _username = prefs.getString('username');
+      _nickname = prefs.getString('nickname');
+      _avatar = prefs.getString('avatar');
+      _isLoggedIn = true;
+      notifyListeners();
+    }
+  }
+
+  /// 清除本地持久化的登录状态
+  Future<void> _clearAuthState() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('userId');
+    await prefs.remove('username');
+    await prefs.remove('nickname');
+    await prefs.remove('avatar');
+    await prefs.remove('isLoggedIn');
   }
 
   /// 安全解析 int，支持 int/double/String 类型

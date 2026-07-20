@@ -59,22 +59,28 @@ public class MqttPushService {
     }
 
     public void publish(String topic, int cmd, Map<String, Object> data) {
-        if (client == null || !client.isConnected()) {
-            log.warn("Skipping MQTT message because publisher is disconnected: {}", topic);
-            return;
-        }
         try {
             String payload = objectMapper.writeValueAsString(Map.of(
                     "cmd", cmd,
                     "seq", UUID.randomUUID().toString(),
                     "data", data
             ));
+            publishRaw(topic, payload);
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize MQTT message for {}", topic, e);
+        }
+    }
+
+    public void publishRaw(String topic, String payload) {
+        if (client == null || !client.isConnected()) {
+            log.warn("Skipping MQTT message because publisher is disconnected: {}", topic);
+            return;
+        }
+        try {
             MqttMessage message = new MqttMessage(payload.getBytes(StandardCharsets.UTF_8));
             message.setQos(1);
             message.setRetained(false);
             client.publish(topic, message);
-        } catch (JsonProcessingException e) {
-            log.error("Failed to serialize MQTT message for {}", topic, e);
         } catch (Exception e) {
             log.error("Failed to publish MQTT message to {}", topic, e);
         }

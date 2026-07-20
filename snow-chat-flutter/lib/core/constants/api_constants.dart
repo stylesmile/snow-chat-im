@@ -2,13 +2,23 @@ class ApiConstants {
   // 通过 --dart-define=API_BASE_URL=http://your-ip:8091 覆盖默认值
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://192.168.0.101:8091',
+    // defaultValue: 'http://192.168.0.101:8091',
+    defaultValue: 'http://192.168.10.103:8091',
   );
   static const String mqttHost = String.fromEnvironment(
     'MQTT_HOST',
-    defaultValue: '192.168.0.101',
+    // defaultValue: '192.168.0.101',
+    defaultValue: '192.168.10.103',
   );
   static const int mqttPort = int.fromEnvironment('MQTT_PORT', defaultValue: 1883);
+  static const String mqttUsername = String.fromEnvironment(
+    'MQTT_USERNAME',
+    defaultValue: 'mica',
+  );
+  static const String mqttPassword = String.fromEnvironment(
+    'MQTT_PASSWORD',
+    defaultValue: '123456',
+  );
 
   // REST endpoints
   static const String loginPath = '/chat/user/login';

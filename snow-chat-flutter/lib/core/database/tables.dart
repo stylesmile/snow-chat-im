@@ -3,6 +3,7 @@ class Tables {
     CREATE TABLE IF NOT EXISTS local_messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       msg_id INTEGER,
+      session_id TEXT NOT NULL,
       from_user_id INTEGER,
       to_user_id INTEGER,
       group_id INTEGER,
@@ -13,6 +14,11 @@ class Tables {
       create_time INTEGER,
       update_time INTEGER
     )
+  ''';
+
+  static const String createMessagesSessionIndex = '''
+    CREATE INDEX IF NOT EXISTS idx_local_messages_session_time
+    ON local_messages(session_id, create_time)
   ''';
 
   static const String createConversationsTable = '''

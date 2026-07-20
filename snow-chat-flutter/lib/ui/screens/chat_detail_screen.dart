@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
@@ -8,9 +6,10 @@ import '../../services/chat_service.dart';
 import '../../core/network/mqtt_client.dart';
 import '../../core/constants/ws_cmd.dart';
 import '../../core/constants/api_constants.dart';
-import '../widgets/avatar_widget.dart';
 import '../../core/utils/date_utils.dart' as app_date;
+import '../../core/utils/message_status_parser.dart';
 import '../../models/message_model.dart';
+import '../../core/cache/message_cache_manager.dart';
 
 class ChatDetailScreen extends StatefulWidget {
   final int targetId;
@@ -34,14 +33,37 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final List<_DisplayMessage> _messages = [];
   bool _isLoading = true;
   bool _hasMore = false;
-  int? _lastMessageId;
+  String _sessionId = '';
   MqttChatClient? _mqttClient;
 
   @override
   void initState() {
     super.initState();
-    _loadHistory();
+    _initCache();
     _initMqtt();
+  }
+
+  Future<void> _initCache() async {
+    final auth = context.read<AuthProvider>();
+    if (auth.userId == null) return;
+
+    _sessionId = widget.targetType == 'group'
+        ? MessageCacheManager.sessionIdForGroup(widget.targetId)
+        : MessageCacheManager.sessionIdForPrivate(auth.userId!, widget.targetId);
+
+    await MessageCacheManager().init();
+    final cached = await MessageCacheManager().recentMessages(_sessionId, limit: 30);
+
+    if (mounted) {
+      setState(() {
+        _messages.addAll(cached.map((m) => _DisplayMessage.fromModel(m)));
+        _isLoading = false;
+        _hasMore = _messages.isNotEmpty;
+      });
+    }
+
+    // 后台同步服务端最新历史，并更新缓存
+    await _loadHistory();
   }
 
   void _initMqtt() {
@@ -51,11 +73,20 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       port: ApiConstants.mqttPort,
       onMessage: _handleMqttMessage,
     );
-    _mqttClient?.connect(userId: auth.userId ?? 0);
+    _mqttClient?.connect(
+      userId: auth.userId ?? 0,
+      username: ApiConstants.mqttUsername,
+      password: ApiConstants.mqttPassword,
+    );
+    // 群聊需要额外订阅群主题
+    if (widget.targetType == 'group') {
+      _mqttClient?.subscribeGroup(widget.targetId);
+    }
   }
 
   /// 处理 MQTT 收到的消息
   void _handleMqttMessage(int cmd, dynamic data) {
+    if (!mounted) return;
     if (cmd == WsCmd.msgPush) {
       // 只处理与自己相关的消息
       final fromUserId = data['fromUserId'] as int?;
@@ -73,11 +104,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       }
 
       if (isRelated) {
+        final incoming = _DisplayMessage.fromJson(data);
+        MessageCacheManager().appendMessage(_sessionId, incoming.toModel());
         setState(() {
           // 检查是否已存在（去重）
-          final exists = _messages.any((m) => m.id == data['id']);
+          final exists = _messages.any((m) => m.id == incoming.id);
           if (!exists) {
-            _messages.add(_DisplayMessage.fromJson(data));
+            _messages.add(incoming);
           }
         });
         // 滚动到底部
@@ -92,7 +125,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     final auth = context.read<AuthProvider>();
     if (auth.userId == null) return;
 
-    setState(() => _isLoading = true);
+    if (mounted) setState(() => _isLoading = true);
     final service = ChatService(auth.apiClient);
     final messages = await service.getHistory(
       userId: auth.userId!,
@@ -102,66 +135,50 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       size: 30,
     );
 
+    // 同步写入本地缓存
+    for (final m in messages) {
+      await MessageCacheManager().appendMessage(_sessionId, m);
+    }
+
+    if (!mounted) return;
+
+    // 以缓存为准重新加载（保证去重与排序）
+    final cached = await MessageCacheManager().recentMessages(_sessionId, limit: 30);
     setState(() {
-      _messages.clear();
-      for (final m in messages) {
-        _messages.add(_DisplayMessage(
-          id: m.id,
-          fromUserId: m.fromUserId,
-          toUserId: m.toUserId,
-          groupId: m.groupId,
-          type: m.type,
-          content: m.content,
-          createTime: m.createTime,
-          status: m.status,
-        ));
-      }
-      if (messages.isNotEmpty) {
-        _lastMessageId = messages.last.id;
-        _hasMore = messages.length >= 30;
-      }
+      _messages
+        ..clear()
+        ..addAll(cached.map((m) => _DisplayMessage.fromModel(m)));
+      _hasMore = messages.length >= 30;
       _isLoading = false;
     });
   }
 
   Future<void> _loadMore() async {
-    if (!_hasMore || _lastMessageId == null) return;
-    final auth = context.read<AuthProvider>();
-    if (auth.userId == null) return;
+    if (!_hasMore || _messages.isEmpty) return;
 
-    final service = ChatService(auth.apiClient);
-    final messages = await service.getHistoryByCursor(
-      userId: auth.userId!,
-      targetId: widget.targetId,
-      targetType: widget.targetType,
-      beforeMessageId: _lastMessageId,
-      size: 20,
+    final earliest = _messages.first;
+    final older = await MessageCacheManager().loadHistory(
+      _sessionId,
+      beforeTime: earliest.createTime,
+      limit: 20,
     );
 
-    if (messages.isNotEmpty) {
+    if (older.isNotEmpty) {
       setState(() {
-        for (final m in messages) {
-          _messages.insert(0, _DisplayMessage(
-            id: m.id,
-            fromUserId: m.fromUserId,
-            toUserId: m.toUserId,
-            groupId: m.groupId,
-            type: m.type,
-            content: m.content,
-            createTime: m.createTime,
-            status: m.status,
-          ));
-        }
-        _lastMessageId = messages.first.id;
-        _hasMore = messages.length >= 20;
+        _messages.insertAll(0, older.map((m) => _DisplayMessage.fromModel(m)));
+        _hasMore = older.length >= 20;
       });
+    } else {
+      setState(() => _hasMore = false);
     }
   }
 
-  void _sendMessage() {
+  void _sendMessage() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final l10n = AppLocalizations.of(context)!;
     final auth = context.read<AuthProvider>();
     final now = DateTime.now().millisecondsSinceEpoch;
 
@@ -181,9 +198,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     _controller.clear();
     _scrollToBottom();
 
-    // 通过REST发送
+    // 通过REST发送，由后端统一落库并MQTT推送
     final service = ChatService(auth.apiClient);
-    service.sendMessage(_DisplayMessage(
+    final sentModel = _DisplayMessage(
       id: now,
       fromUserId: auth.userId ?? 0,
       toUserId: widget.targetId,
@@ -192,24 +209,28 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       content: text,
       createTime: now,
       status: 'sent',
-    ).toModel());
+    );
+    final success = await service.sendMessage(sentModel.toModel());
 
-    // 同时通过MQTT发送（实时推送）
-    if (_mqttClient?.isConnected == true) {
-      final message = {
-        'fromUserId': auth.userId,
-        'toUserId': widget.targetId,
-        'groupId': widget.targetType == 'group' ? widget.targetId : null,
-        'type': 'text',
-        'content': text,
-        'localSeq': now,
-        'createTime': now,
-      };
-      if (widget.targetType == 'group') {
-        _mqttClient!.sendGroupMessage(message, widget.targetId);
-      } else {
-        _mqttClient!.sendPrivateMessage(message, widget.targetId);
-      }
+    if (!mounted) return;
+
+    // 更新本地消息状态并写入缓存
+    final index = _messages.indexWhere((m) => m.id == now);
+    if (index != -1) {
+      setState(() {
+        _messages[index] = _messages[index].copyWith(
+          status: success ? 'sent' : 'failed',
+        );
+      });
+    }
+    if (success) {
+      await MessageCacheManager().appendMessage(_sessionId, sentModel.copyWith(status: 'sent').toModel());
+    }
+
+    if (!success) {
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text(l10n.messageFailed)),
+      );
     }
   }
 
@@ -360,7 +381,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: theme.cardColor,
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4, offset: const Offset(0, -2))],
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, -2))],
       ),
       child: Row(
         children: [
@@ -425,10 +446,45 @@ class _DisplayMessage {
       groupId: json['groupId'] as int?,
       type: json['type'] as String? ?? 'text',
       content: json['content'] as String? ?? '',
-      status: json['status'] as String? ?? 'sent',
+      status: parseMessageStatus(json['status']),
       createTime: json['createTime'] is DateTime
           ? (json['createTime'] as DateTime).millisecondsSinceEpoch
           : (json['createTime'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  factory _DisplayMessage.fromModel(MessageModel model) {
+    return _DisplayMessage(
+      id: model.id,
+      fromUserId: model.fromUserId,
+      toUserId: model.toUserId,
+      groupId: model.groupId,
+      type: model.type,
+      content: model.content,
+      status: model.status,
+      createTime: model.createTime,
+    );
+  }
+
+  _DisplayMessage copyWith({
+    int? id,
+    int? fromUserId,
+    int? toUserId,
+    int? groupId,
+    String? type,
+    String? content,
+    String? status,
+    int? createTime,
+  }) {
+    return _DisplayMessage(
+      id: id ?? this.id,
+      fromUserId: fromUserId ?? this.fromUserId,
+      toUserId: toUserId ?? this.toUserId,
+      groupId: groupId ?? this.groupId,
+      type: type ?? this.type,
+      content: content ?? this.content,
+      status: status ?? this.status,
+      createTime: createTime ?? this.createTime,
     );
   }
 

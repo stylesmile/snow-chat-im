@@ -56,7 +56,7 @@ mqtt:
     auth:
       enable: false             # 是否开启 mqtt 认证
       username: mica            # mqtt 认证用户名
-      password: mica            # mqtt 认证密码
+      password: 123456            # mqtt 认证密码
     debug: true                 # 如果开启 prometheus 指标收集建议关闭
     stat-enable: true           # 开启指标收集，debug 和 prometheus 开启时需要打开，默认开启，关闭节省内存
     mqtt-listener:              # mqtt 监听器

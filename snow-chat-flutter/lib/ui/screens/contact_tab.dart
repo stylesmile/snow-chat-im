@@ -13,7 +13,9 @@ import 'group_screen.dart';
 import 'friend_request_screen.dart';
 
 class ContactTab extends StatefulWidget {
-  const ContactTab({super.key});
+  final ValueNotifier<int>? friendAcceptedNotifier;
+
+  const ContactTab({super.key, this.friendAcceptedNotifier});
 
   @override
   State<ContactTab> createState() => _ContactTabState();
@@ -34,6 +36,11 @@ class _ContactTabState extends State<ContactTab> {
   @override
   void initState() {
     super.initState();
+    _loadData();
+    widget.friendAcceptedNotifier?.addListener(_onFriendAccepted);
+  }
+
+  void _onFriendAccepted() {
     _loadData();
   }
 
@@ -381,6 +388,7 @@ class _ContactTabState extends State<ContactTab> {
 
   @override
   void dispose() {
+    widget.friendAcceptedNotifier?.removeListener(_onFriendAccepted);
     _scrollController.dispose();
     super.dispose();
   }

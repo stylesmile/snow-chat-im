@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'app.dart';
 import 'providers/auth_provider.dart';
@@ -24,11 +23,15 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
+  // 恢复登录状态
+  final authProvider = AuthProvider(ApiConstants.baseUrl);
+  await authProvider.init();
+
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
-        ChangeNotifierProvider(create: (_) => AuthProvider(ApiConstants.baseUrl)),
+        ChangeNotifierProvider.value(value: authProvider),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(
           create: (context) => FriendRequestProvider(

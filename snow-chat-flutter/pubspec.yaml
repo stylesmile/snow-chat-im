@@ -51,6 +51,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+  sqflite_common_ffi: 2.4.0+3
 
 flutter:
   uses-material-design: true
@@ -71,3 +72,9 @@ flutter_intl:
     - zh_TW
     - ja
     - ko
+
+# 配置 sqlite3 使用系统/已打包的 SQLite 库，避免构建时从 GitHub 下载预编译库失败。
+hooks:
+  user_defines:
+    sqlite3:
+      source: system

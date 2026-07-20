@@ -3,6 +3,24 @@
 <mapper namespace="com.stylesmile.chat.mapper.ChatMessageMapper">
     <resultMap id="chatMessage" type="com.stylesmile.chat.entity.ChatMessage"/>
 
+    <!-- 查询历史消息（按时间倒序，最新在前） -->
+    <select id="getHistoryMessages" resultMap="chatMessage">
+        SELECT *
+        FROM chat_message
+        WHERE
+        <choose>
+            <when test="targetType == 'group'">
+                group_id = #{targetId}
+            </when>
+            <otherwise>
+                ((from_user_id = #{userId} AND to_user_id = #{targetId})
+                OR (from_user_id = #{targetId} AND to_user_id = #{userId}))
+            </otherwise>
+        </choose>
+        ORDER BY create_time DESC, id DESC
+        LIMIT #{offset}, #{size}
+    </select>
+
     <!-- 根据目标查询消息 -->
     <select id="getMessagesByTarget" resultMap="chatMessage">
         SELECT * FROM chat_message

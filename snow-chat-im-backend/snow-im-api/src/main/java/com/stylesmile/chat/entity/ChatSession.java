@@ -1,9 +1,12 @@
 package com.stylesmile.chat.entity;
 
+import lombok.Data;
+
 /**
  * @author chenye
  * @date 2018/12/10
  */
+@Data
 public class ChatSession {
     /**
      * 主键
@@ -41,79 +44,9 @@ public class ChatSession {
      * 更新时间
      */
     private java.util.Date updateTime;
+    private java.util.Date createTime;
 
     public ChatSession() {
     }
 
-    public Integer getId() {
-        return id;
-    }
-
-    public void setId(Integer id) {
-        this.id = id;
-    }
-
-    public Integer getUserId() {
-        return userId;
-    }
-
-    public void setUserId(Integer userId) {
-        this.userId = userId;
-    }
-
-    public Integer getTargetId() {
-        return targetId;
-    }
-
-    public void setTargetId(Integer targetId) {
-        this.targetId = targetId;
-    }
-
-    public String getTargetType() {
-        return targetType;
-    }
-
-    public void setTargetType(String targetType) {
-        this.targetType = targetType;
-    }
-
-    public String getLastMsg() {
-        return lastMsg;
-    }
-
-    public void setLastMsg(String lastMsg) {
-        this.lastMsg = lastMsg;
-    }
-
-    public java.util.Date getLastMsgTime() {
-        return lastMsgTime;
-    }
-
-    public void setLastMsgTime(java.util.Date lastMsgTime) {
-        this.lastMsgTime = lastMsgTime;
-    }
-
-    public Integer getUnreadCount() {
-        return unreadCount;
-    }
-
-    public void setUnreadCount(Integer unreadCount) {
-        this.unreadCount = unreadCount;
-    }
-
-    public Integer getIsMuted() {
-        return isMuted;
-    }
-
-    public void setIsMuted(Integer isMuted) {
-        this.isMuted = isMuted;
-    }
-
-    public java.util.Date getUpdateTime() {
-        return updateTime;
-    }
-
-    public void setUpdateTime(java.util.Date updateTime) {
-        this.updateTime = updateTime;
-    }
 }

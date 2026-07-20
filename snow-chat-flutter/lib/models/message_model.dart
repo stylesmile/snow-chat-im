@@ -1,3 +1,5 @@
+import '../core/utils/message_status_parser.dart';
+
 class MessageModel {
   final int id;
   final int fromUserId;
@@ -29,7 +31,7 @@ class MessageModel {
       groupId: value('groupId', 'group_id') as int?,
       type: value('type', 'type') as String? ?? 'text',
       content: value('content', 'content') as String? ?? '',
-      status: value('status', 'status') as String? ?? 'sent',
+      status: parseMessageStatus(value('status', 'status')),
       createTime: value('createTime', 'create_time') as int? ?? 0,
     );
   }
@@ -37,13 +39,14 @@ class MessageModel {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'from_user_id': fromUserId,
-      'to_user_id': toUserId,
-      'group_id': groupId,
+      'fromUserId': fromUserId,
+      'toUserId': toUserId,
+      'groupId': groupId,
       'type': type,
       'content': content,
       'status': status,
-      'create_time': createTime,
+      'createTime': createTime,
+      'localSeq': createTime,
     };
   }
 }

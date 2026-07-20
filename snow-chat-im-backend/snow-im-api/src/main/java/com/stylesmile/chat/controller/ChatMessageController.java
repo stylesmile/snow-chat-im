@@ -1,5 +1,6 @@
 package com.stylesmile.chat.controller;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.stylesmile.common.util.Result;
 import com.stylesmile.chat.entity.ChatMessage;
 import com.stylesmile.chat.service.ChatMessageService;
@@ -67,12 +68,16 @@ public class ChatMessageController {
      */
     @PostMapping("/send")
     public Result<Void> send(@RequestBody SendMessageDTO body) {
+        if (body.getFromUserId() == null || (body.getToUserId() == null && body.getGroupId() == null)) {
+            return Result.failMessage("发送人、接收人或群组ID不能为空");
+        }
         ChatMessage message = new ChatMessage();
         message.setFromUserId(body.getFromUserId());
         message.setToUserId(body.getToUserId());
         message.setGroupId(body.getGroupId());
         message.setType(body.getType());
         message.setContent(body.getContent());
+        message.setLocalSeq(body.getLocalSeq());
         chatMessageService.sendMessage(message);
         return Result.success();
     }
@@ -99,11 +104,17 @@ public class ChatMessageController {
     }
 
     public static class SendMessageDTO {
+        @JsonAlias({"fromUserId", "from_user_id"})
         private Integer fromUserId;
+        @JsonAlias({"toUserId", "to_user_id"})
         private Integer toUserId;
+        @JsonAlias({"groupId", "group_id"})
         private Integer groupId;
+        @JsonAlias({"type", "msgType"})
         private String type;
+        @JsonAlias({"content"})
         private String content;
+        @JsonAlias({"localSeq", "local_seq"})
         private Integer localSeq;
         public Integer getFromUserId() { return fromUserId; }
         public void setFromUserId(Integer fromUserId) { this.fromUserId = fromUserId; }

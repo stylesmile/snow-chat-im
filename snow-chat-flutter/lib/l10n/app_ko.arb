@@ -251,11 +251,11 @@
   "alreadyHaveAccount": "계정이 있으신가요? 로그인",
   "@alreadyHaveAccount": {"description": "로그인으로 리다이렉트"},
   "noAccountYet": "계정이 없으신가요? 회원가입",
-  "@noAccountYet": {"description": "회원가입으로 리다이렉트"}
-,
+  "@noAccountYet": {"description": "계정이 없으신가요? 회원가입"},
   "deleteFriend": "친구 삭제",
-  "@deleteFriend": {"description": "친구 삭제 확인"}
-,
+  "@deleteFriend": {"description": "친구 삭제 확인"},
   "search": "검색",
-  "@search": {"description": "검색 버튼"}
+  "@search": {"description": "검색 버튼"},
+  "friendRequestAccepted": "친구 요청이 수락되었습니다",
+  "@friendRequestAccepted": {"description": "친구 요청 수락 알림"}
 }

@@ -391,4 +391,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get search => 'Search';
+
+  @override
+  String get friendRequestAccepted => 'Friend request accepted';
 }

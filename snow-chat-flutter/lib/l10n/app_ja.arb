@@ -251,11 +251,11 @@
   "alreadyHaveAccount": "アカウントをお持ちですか？サインイン",
   "@alreadyHaveAccount": {"description": "サインインへのリダイレクト"},
   "noAccountYet": "アカウントがありませんか？サインアップ",
-  "@noAccountYet": {"description": "サインアップへのリダイレクト"}
-,
+  "@noAccountYet": {"description": "アカウントがありませんか？サインアップ"},
   "deleteFriend": "フレンド削除",
-  "@deleteFriend": {"description": "フレンド削除の確認"}
-,
+  "@deleteFriend": {"description": "フレンド削除の確認"},
   "search": "検索",
-  "@search": {"description": "検索ボタン"}
+  "@search": {"description": "検索ボタン"},
+  "friendRequestAccepted": "友達リクエストが承認されました",
+  "@friendRequestAccepted": {"description": "友達リクエスト承認通知"}
 }

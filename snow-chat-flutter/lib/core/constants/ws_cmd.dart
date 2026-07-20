@@ -15,4 +15,5 @@ class WsCmd {
   static const int onlineStatus = 2003;
   static const int groupNotify = 2004;
   static const int msgAck = 2005;
+  static const int friendAccepted = 2006;
 }

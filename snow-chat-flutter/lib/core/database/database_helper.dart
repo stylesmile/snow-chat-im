@@ -21,18 +21,27 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
     );
   }
 
   Future<void> _onCreate(Database db, int version) async {
     await db.execute(Tables.createMessagesTable);
+    await db.execute(Tables.createMessagesSessionIndex);
     await db.execute(Tables.createConversationsTable);
     await db.execute(Tables.createFriendsTable);
     await db.execute(Tables.createGroupsTable);
     await db.execute(Tables.createGroupMembersTable);
     await db.execute(Tables.createSessionsTable);
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('ALTER TABLE local_messages ADD COLUMN session_id TEXT DEFAULT ""');
+      await db.execute(Tables.createMessagesSessionIndex);
+    }
   }
 
   Future<void> close() async {
