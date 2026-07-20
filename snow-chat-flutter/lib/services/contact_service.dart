@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'package:sqflite/sqflite.dart';
+import '../core/database/database_helper.dart';
 import '../core/network/api_client.dart';
 import '../models/friend_model.dart';
 
@@ -19,6 +21,43 @@ class ContactService {
       debugPrint('getFriends failed: $e');
       return [];
     }
+  }
+
+  /// 从本地 SQLite 读取好友列表（用于快速展示）
+  Future<List<FriendModel>> getLocalFriends() async {
+    final db = await DatabaseHelper().database;
+    final rows = await db.query('local_friends', orderBy: 'nickname ASC');
+    return rows.map((row) {
+      return FriendModel(
+        userId: row['user_id'] as int,
+        nickname: row['nickname'] as String? ?? '',
+        avatar: row['avatar'] as String? ?? '',
+        remark: row['remark'] as String? ?? '',
+        status: 'offline',
+      );
+    }).toList();
+  }
+
+  /// 全量保存好友列表到本地 SQLite
+  Future<void> saveLocalFriends(List<FriendModel> friends) async {
+    final db = await DatabaseHelper().database;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    await db.transaction((txn) async {
+      await txn.delete('local_friends');
+      for (final f in friends) {
+        await txn.insert(
+          'local_friends',
+          {
+            'user_id': f.userId,
+            'nickname': f.nickname,
+            'avatar': f.avatar,
+            'remark': f.remark,
+            'update_time': now,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+    });
   }
 
   Future<List<UserSearchResult>> searchUsers(String keyword, {int page = 1, int size = 10}) async {

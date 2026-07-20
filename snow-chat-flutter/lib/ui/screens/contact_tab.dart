@@ -51,7 +51,24 @@ class _ContactTabState extends State<ContactTab> {
       return;
     }
     final service = ContactService(auth.apiClient);
+
+    // 1. 先查 SQLite 本地缓存，立即显示
+    final localFriends = await service.getLocalFriends();
+    if (mounted && localFriends.isNotEmpty) {
+      setState(() {
+        _friends = localFriends;
+        _isLoading = false;
+      });
+    }
+
+    // 2. 后台调用接口同步最新好友列表
     final friends = await service.getFriends(auth.userId!);
+    if (!mounted) return;
+
+    // 3. 保存到 SQLite 供下次快速展示
+    await service.saveLocalFriends(friends);
+
+    // 4. 更新 UI 为服务端最新数据
     setState(() {
       _friends = friends;
       _isLoading = false;
@@ -70,14 +87,12 @@ class _ContactTabState extends State<ContactTab> {
           TextButton(onPressed: () => Navigator.pop(dialogContext), child: Text(l10n.cancel)),
           ElevatedButton(
             onPressed: () async {
-              final dio = auth.apiClient.dio;
-              try {
-                await dio.delete('/chat/friend/${auth.userId}/${friend.userId}');
-                if (mounted) {
-                  setState(() => _friends.remove(friend));
-                }
-              } catch (e) {
-                // ignore
+              final service = ContactService(auth.apiClient);
+              final ok = await service.deleteFriend(auth.userId!, friend.userId);
+              if (ok && mounted) {
+                setState(() => _friends.remove(friend));
+                // 同步更新本地缓存
+                await service.saveLocalFriends(_friends);
               }
               if (dialogContext.mounted) {
                 Navigator.pop(dialogContext);
