@@ -79,7 +79,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   void dispose() {
     _tabController.dispose();
     // 停止好友请求轮询，使用缓存的引用，避免在 dispose 中访问 context
-    _friendRequestProvider?.stopPolling();
+    // notify 设为 false，防止在 widget tree locked 时触发 notifyListeners
+    _friendRequestProvider?.stopPolling(notify: false);
     _mqttClient?.disconnect();
     _friendAcceptedNotifier.dispose();
     super.dispose();
