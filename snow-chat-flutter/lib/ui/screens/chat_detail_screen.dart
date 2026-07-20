@@ -325,8 +325,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   void _scrollToBottom() {
     Future.delayed(const Duration(milliseconds: 100), () {
       if (_scrollController.hasClients) {
+        // reverse: true 时 minScrollExtent 对应视觉底部（最新消息位置）
         _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
+          _scrollController.position.minScrollExtent,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
@@ -368,8 +369,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       )
                     : NotificationListener<ScrollNotification>(
                         onNotification: (notification) {
+                          // reverse: true 时 maxScrollExtent 对应视觉顶部，上滑加载更早消息
                           if (notification is ScrollEndNotification &&
-                              notification.metrics.pixels == notification.metrics.minScrollExtent) {
+                              notification.metrics.pixels == notification.metrics.maxScrollExtent) {
                             _loadMore();
                           }
                           return false;
