@@ -120,7 +120,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   /// 处理 MQTT 收到的消息
-  void _handleMqttMessage(int cmd, dynamic data) {
+  Future<void> _handleMqttMessage(int cmd, dynamic data) async {
     if (!mounted) return;
     // 接收回调日志：打印 cmd，便于确认消息到达 chat detail
     debugPrint('[ChatDetail] _handleMqttMessage cmd=$cmd, data=$data');
@@ -147,6 +147,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         final incoming = _DisplayMessage.fromJson(data);
         // localSeq 安全解析：后端 Long 可能序列化为 String 或 num
         final localSeq = MessageUtils.toNullableInt(data['localSeq']);
+        // 关键修复：先 await 缓存写入，再 setState 更新 UI
+        // 否则 _loadHistory 后台刷新时读取的缓存快照可能尚未包含此消息，
+        // 导致 setState 清空 _messages 后消息"消失"
+        await MessageCacheManager().appendMessage(_sessionId, incoming.toModel());
+        if (!mounted) return;
         setState(() {
           // 发送方群消息回显：用 localSeq 匹配本地乐观消息（id == localSeq）并替换为服务器消息
           if (localSeq != null) {
@@ -155,7 +160,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             );
             if (idx != -1) {
               _messages[idx] = incoming;
-              MessageCacheManager().appendMessage(_sessionId, incoming.toModel());
               return;
             }
           }
@@ -163,7 +167,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           final exists = _messages.any((m) => m.id == incoming.id);
           if (!exists) {
             _messages.add(incoming);
-            MessageCacheManager().appendMessage(_sessionId, incoming.toModel());
           }
         });
         // 滚动到底部
@@ -195,12 +198,24 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
     if (!mounted) return;
 
-    // 以缓存为准重新加载（保证去重与排序）
+    // 以缓存为准重新加载，但保留 _messages 中已有但缓存快照还没同步的实时消息
+    // （避免竞态：MQTT 消息刚到、缓存写入尚未完成时被清空）
     final cached = await MessageCacheManager().recentMessages(_sessionId, limit: 30);
+    if (!mounted) return;
     setState(() {
+      // 用 id 做 key 合并：缓存版本优先（可能含更新的 status），保留 _messages 中未同步的实时消息
+      final merged = <int, _DisplayMessage>{};
+      for (final m in _messages) {
+        merged[m.id] = m;
+      }
+      for (final m in cached) {
+        final display = _DisplayMessage.fromModel(m);
+        merged[display.id] = display; // 缓存版本覆盖
+      }
       _messages
         ..clear()
-        ..addAll(cached.map((m) => _DisplayMessage.fromModel(m)));
+        ..addAll(merged.values)
+        ..sort((a, b) => a.createTime.compareTo(b.createTime));
       _hasMore = messages.length >= 30;
       _isLoading = false;
     });
