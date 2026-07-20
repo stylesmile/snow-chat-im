@@ -1,4 +1,4 @@
-import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import '../core/network/api_client.dart';
 import '../models/friend_model.dart';
 
@@ -14,8 +14,9 @@ class ContactService {
         queryParameters: {'userId': userId},
       );
       final data = response.data['data'] as List?;
-      return data?.map((e) => FriendModel.fromJson(e)).toList() ?? [];
+      return data?.map((e) => FriendModel.fromJson(e as Map<String, dynamic>)).toList() ?? [];
     } catch (e) {
+      debugPrint('getFriends failed: $e');
       return [];
     }
   }
