@@ -1,4 +1,5 @@
 import '../core/utils/message_status_parser.dart';
+import '../core/utils/message_utils.dart';
 
 class MessageModel {
   final int id;
@@ -22,17 +23,20 @@ class MessageModel {
   });
 
   factory MessageModel.fromJson(Map<String, dynamic> json) {
+    // 兼容 camelCase 和 snake_case 两种键名
     dynamic value(String camel, String snake) => json[camel] ?? json[snake];
 
     return MessageModel(
-      id: value('id', 'id') as int? ?? 0,
-      fromUserId: value('fromUserId', 'from_user_id') as int? ?? 0,
-      toUserId: value('toUserId', 'to_user_id') as int?,
-      groupId: value('groupId', 'group_id') as int?,
+      // 安全 int 解析：后端 Long/Date 可能序列化为 String 或 num
+      id: MessageUtils.toInt(value('id', 'id')),
+      fromUserId: MessageUtils.toInt(value('fromUserId', 'from_user_id')),
+      toUserId: MessageUtils.toNullableInt(value('toUserId', 'to_user_id')),
+      groupId: MessageUtils.toNullableInt(value('groupId', 'group_id')),
       type: value('type', 'type') as String? ?? 'text',
       content: value('content', 'content') as String? ?? '',
       status: parseMessageStatus(value('status', 'status')),
-      createTime: value('createTime', 'create_time') as int? ?? 0,
+      // createTime 兼容 ISO 字符串、毫秒数
+      createTime: MessageUtils.toInt(value('createTime', 'create_time')),
     );
   }
 

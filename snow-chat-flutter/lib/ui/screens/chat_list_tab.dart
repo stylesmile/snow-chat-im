@@ -3,6 +3,7 @@ import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../services/contact_service.dart';
 import '../../services/conversation_service.dart';
 import 'chat_detail_screen.dart';
 import 'login_screen.dart';
@@ -16,6 +17,8 @@ class ChatListTab extends StatefulWidget {
 
 class _ChatListTabState extends State<ChatListTab> {
   bool _isLoading = true;
+  /// 好友 userId -> 昵称 映射，用于聊天列表显示对方名称
+  final Map<int, String> _friendNames = {};
 
   @override
   void initState() {
@@ -31,10 +34,26 @@ class _ChatListTabState extends State<ChatListTab> {
     }
 
     final conversations = await ConversationService().loadSessions(auth.userId!);
+
+    // 从本地好友缓存查询昵称，用于展示会话标题
+    final contactService = ContactService(auth.apiClient);
+    final friends = await contactService.getLocalFriends();
+    _friendNames
+      ..clear()
+      ..addAll({for (final f in friends) f.userId: f.nickname});
+
     if (!mounted) return;
 
     context.read<ChatProvider>().setConversations(conversations);
     setState(() => _isLoading = false);
+  }
+
+  /// 显示会话标题：好友显示昵称，群组暂用占位
+  String _displayName(Conversation conv) {
+    if (conv.targetType == 'group') {
+      return '群组 ${conv.targetId}';
+    }
+    return _friendNames[conv.targetId] ?? '用户 ${conv.targetId}';
   }
 
   @override
@@ -137,7 +156,7 @@ class _ChatListTabState extends State<ChatListTab> {
                     backgroundColor: conv.targetType == 'group' ? Colors.blue : Colors.green,
                     child: Text(conv.targetType == 'group' ? '群' : '友'),
                   ),
-                  title: Text(conv.targetType == 'group' ? '群组 ${conv.targetId}' : '用户 ${conv.targetId}'),
+                  title: Text(_displayName(conv)),
                   subtitle: Text(conv.lastMsg.isNotEmpty ? conv.lastMsg : l10n.noMessages),
                   trailing: conv.unreadCount > 0
                       ? Badge(child: Text('${conv.unreadCount}'))

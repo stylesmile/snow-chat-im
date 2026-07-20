@@ -8,6 +8,7 @@ import '../../core/constants/ws_cmd.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/utils/date_utils.dart' as app_date;
 import '../../core/utils/message_status_parser.dart';
+import '../../core/utils/message_utils.dart';
 import '../../models/message_model.dart';
 import '../../core/cache/message_cache_manager.dart';
 import '../../services/conversation_service.dart';
@@ -121,14 +122,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   /// 处理 MQTT 收到的消息
   void _handleMqttMessage(int cmd, dynamic data) {
     if (!mounted) return;
+    // 接收回调日志：打印 cmd，便于确认消息到达 chat detail
+    debugPrint('[ChatDetail] _handleMqttMessage cmd=$cmd, data=$data');
     if (cmd == WsCmd.msgPush) {
-      // 只处理与自己相关的消息
-      final fromUserId = data['fromUserId'] as int?;
-      final toUserId = data['toUserId'] as int?;
-      final groupId = data['groupId'] as int?;
+      // 只处理与自己相关的消息；使用安全 int 解析，避免 String 类型导致 cast 异常
+      final fromUserId = MessageUtils.toNullableInt(data['fromUserId']);
+      final toUserId = MessageUtils.toNullableInt(data['toUserId']);
+      final groupId = MessageUtils.toNullableInt(data['groupId']);
 
       bool isRelated = false;
       if (widget.targetType == 'group') {
+        // 群聊：groupId 匹配当前会话才算相关
         isRelated = groupId == widget.targetId;
       } else {
         // 私聊：消息来自对方或发往自己
@@ -136,10 +140,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         isRelated = (fromUserId == widget.targetId && toUserId == auth.userId) ||
                     (fromUserId == auth.userId && toUserId == widget.targetId);
       }
+      // isRelated 日志：定位消息是否被过滤掉
+      debugPrint('[ChatDetail] isRelated=$isRelated, targetType=${widget.targetType}, targetId=${widget.targetId}, from=$fromUserId, to=$toUserId, groupId=$groupId');
 
       if (isRelated) {
         final incoming = _DisplayMessage.fromJson(data);
-        final localSeq = (data['localSeq'] as num?)?.toInt();
+        // localSeq 安全解析：后端 Long 可能序列化为 String 或 num
+        final localSeq = MessageUtils.toNullableInt(data['localSeq']);
         setState(() {
           // 发送方群消息回显：用 localSeq 匹配本地乐观消息（id == localSeq）并替换为服务器消息
           if (localSeq != null) {
@@ -506,16 +513,18 @@ class _DisplayMessage {
   factory _DisplayMessage.fromJson(dynamic json) {
     if (json == null) return _DisplayMessage(id: 0, fromUserId: 0, type: 'text', content: '', createTime: 0);
     return _DisplayMessage(
-      id: json['id'] as int? ?? 0,
-      fromUserId: json['fromUserId'] as int? ?? 0,
-      toUserId: json['toUserId'] as int?,
-      groupId: json['groupId'] as int?,
+      // 使用安全 int 解析：后端 Long/Date 可能序列化为 String 或 num
+      id: MessageUtils.toInt(json['id']),
+      fromUserId: MessageUtils.toInt(json['fromUserId']),
+      toUserId: MessageUtils.toNullableInt(json['toUserId']),
+      groupId: MessageUtils.toNullableInt(json['groupId']),
       type: json['type'] as String? ?? 'text',
       content: json['content'] as String? ?? '',
       status: parseMessageStatus(json['status']),
+      // createTime 兼容 ISO 字符串、毫秒数、DateTime 三种格式
       createTime: json['createTime'] is DateTime
           ? (json['createTime'] as DateTime).millisecondsSinceEpoch
-          : (json['createTime'] as num?)?.toInt() ?? 0,
+          : MessageUtils.toInt(json['createTime']),
     );
   }
 

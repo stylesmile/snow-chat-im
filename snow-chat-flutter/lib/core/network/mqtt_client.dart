@@ -51,10 +51,26 @@ class MqttChatClient {
     try {
       await client.connect(username, password);
       if (isConnected) {
+        // 连接成功日志：输出 host、port、clientId，便于排查连接问题
+        debugPrint('[MQTT] connected to $host:$port as $effectiveClientId');
+        // 订阅当前用户的私聊主题
         _subscribeAll(userId);
-        client.updates?.listen(_handleMessages);
+        // 监听消息流；updates 可能为 null（连接异常时），需明确检测
+        final updates = client.updates;
+        if (updates == null) {
+          // 关键错误：updates 为 null 表示消息流未建立，消息将无法收到
+          debugPrint('[MQTT] WARNING: client.updates is null, messages will NOT be received!');
+        } else {
+          updates.listen(_handleMessages);
+          debugPrint('[MQTT] listening for messages on updates stream');
+        }
+      } else {
+        // 连接返回但状态非 connected，输出实际状态用于诊断
+        debugPrint('[MQTT] connect returned but state=${client.connectionStatus?.state}');
       }
-    } catch (_) {
+    } catch (e, st) {
+      // 连接异常：输出错误和堆栈
+      debugPrint('[MQTT] connect failed: $e\n$st');
       client.disconnect();
       _client = null;
       onDisconnected?.call();
@@ -64,6 +80,7 @@ class MqttChatClient {
   /// 订阅所有主题（用户 + 已加入的群）
   void _subscribeAll(int userId) {
     _client?.subscribe('chat/user/$userId', MqttQos.atLeastOnce);
+    debugPrint('[MQTT] subscribed chat/user/$userId');
     // 群主题由 subscribeGroup 单独管理
   }
 
@@ -78,16 +95,35 @@ class MqttChatClient {
   }
 
   void _handleMessages(List<MqttReceivedMessage<MqttMessage>> messages) {
+    // 收到 broker 推送的消息列表，逐条处理
     for (final received in messages) {
+      // 将 payload 转为 MqttPublishMessage 并提取字节内容
       final publish = received.payload as MqttPublishMessage;
       final text = MqttPublishPayload.bytesToStringAsString(publish.payload.message);
+      // 接收日志：打印主题和消息内容前 200 字符，便于追踪消息流向
+      final preview = text.length > 200 ? '${text.substring(0, 200)}...' : text;
+      debugPrint('[MQTT] received on ${received.topic}: $preview');
       try {
+        // 解析 JSON 数据包，提取 cmd 和 data 字段
         final packet = jsonDecode(text) as Map<String, dynamic>;
-        final cmd = packet['cmd'] as int? ?? 0;
+        // cmd 安全解析：后端通常发送 int，但兼容 String 情况
+        final dynamic cmdRaw = packet['cmd'];
+        final int cmd;
+        if (cmdRaw is int) {
+          cmd = cmdRaw;
+        } else if (cmdRaw is num) {
+          cmd = cmdRaw.toInt();
+        } else if (cmdRaw is String) {
+          cmd = int.tryParse(cmdRaw) ?? 0;
+        } else {
+          cmd = 0;
+        }
         final data = packet['data'];
+        // 调用上层回调处理消息
         onMessage?.call(cmd, data);
       } on FormatException {
-        // Ignore malformed broker payloads.
+        // 忽略格式错误的 payload
+        debugPrint('[MQTT] malformed payload on ${received.topic}: $preview');
       }
     }
   }

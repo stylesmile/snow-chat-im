@@ -8,6 +8,7 @@ import '../../services/conversation_service.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/constants/ws_cmd.dart';
 import '../../core/network/mqtt_client.dart';
+import '../../core/utils/message_utils.dart';
 import 'chat_list_tab.dart';
 import 'contact_tab.dart';
 import 'profile_tab.dart';
@@ -85,17 +86,28 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   /// 处理收到的消息，更新本地会话与内存列表
   void _handleIncomingMessage(Map<String, dynamic> data, int userId) {
-    final fromUserId = data['fromUserId'] as int?;
-    final toUserId = data['toUserId'] as int?;
-    final groupId = data['groupId'] as int?;
+    // HomeScreen 收到消息日志：用于确认消息到达 HomeScreen 路径
+    debugPrint('[Home] _handleIncomingMessage userId=$userId, data=$data');
+    // 安全 int 解析：后端 Long/Date 可能序列化为 String 或 num
+    final fromUserId = MessageUtils.toNullableInt(data['fromUserId']);
+    final toUserId = MessageUtils.toNullableInt(data['toUserId']);
+    final groupId = MessageUtils.toNullableInt(data['groupId']);
     final content = data['content'] as String? ?? '';
-    final createTime = data['createTime'] is int
-        ? data['createTime'] as int
-        : DateTime.now().millisecondsSinceEpoch;
+    // createTime 兼容 ISO 字符串、毫秒数、null 三种情况
+    final createTime = MessageUtils.toInt(
+      data['createTime'],
+      DateTime.now().millisecondsSinceEpoch,
+    );
 
-    final bool isGroup = groupId != null;
-    final int targetId = isGroup ? groupId : (fromUserId == userId ? toUserId! : fromUserId!);
+    final int? groupIdValue = groupId;
+    final bool isGroup = groupIdValue != null;
+    // 私聊时：fromUserId == userId 说明我是发送方，targetId 取 toUserId；否则取 fromUserId
+    final int targetId = isGroup
+        ? groupIdValue
+        : (fromUserId == userId ? (toUserId ?? 0) : (fromUserId ?? 0));
     final String targetType = isGroup ? 'group' : 'friend';
+    // 计算后的目标会话日志：便于排查会话匹配问题
+    debugPrint('[Home] resolved targetId=$targetId, targetType=$targetType');
 
     final existing = _chatProvider?.conversations.firstWhere(
       (c) => c.targetId == targetId && c.targetType == targetType,
