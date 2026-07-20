@@ -101,28 +101,25 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
         data.put("createTime", message.getCreateTime());
 
         if (message.getGroupId() != null) {
-            // 群消息：推送给群内所有成员
+            // 群消息：推送给群内所有成员（发送方客户端通过 localSeq 去重自己的消息）
             mqttPushService.publish(MqttTopics.group(message.getGroupId()), 2001, data);
             // 为不在线的群成员保存离线消息
             saveOfflineForGroup(message, data);
         } else if (message.getToUserId() != null) {
-            // 私聊消息：推送给接收方
+            // 私聊消息：只推送给接收方（发送方已有乐观 UI，不再回显避免重复）
             pushToUser(message.getToUserId(), 2001, data, message);
-            // 同时也推送给发送方（回显，确认发送成功）
-            if (!message.getFromUserId().equals(message.getToUserId())) {
-                pushToUser(message.getFromUserId(), 2001, data, message);
-            }
         }
     }
 
     /**
-     * 推送给用户；如果用户不在线则保存离线消息
+     * 推送给用户；始终尝试 MQTT 实时推送，用户不在线时额外保存离线消息兜底
      */
     private void pushToUser(Integer userId, int cmd, Map<String, Object> data, ChatMessage message) {
         String topic = MqttTopics.user(userId);
-        if (mqttConnectStatusListener.isOnline(clientId(userId))) {
-            mqttPushService.publish(topic, cmd, data);
-        } else {
+        // 始终尝试 MQTT 实时推送（在线客户端直接收到，broker 对 cleanSession 客户端不缓存）
+        mqttPushService.publish(topic, cmd, data);
+        // 用户不在线时额外保存离线消息，确保上线后能补投
+        if (!mqttConnectStatusListener.isOnline(clientId(userId))) {
             saveOfflineMessage(userId, topic, cmd, data);
         }
         // 更新接收方会话与未读数

@@ -51,9 +51,12 @@ public class MqttOfflineMessageDeliver {
             return null;
         }
         try {
-            // Flutter 端 clientId 为 "user_{userId}"
+            // 支持 "user_{userId}" 和 "user_{userId}_chat_*" 两种 clientId 格式
             if (clientId.startsWith("user_")) {
-                return Integer.parseInt(clientId.substring(5));
+                String rest = clientId.substring(5);
+                int underscoreIdx = rest.indexOf('_');
+                String idPart = underscoreIdx > 0 ? rest.substring(0, underscoreIdx) : rest;
+                return Integer.parseInt(idPart);
             }
             return Integer.parseInt(clientId);
         } catch (NumberFormatException e) {
