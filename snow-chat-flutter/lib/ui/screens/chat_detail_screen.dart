@@ -419,14 +419,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (!isMe)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 2),
-                      child: Text(
-                        msg.fromUserId.toString(),
-                        style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
-                      ),
-                    ),
+//                   if (!isMe)
+//                     Padding(
+//                       padding: const EdgeInsets.only(bottom: 2),
+//                       child: Text(
+//                         msg.fromUserId.toString(),
+//                         style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+//                       ),
+//                     ),
                   Text(
                     msg.content,
                     style: TextStyle(color: isMe ? Colors.white : Colors.black87),
