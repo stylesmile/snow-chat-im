@@ -5,6 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/friend_request_provider.dart';
 import '../../services/conversation_service.dart';
+import '../../services/group_service.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/constants/ws_cmd.dart';
 import '../../core/network/mqtt_client.dart';
@@ -122,11 +123,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         }
       },
     );
+    // 连接成功后订阅所有群主题
     _mqttClient!.connect(
       userId: userId,
       username: ApiConstants.mqttUsername,
       password: ApiConstants.mqttPassword,
-    );
+    ).then((_) => _subscribeAllGroups(userId));
   }
 
   /// 处理收到的消息，更新本地会话与内存列表
@@ -177,6 +179,25 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       lastMsgTime: createTime,
       unreadCount: updated.unreadCount,
     );
+  }
+
+  /// MQTT 连接成功后，订阅用户所在的所有群主题
+  Future<void> _subscribeAllGroups(int userId) async {
+    // 确保 MQTT 已连接
+    if (_mqttClient == null || !_mqttClient!.isConnected) {
+      debugPrint('[Home] _subscribeAllGroups SKIPPED: MQTT not connected, state=${_mqttClient?.isConnected}');
+      return;
+    }
+    try {
+      final service = GroupService(context.read<AuthProvider>().apiClient);
+      final groups = await service.getGroups(userId);
+      debugPrint('[Home] _subscribeAllGroups: found ${groups.length} groups for userId=$userId');
+      for (final group in groups) {
+        _mqttClient?.subscribeGroup(group.id);
+      }
+    } catch (e) {
+      debugPrint('[Home] failed to subscribe groups: $e');
+    }
   }
 
   @override

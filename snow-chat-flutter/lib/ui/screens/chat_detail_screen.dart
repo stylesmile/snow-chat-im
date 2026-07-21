@@ -13,6 +13,7 @@ import '../../models/message_model.dart';
 import '../../core/cache/message_cache_manager.dart';
 import '../../services/conversation_service.dart';
 import '../../providers/chat_provider.dart';
+import 'group_detail_screen.dart';
 
 class ChatDetailScreen extends StatefulWidget {
   final int targetId;
@@ -105,7 +106,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     _fetchUndelivered();
   }
 
-  void _initMqtt() {
+  void _initMqtt() async {
     final auth = context.read<AuthProvider>();
     final userId = auth.userId ?? 0;
     // 使用独立 clientId，避免与 HomeScreen 的全局 MQTT 连接互踢
@@ -115,13 +116,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       port: ApiConstants.mqttPort,
       onMessage: _handleMqttMessage,
     );
-    _mqttClient?.connect(
+    // 等待连接完成后再订阅群主题
+    await _mqttClient?.connect(
       userId: userId,
       username: ApiConstants.mqttUsername,
       password: ApiConstants.mqttPassword,
       clientId: chatClientId,
     );
-    // 群聊需要额外订阅群主题
+    // 连接成功后订阅群主题
     if (widget.targetType == 'group') {
       _mqttClient?.subscribeGroup(widget.targetId);
     }
@@ -419,7 +421,39 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     final displayName = widget.targetName ?? l10n.myFriends;
 
     return Scaffold(
-      appBar: AppBar(title: Text(displayName)),
+      appBar: AppBar(
+        title: Text(displayName),
+        // 群聊显示三点菜单
+        actions: widget.targetType == 'group'
+            ? [
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert),
+                  onSelected: (value) {
+                    if (value == 'group_info') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => GroupDetailScreen(groupId: widget.targetId),
+                        ),
+                      );
+                    }
+                  },
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(
+                      value: 'group_info',
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline, size: 20),
+                          SizedBox(width: 12),
+                          Text('群聊信息'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ]
+            : null,
+      ),
       body: Column(
         children: [
           Expanded(

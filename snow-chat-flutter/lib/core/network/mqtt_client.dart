@@ -86,7 +86,12 @@ class MqttChatClient {
 
   /// 订阅群主题
   void subscribeGroup(int groupId) {
+    if (!isConnected) {
+      debugPrint('[MQTT] subscribeGroup($groupId) SKIPPED: state=${_client?.connectionStatus?.state}');
+      return;
+    }
     _client?.subscribe('chat/group/$groupId', MqttQos.atLeastOnce);
+    debugPrint('[MQTT] subscribeGroup($groupId) OK');
   }
 
   /// 取消订阅群主题
