@@ -113,10 +113,17 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     ? Badge(child: Text('${conv.unreadCount}'))
                     : null,
                 onTap: () {
+                  final displayName = conv.targetType == 'group'
+                      ? '群组 ${conv.targetId}'
+                      : '用户 ${conv.targetId}';
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => ChatDetailScreen(targetId: conv.targetId, targetType: conv.targetType),
+                      builder: (_) => ChatDetailScreen(
+                        targetId: conv.targetId,
+                        targetType: conv.targetType,
+                        targetName: displayName,
+                      ),
                     ),
                   );
                 },

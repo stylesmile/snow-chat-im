@@ -219,7 +219,11 @@ class _ChatListTabState extends State<ChatListTab> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => ChatDetailScreen(targetId: conv.targetId, targetType: conv.targetType),
+                        builder: (_) => ChatDetailScreen(
+                          targetId: conv.targetId,
+                          targetType: conv.targetType,
+                          targetName: _displayName(conv),
+                        ),
                       ),
                     );
                   },
