@@ -4,9 +4,16 @@ snow
 ##### app 功能
 加好友，群聊，私聊
 
+登陆
+![login.png](docs/img/login.png)
+
+
+通讯录
+![contact.png](docs/img/contact.png)
+
+
 java语言的基于springboot的极简的后台权限管理系统，可视化配置后台权限,精确控制每个用户每个菜单的权限。
 
-##### 管理后台功能
 已完成
 - 1.用户管理 
 - 2.角色管理 

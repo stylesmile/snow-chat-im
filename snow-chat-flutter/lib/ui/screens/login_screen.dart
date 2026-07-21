@@ -198,9 +198,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 48),
                     TextFormField(
                       controller: _usernameController,
+                      style: TextStyle(color: Colors.grey.shade700),
                       decoration: InputDecoration(
                         labelText: l10n.username,
                         prefixIcon: Icon(Icons.person_outline, color: purple),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade400, width: 1),
+                        ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(color: purple, width: 2),
@@ -212,6 +217,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
+                      style: TextStyle(color: Colors.grey.shade700),
                       decoration: InputDecoration(
                         labelText: l10n.password,
                         prefixIcon: Icon(Icons.lock_outline, color: purple),
@@ -221,6 +227,10 @@ class _LoginScreenState extends State<LoginScreen> {
                             color: Colors.grey.shade600,
                           ),
                           onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade400, width: 1),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),

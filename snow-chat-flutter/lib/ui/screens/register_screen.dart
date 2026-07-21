@@ -144,9 +144,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     const SizedBox(height: 32),
                     TextFormField(
                       controller: _usernameController,
+                      style: TextStyle(color: Colors.grey.shade700),
                       decoration: InputDecoration(
                         labelText: l10n.username,
                         prefixIcon: Icon(Icons.person_outline, color: purple),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade400, width: 1),
+                        ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(color: purple, width: 2),
@@ -157,9 +162,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _nicknameController,
+                      style: TextStyle(color: Colors.grey.shade700),
                       decoration: InputDecoration(
                         labelText: l10n.nickname,
                         prefixIcon: Icon(Icons.badge_outlined, color: purple),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade400, width: 1),
+                        ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(color: purple, width: 2),
@@ -169,9 +179,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _emailController,
+                      style: TextStyle(color: Colors.grey.shade700),
                       decoration: InputDecoration(
                         labelText: l10n.email,
                         prefixIcon: Icon(Icons.email_outlined, color: purple),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade400, width: 1),
+                        ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(color: purple, width: 2),
@@ -188,6 +203,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
+                      style: TextStyle(color: Colors.grey.shade700),
                       decoration: InputDecoration(
                         labelText: l10n.password,
                         prefixIcon: Icon(Icons.lock_outline, color: purple),
@@ -197,6 +213,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             color: Colors.grey.shade600,
                           ),
                           onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade400, width: 1),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -209,6 +229,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     TextFormField(
                       controller: _confirmPasswordController,
                       obscureText: _obscureConfirmPassword,
+                      style: TextStyle(color: Colors.grey.shade700),
                       decoration: InputDecoration(
                         labelText: l10n.confirmPassword,
                         prefixIcon: Icon(Icons.lock_outline, color: purple),
@@ -218,6 +239,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             color: Colors.grey.shade600,
                           ),
                           onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade400, width: 1),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),

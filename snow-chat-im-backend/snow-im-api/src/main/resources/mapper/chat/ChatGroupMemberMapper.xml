@@ -3,6 +3,7 @@
 <mapper namespace="com.stylesmile.chat.mapper.ChatGroupMemberMapper">
     <resultMap id="chatGroupMember" type="com.stylesmile.chat.entity.ChatGroupMember"/>
 
+    <!-- 查询群组成员列表 -->
     <select id="getMembersByGroupId" resultMap="chatGroupMember">
         SELECT *
         FROM chat_group_member
