@@ -4,6 +4,15 @@ snow
 ##### app 功能
 加好友，群聊，私聊
 
+#### 
+github 地址
+```
+https://gitub.com/stylesmile/snow-chat-im
+```
+gitee 地址
+```
+https://gitee.com/stylesmile/snow-chat-im
+```
 登陆
 ![login.png](docs/img/login.png)
 
