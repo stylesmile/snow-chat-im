@@ -32,6 +32,10 @@ class _GroupScreenState extends State<GroupScreen> {
     }
     final service = GroupService(auth.apiClient);
     final groups = await service.getGroups(auth.userId!);
+    debugPrint('[GroupScreen] loaded ${groups.length} groups for userId=${auth.userId}');
+    for (final g in groups) {
+      debugPrint('[GroupScreen]   group: id=${g.id}, name=${g.name}, ownerId=${g.ownerId}');
+    }
     if (!mounted) return;
     setState(() {
       _groups = groups;

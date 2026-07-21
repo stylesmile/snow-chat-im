@@ -18,8 +18,9 @@ class GroupModel {
       id: json['id'] as int? ?? 0,
       name: json['name'] as String? ?? '',
       avatar: json['avatar'] as String? ?? '',
-      ownerId: json['owner_id'] as int? ?? 0,
-      memberCount: json['member_count'] as int? ?? 0,
+      // 兼容 camelCase 和 snake_case
+      ownerId: (json['ownerId'] as int?) ?? (json['owner_id'] as int?) ?? 0,
+      memberCount: (json['memberCount'] as int?) ?? (json['member_count'] as int?) ?? 0,
     );
   }
 }

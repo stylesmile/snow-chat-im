@@ -43,8 +43,11 @@ class GroupService {
         '/chat/group/list',
         queryParameters: {'userId': userId},
       );
+      debugPrint('[GroupService] getGroups response: ${response.data}');
       final data = response.data['data'] as List?;
-      return data?.map((e) => GroupModel.fromJson(e)).toList() ?? [];
+      final groups = data?.map((e) => GroupModel.fromJson(e)).toList() ?? [];
+      debugPrint('[GroupService] parsed ${groups.length} groups');
+      return groups;
     } catch (e) {
       debugPrint('getGroups failed: $e');
       return [];
