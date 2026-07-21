@@ -70,6 +70,34 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           _friendRequestProvider?.refresh();
           // 通知联系人 tab 刷新好友列表
           _friendAcceptedNotifier.value++;
+
+          // 在聊天列表中创建与新好友的对话
+          final fromUserId = MessageUtils.toNullableInt(data['fromUserId']);
+          final toUserId = MessageUtils.toNullableInt(data['toUserId']);
+          if (fromUserId != null && toUserId != null) {
+            // 确定新好友的 ID（不是自己的那个）
+            final friendId = fromUserId == userId ? toUserId : fromUserId;
+            // 创建空对话，确保聊天列表中可见
+            _chatProvider?.updateConversation(
+              Conversation(
+                targetId: friendId,
+                targetType: 'friend',
+                lastMsg: '',
+                lastMsgTime: DateTime.now().millisecondsSinceEpoch,
+                unreadCount: 0,
+              ),
+            );
+            // 持久化到数据库
+            ConversationService().saveSession(
+              userId: userId,
+              targetId: friendId,
+              targetType: 'friend',
+              lastMsg: '',
+              lastMsgTime: DateTime.now().millisecondsSinceEpoch,
+              unreadCount: 0,
+            );
+          }
+
           // 显示提示
           final l10n = AppLocalizations.of(context);
           if (l10n != null) {

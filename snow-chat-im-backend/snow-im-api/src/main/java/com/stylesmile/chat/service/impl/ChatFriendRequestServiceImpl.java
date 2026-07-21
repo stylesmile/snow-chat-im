@@ -98,6 +98,19 @@ public class ChatFriendRequestServiceImpl extends BaseServiceImpl<ChatFriendRequ
             request.setRemark(remark);
             request.setCreateTime(new Date());
             save(request);
+
+            // 双向请求直接成为好友，通知双方刷新好友列表
+            try {
+                Map<String, Object> data = new HashMap<>();
+                data.put("fromUserId", fromUserId);
+                data.put("toUserId", toUserId);
+                data.put("status", "accepted");
+                // 通知双方好友关系已建立
+                mqttPushService.publish(MqttTopics.user(fromUserId), 2006, data);
+                mqttPushService.publish(MqttTopics.user(toUserId), 2006, data);
+            } catch (Exception e) {
+                log.warn("Failed to publish friend accepted notification via MQTT", e);
+            }
             return;
         }
 
@@ -158,7 +171,10 @@ public class ChatFriendRequestServiceImpl extends BaseServiceImpl<ChatFriendRequ
                 data.put("fromUserId", fromUserId);
                 data.put("toUserId", toUserId);
                 data.put("status", "accepted");
+                // 通知发送方（User A）好友已通过
                 mqttPushService.publish(MqttTopics.user(fromUserId), 2006, data);
+                // 通知接收方（User B）好友关系已建立，刷新好友列表
+                mqttPushService.publish(MqttTopics.user(toUserId), 2006, data);
             } catch (Exception e) {
                 log.warn("Failed to publish friend accepted notification via MQTT", e);
             }
