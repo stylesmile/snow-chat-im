@@ -11,6 +11,7 @@ import com.stylesmile.chat.mapper.ChatOfflineMessageMapper;
 import com.stylesmile.chat.mqtt.MqttConnectStatusListener;
 import com.stylesmile.chat.mqtt.MqttPushService;
 import com.stylesmile.chat.mqtt.MqttTopics;
+import com.stylesmile.chat.mqtt.WsCmd;
 import com.stylesmile.chat.service.ChatGroupMemberService;
 import com.stylesmile.chat.service.ChatMessageService;
 import com.stylesmile.chat.service.ChatSessionService;
@@ -79,6 +80,7 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
         }
         message.setCreateTime(new Date());
         message.setStatus(0);
+        message.setPushStatus("server_received"); // 服务器已收到
         save(message);
 
         // 更新发送方会话
@@ -87,6 +89,9 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
         chatSessionService.getOrCreateSession(message.getFromUserId(), targetId, targetType);
 
         publishMessage(message);
+
+        // 向发送方回推回执，确认服务器已收到并推送
+        sendReceiptAckToSender(message);
     }
 
     private void publishMessage(ChatMessage message) {
@@ -105,13 +110,30 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
 
         if (message.getGroupId() != null) {
             // 群消息：推送给群内所有成员（发送方客户端通过 localSeq 去重自己的消息）
-            mqttPushService.publish(MqttTopics.group(message.getGroupId()), 2001, data);
+            mqttPushService.publish(MqttTopics.group(message.getGroupId()), WsCmd.MSG_PUSH, data);
             // 为不在线的群成员保存离线消息
             saveOfflineForGroup(message, data);
         } else if (message.getToUserId() != null) {
-            // 私聊消息：只推送给接收方（发送方已有乐观 UI，不再回显避免重复）
-            pushToUser(message.getToUserId(), 2001, data, message);
+            // 私聊消息：只推送给接收方
+            pushToUser(message.getToUserId(), WsCmd.MSG_PUSH, data, message);
         }
+    }
+
+    /**
+     * 向发送方发送回执，确认服务器已收到并推送了消息
+     */
+    private void sendReceiptAckToSender(ChatMessage message) {
+        if (message.getFromUserId() == null) return;
+        Map<String, Object> receiptData = new HashMap<>();
+        receiptData.put("messageId", message.getId());
+        receiptData.put("fromUserId", message.getFromUserId());
+        receiptData.put("toUserId", message.getToUserId());
+        receiptData.put("groupId", message.getGroupId());
+        receiptData.put("createTime", message.getCreateTime());
+
+        String topic = MqttTopics.user(message.getFromUserId());
+        mqttPushService.publish(topic, WsCmd.MSG_RECEIPT_ACK, receiptData);
+        log.info("Sent receiptAck to sender userId={}, messageId={}", message.getFromUserId(), message.getId());
     }
 
     /**
@@ -151,7 +173,7 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
                 continue;
             }
             if (!mqttConnectStatusListener.isOnline(clientId(userId))) {
-                saveOfflineMessage(userId, MqttTopics.group(message.getGroupId()), 2001, data);
+                saveOfflineMessage(userId, MqttTopics.group(message.getGroupId()), WsCmd.MSG_PUSH, data);
             }
         }
     }
@@ -213,11 +235,11 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
             data.put("createTime", message.getCreateTime());
 
             if (message.getGroupId() != null) {
-                mqttPushService.publish(MqttTopics.group(message.getGroupId()), 2006, data);
+                mqttPushService.publish(MqttTopics.group(message.getGroupId()), WsCmd.FRIEND_ACCEPTED, data);
             } else if (message.getToUserId() != null) {
-                pushToUser(message.getToUserId(), 2006, data, message);
+                pushToUser(message.getToUserId(), WsCmd.FRIEND_ACCEPTED, data, message);
                 if (!userId.equals(message.getToUserId())) {
-                    pushToUser(userId, 2006, data, message);
+                    pushToUser(userId, WsCmd.FRIEND_ACCEPTED, data, message);
                 }
             }
         }
@@ -236,5 +258,79 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
             wrapper.eq(ChatMessage::getGroupId, targetId);
         }
         update(wrapper);
+    }
+
+    @Override
+    public void processReceipt(Long messageId, Long userId) {
+        // 1. 更新消息推送状态为 client_ack（客户端已确认收到）
+        LambdaUpdateWrapper<ChatMessage> wrapper = new LambdaUpdateWrapper<>();
+        wrapper.eq(ChatMessage::getId, messageId)
+               .set(ChatMessage::getPushStatus, "client_ack");
+        update(wrapper);
+
+        // 2. 查询消息，获取发送方 ID，向发送方推送回执
+        ChatMessage message = getById(messageId);
+        if (message != null && message.getFromUserId() != null) {
+            Map<String, Object> receiptData = new HashMap<>();
+            receiptData.put("messageId", messageId);
+            receiptData.put("userId", userId);
+            receiptData.put("fromUserId", message.getFromUserId());
+            receiptData.put("toUserId", message.getToUserId());
+            receiptData.put("groupId", message.getGroupId());
+
+            // 推送给发送方，告知消息已送达
+            String senderTopic = MqttTopics.user(message.getFromUserId());
+            mqttPushService.publish(senderTopic, WsCmd.MSG_RECEIPT_ACK, receiptData);
+            log.info("Receipt processed: messageId={}, userId={}, notifying sender={}", messageId, userId, message.getFromUserId());
+        }
+    }
+
+    @Override
+    public void fetchAndPushUndelivered(Long userId, Long targetId, String targetType) {
+        List<ChatMessage> undelivered = getUndeliveredMessages(userId, targetId, targetType);
+        if (undelivered.isEmpty()) {
+            return;
+        }
+
+        // 构造消息列表并推送给用户
+        List<Map<String, Object>> messageList = new ArrayList<>();
+        for (ChatMessage msg : undelivered) {
+            Map<String, Object> data = new HashMap<>();
+            data.put("id", msg.getId());
+            data.put("fromUserId", msg.getFromUserId());
+            data.put("toUserId", msg.getToUserId());
+            data.put("groupId", msg.getGroupId());
+            data.put("type", msg.getType());
+            data.put("content", msg.getContent());
+            data.put("localSeq", msg.getLocalSeq());
+            data.put("createTime", msg.getCreateTime());
+            messageList.add(data);
+        }
+
+        String topic = MqttTopics.user(userId);
+        mqttPushService.publish(topic, WsCmd.FETCH_UNDELIVERED_ACK, Map.of("messages", messageList));
+        log.info("Pushed {} undelivered messages to userId={}, targetId={}", undelivered.size(), userId, targetId);
+    }
+
+    @Override
+    public List<ChatMessage> getUndeliveredMessages(Long userId, Long targetId, String targetType) {
+        LambdaQueryWrapper<ChatMessage> wrapper = new LambdaQueryWrapper<>();
+
+        if ("friend".equalsIgnoreCase(targetType)) {
+            wrapper.eq(ChatMessage::getToUserId, userId)
+                   .eq(ChatMessage::getFromUserId, targetId)
+                   .ne(ChatMessage::getPushStatus, "client_ack")
+                   .ne(ChatMessage::getPushStatus, "delivered");
+        } else if ("group".equalsIgnoreCase(targetType)) {
+            wrapper.eq(ChatMessage::getGroupId, targetId)
+                   .ne(ChatMessage::getToUserId, userId)
+                   .ne(ChatMessage::getPushStatus, "client_ack")
+                   .ne(ChatMessage::getPushStatus, "delivered");
+        }
+
+        wrapper.orderByAsc(ChatMessage::getCreateTime);
+        List<ChatMessage> undelivered = baseMapper.selectList(wrapper);
+        log.info("Found {} undelivered messages for userId={}, targetId={}", undelivered.size(), userId, targetId);
+        return undelivered;
     }
 }

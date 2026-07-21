@@ -57,6 +57,35 @@ class MessageCacheManager {
     _upsertMemory(sessionId, message);
   }
 
+  /// 更新消息的推送状态（回执确认后调用）
+  Future<void> updatePushStatus(String sessionId, int msgId, String pushStatus) async {
+    final db = _requireDb();
+    await db.update(
+      'local_messages',
+      {'push_status': pushStatus},
+      where: 'msg_id = ? AND session_id = ?',
+      whereArgs: [msgId, sessionId],
+    );
+    // 同步更新内存缓存
+    final cache = _memory[sessionId];
+    if (cache != null) {
+      final idx = cache.indexWhere((m) => m.id == msgId);
+      if (idx >= 0) {
+        cache[idx] = MessageModel(
+          id: cache[idx].id,
+          fromUserId: cache[idx].fromUserId,
+          toUserId: cache[idx].toUserId,
+          groupId: cache[idx].groupId,
+          type: cache[idx].type,
+          content: cache[idx].content,
+          status: cache[idx].status,
+          pushStatus: pushStatus,
+          createTime: cache[idx].createTime,
+        );
+      }
+    }
+  }
+
   /// 同步读取内存中的最近消息（createTime 升序，便于 UI 直接展示）。
   List<MessageModel> recentMessagesSync(String sessionId) {
     final cache = _memory[sessionId] ?? [];
@@ -138,6 +167,7 @@ class MessageCacheManager {
       'content': message.content,
       'local_seq': message.createTime,
       'status': message.status,
+      'push_status': message.pushStatus,
       'create_time': message.createTime,
       'update_time': DateTime.now().millisecondsSinceEpoch,
     };
@@ -152,6 +182,7 @@ class MessageCacheManager {
       type: row['msg_type'] as String? ?? 'text',
       content: row['content'] as String? ?? '',
       status: row['status'] as String? ?? 'sent',
+      pushStatus: row['push_status'] as String? ?? 'pending',
       createTime: row['create_time'] as int? ?? 0,
     );
   }

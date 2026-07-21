@@ -88,9 +88,37 @@ public class ChatMessageController {
         return Result.success();
     }
 
+    /**
+     * 接收方发送消息回执：确认收到消息
+     */
+    @PostMapping("/receipt")
+    public Result<Void> receipt(@RequestBody ReceiptDTO body) {
+        chatMessageService.processReceipt(body.getMessageId(), body.getUserId());
+        return Result.success();
+    }
 
+    /**
+     * 进入聊天页面时请求未推送成功的消息
+     */
+    @PostMapping("/undelivered")
+    public Result<List<ChatMessage>> undelivered(@RequestBody FetchUndeliveredDTO body) {
+        List<ChatMessage> messages = chatMessageService.getUndeliveredMessages(
+                body.getUserId(), body.getTargetId(), body.getTargetType());
+        return Result.success(messages);
+    }
 
+    @Data
+    public static class ReceiptDTO {
+        private Long messageId;
+        private Long userId;
+        private Long targetId;
+        private String targetType;
+    }
 
-
-
+    @Data
+    public static class FetchUndeliveredDTO {
+        private Long userId;
+        private Long targetId;
+        private String targetType;
+    }
 }

@@ -146,6 +146,13 @@ class MqttChatClient {
     publish(message, topic: 'chat/group/$groupId');
   }
 
+  /// 向服务端发送消息（用于回执、请求未推送消息等控制命令）
+  /// 通过 REST API 发送，更可靠
+  void sendToServer(Map<String, dynamic> message) {
+    // 控制命令通过 REST API 发送，不走 MQTT
+    // 此方法保留接口兼容性，实际由 ChatService 发送
+  }
+
   void disconnect() {
     _client?.disconnect();
     _client = null;

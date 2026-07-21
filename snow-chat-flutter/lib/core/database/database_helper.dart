@@ -21,7 +21,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -41,6 +41,10 @@ class DatabaseHelper {
     if (oldVersion < 2) {
       await db.execute('ALTER TABLE local_messages ADD COLUMN session_id TEXT DEFAULT ""');
       await db.execute(Tables.createMessagesSessionIndex);
+    }
+    if (oldVersion < 3) {
+      // v3: 消息表增加推送状态字段，记录接收方是否收到消息
+      await db.execute("ALTER TABLE local_messages ADD COLUMN push_status TEXT DEFAULT 'pending'");
     }
   }
 

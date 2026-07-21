@@ -9,6 +9,7 @@ class MessageModel {
   final String type;
   final String content;
   final String status;
+  final String pushStatus; // 推送状态：pending/server_received/client_ack/delivered
   final int createTime;
 
   MessageModel({
@@ -19,6 +20,7 @@ class MessageModel {
     required this.type,
     required this.content,
     required this.status,
+    this.pushStatus = 'pending',
     required this.createTime,
   });
 
@@ -35,6 +37,7 @@ class MessageModel {
       type: value('type', 'type') as String? ?? 'text',
       content: value('content', 'content') as String? ?? '',
       status: parseMessageStatus(value('status', 'status')),
+      pushStatus: value('pushStatus', 'push_status') as String? ?? 'pending',
       // createTime 兼容 ISO 字符串、毫秒数
       createTime: MessageUtils.toInt(value('createTime', 'create_time')),
     );
@@ -49,6 +52,7 @@ class MessageModel {
       'type': type,
       'content': content,
       'status': status,
+      'pushStatus': pushStatus,
       'createTime': createTime,
       'localSeq': createTime,
     };

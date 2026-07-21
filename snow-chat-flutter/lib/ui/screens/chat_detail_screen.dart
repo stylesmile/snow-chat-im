@@ -47,7 +47,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     _initMqtt();
   }
 
-  /// 进入聊天页时把该对话保存到本地会话列表，确保返回聊天列表后仍可见。
+  /// 进入聊天页时把该对话保存到本地会话列表，并清空未读数。
   Future<void> _ensureConversationSaved() async {
     final auth = context.read<AuthProvider>();
     if (auth.userId == null) return;
@@ -62,7 +62,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       unreadCount: 0,
     );
 
+    // 通知服务端标记消息为已读
+    final service = ChatService(auth.apiClient);
+    service.markAsRead(auth.userId!, widget.targetId, widget.targetType);
+
     if (!mounted) return;
+    // 清空该会话的未读数，导航栏角标和列表角标同步更新
     context.read<ChatProvider>().updateConversation(
       Conversation(
         targetId: widget.targetId,
@@ -95,6 +100,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
     // 后台同步服务端最新历史，并更新缓存
     await _loadHistory();
+
+    // 进入聊天页面时，请求服务器推送未推送成功的消息
+    _fetchUndelivered();
   }
 
   void _initMqtt() {
@@ -122,38 +130,29 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   /// 处理 MQTT 收到的消息
   Future<void> _handleMqttMessage(int cmd, dynamic data) async {
     if (!mounted) return;
-    // 接收回调日志：打印 cmd，便于确认消息到达 chat detail
     debugPrint('[ChatDetail] _handleMqttMessage cmd=$cmd, data=$data');
     if (cmd == WsCmd.msgPush) {
-      // 只处理与自己相关的消息；使用安全 int 解析，避免 String 类型导致 cast 异常
+      // 只处理与自己相关的消息
       final fromUserId = MessageUtils.toNullableInt(data['fromUserId']);
       final toUserId = MessageUtils.toNullableInt(data['toUserId']);
       final groupId = MessageUtils.toNullableInt(data['groupId']);
 
       bool isRelated = false;
       if (widget.targetType == 'group') {
-        // 群聊：groupId 匹配当前会话才算相关
         isRelated = groupId == widget.targetId;
       } else {
-        // 私聊：消息来自对方或发往自己
         final auth = context.read<AuthProvider>();
         isRelated = (fromUserId == widget.targetId && toUserId == auth.userId) ||
                     (fromUserId == auth.userId && toUserId == widget.targetId);
       }
-      // isRelated 日志：定位消息是否被过滤掉
       debugPrint('[ChatDetail] isRelated=$isRelated, targetType=${widget.targetType}, targetId=${widget.targetId}, from=$fromUserId, to=$toUserId, groupId=$groupId');
 
       if (isRelated) {
         final incoming = _DisplayMessage.fromJson(data);
-        // localSeq 安全解析：后端 Long 可能序列化为 String 或 num
         final localSeq = MessageUtils.toNullableInt(data['localSeq']);
-        // 关键修复：先 await 缓存写入，再 setState 更新 UI
-        // 否则 _loadHistory 后台刷新时读取的缓存快照可能尚未包含此消息，
-        // 导致 setState 清空 _messages 后消息"消失"
         await MessageCacheManager().appendMessage(_sessionId, incoming.toModel());
         if (!mounted) return;
         setState(() {
-          // 发送方群消息回显：用 localSeq 匹配本地乐观消息（id == localSeq）并替换为服务器消息
           if (localSeq != null) {
             final idx = _messages.indexWhere(
               (m) => m.id == localSeq && m.fromUserId == incoming.fromUserId,
@@ -163,17 +162,87 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               return;
             }
           }
-          // 按 id 去重，不存在才新增
           final exists = _messages.any((m) => m.id == incoming.id);
           if (!exists) {
             _messages.add(incoming);
           }
         });
-        // 滚动到底部
+        _scrollToBottom();
+
+        // 收到对方消息后，向服务器发送回执确认（仅对方发来的消息才回执）
+        if (fromUserId != null && fromUserId != (context.read<AuthProvider>().userId ?? 0)) {
+          _sendReceipt(incoming.id);
+        }
+      }
+    } else if (cmd == WsCmd.msgReceiptAck) {
+      // 服务器回执：确认消息已推送给对方，更新 pushStatus 为 delivered
+      final msgId = MessageUtils.toNullableInt(data['messageId']);
+      if (msgId != null) {
+        debugPrint('[ChatDetail] msgReceiptAck for msgId=$msgId, updating pushStatus to delivered');
+        await MessageCacheManager().updatePushStatus(_sessionId, msgId, 'delivered');
+        if (!mounted) return;
+        setState(() {
+          final idx = _messages.indexWhere((m) => m.id == msgId);
+          if (idx != -1) {
+            _messages[idx] = _messages[idx].copyWith(pushStatus: 'delivered');
+          }
+        });
+      }
+    } else if (cmd == WsCmd.fetchUndeliveredAck) {
+      // 服务器推送未推送成功的消息列表
+      final messages = data as List<dynamic>? ?? [];
+      debugPrint('[ChatDetail] fetchUndeliveredAck: ${messages.length} messages');
+      for (final msgData in messages) {
+        final incoming = _DisplayMessage.fromJson(msgData);
+        await MessageCacheManager().appendMessage(_sessionId, incoming.toModel());
+        if (!mounted) return;
+        final exists = _messages.any((m) => m.id == incoming.id);
+        if (!exists) {
+          setState(() => _messages.add(incoming));
+        }
+      }
+      // 重新排序并滚动到底部
+      if (messages.isNotEmpty && mounted) {
+        setState(() {
+          _messages.sort((a, b) => a.createTime.compareTo(b.createTime));
+        });
         _scrollToBottom();
       }
     } else if (cmd == WsCmd.friendReqNotify) {
-      // 好友请求通知，可以在全局处理
+      // 好友请求通知
+    }
+  }
+
+  /// 向服务器发送消息回执（接收方确认收到消息）- 通过 REST API
+  void _sendReceipt(int messageId) {
+    final auth = context.read<AuthProvider>();
+    if (auth.userId == null) return;
+    final service = ChatService(auth.apiClient);
+    service.sendReceipt(messageId, auth.userId!, widget.targetId, widget.targetType);
+    debugPrint('[ChatDetail] sent msgReceipt for messageId=$messageId');
+  }
+
+  /// 进入聊天页面时请求服务器推送未推送成功的消息 - 通过 REST API
+  void _fetchUndelivered() async {
+    final auth = context.read<AuthProvider>();
+    if (auth.userId == null) return;
+    final service = ChatService(auth.apiClient);
+    final messages = await service.fetchUndelivered(auth.userId!, widget.targetId, widget.targetType);
+    debugPrint('[ChatDetail] fetchUndelivered: ${messages.length} messages');
+    if (messages.isEmpty || !mounted) return;
+    for (final msg in messages) {
+      await MessageCacheManager().appendMessage(_sessionId, msg);
+      if (!mounted) return;
+      final exists = _messages.any((m) => m.id == msg.id);
+      if (!exists) {
+        setState(() => _messages.add(_DisplayMessage.fromModel(msg)));
+      }
+    }
+    if (mounted) {
+      setState(() {
+        _messages.sort((a, b) => a.createTime.compareTo(b.createTime));
+      });
+      _scrollToBottom();
     }
   }
 
@@ -514,6 +583,7 @@ class _DisplayMessage {
   final String type;
   final String content;
   final String status;
+  final String pushStatus; // 推送状态：pending/server_received/client_ack/delivered
   final int createTime;
 
   _DisplayMessage({
@@ -524,6 +594,7 @@ class _DisplayMessage {
     required this.type,
     required this.content,
     this.status = 'sent',
+    this.pushStatus = 'pending',
     required this.createTime,
   });
 
@@ -538,6 +609,7 @@ class _DisplayMessage {
       type: json['type'] as String? ?? 'text',
       content: json['content'] as String? ?? '',
       status: parseMessageStatus(json['status']),
+      pushStatus: json['pushStatus'] as String? ?? 'pending',
       // createTime 兼容 ISO 字符串、毫秒数、DateTime 三种格式
       createTime: json['createTime'] is DateTime
           ? (json['createTime'] as DateTime).millisecondsSinceEpoch
@@ -554,6 +626,7 @@ class _DisplayMessage {
       type: model.type,
       content: model.content,
       status: model.status,
+      pushStatus: model.pushStatus,
       createTime: model.createTime,
     );
   }
@@ -566,6 +639,7 @@ class _DisplayMessage {
     String? type,
     String? content,
     String? status,
+    String? pushStatus,
     int? createTime,
   }) {
     return _DisplayMessage(
@@ -576,6 +650,7 @@ class _DisplayMessage {
       type: type ?? this.type,
       content: content ?? this.content,
       status: status ?? this.status,
+      pushStatus: pushStatus ?? this.pushStatus,
       createTime: createTime ?? this.createTime,
     );
   }
@@ -589,6 +664,7 @@ class _DisplayMessage {
       type: type,
       content: content,
       status: status,
+      pushStatus: pushStatus,
       createTime: createTime,
     );
   }

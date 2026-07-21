@@ -22,6 +22,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  int _currentIndex = 0; // 当前选中的导航索引，驱动 BottomNavigationBar 高亮
   FriendRequestProvider? _friendRequestProvider;
   ChatProvider? _chatProvider;
   bool _pollingStarted = false;
@@ -32,6 +33,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    // 监听 TabController 变化，同步 BottomNavigationBar 高亮
+    _tabController.addListener(_onTabChanged);
+  }
+
+  /// TabController 变化时同步导航栏高亮（包括滑动切换和点击切换）
+  void _onTabChanged() {
+    // TabController.indexIsChanging 为 true 时表示动画进行中，跳过中间帧
+    if (!_tabController.indexIsChanging) return;
+    setState(() => _currentIndex = _tabController.index);
   }
 
   @override
@@ -74,6 +84,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         } else if (cmd == WsCmd.msgPush) {
           // 更新聊天列表：收到新消息时将会话置顶并增加未读数
           _handleIncomingMessage(data as Map<String, dynamic>? ?? {}, userId);
+        } else if (cmd == WsCmd.msgReceiptAck) {
+          // 服务器回执：消息已推送给对方（HomeScreen 只做日志记录，详细处理在 chat_detail_screen）
+          debugPrint('[Home] msgReceiptAck: data=$data');
+        } else if (cmd == WsCmd.fetchUndeliveredAck) {
+          // 服务器推送未推送成功的消息（HomeScreen 只做日志记录，详细处理在 chat_detail_screen）
+          final messages = (data as Map<String, dynamic>?)?['messages'] as List<dynamic>? ?? [];
+          debugPrint('[Home] fetchUndeliveredAck: ${messages.length} messages');
         }
       },
     );
@@ -136,6 +153,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     // 停止好友请求轮询，使用缓存的引用，避免在 dispose 中访问 context
     // notify 设为 false，防止在 widget tree locked 时触发 notifyListeners
@@ -150,6 +168,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final l10n = AppLocalizations.of(context)!;
     final friendReqProvider = context.watch<FriendRequestProvider>();
     final hasFriendRequest = friendReqProvider.hasUnread;
+    // 监听会话变化，获取总未读数用于导航栏角标
+    final chatProvider = context.watch<ChatProvider>();
+    final totalUnread = chatProvider.totalUnreadCount;
 
     return Scaffold(
       body: TabBarView(
@@ -161,14 +182,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _tabController.index,
+        currentIndex: _currentIndex,
         type: BottomNavigationBarType.fixed,
         selectedItemColor: Theme.of(context).colorScheme.primary,
         unselectedItemColor: Colors.grey,
         items: [
           BottomNavigationBarItem(
-            icon: const Icon(Icons.chat_bubble_outline),
-            activeIcon: const Icon(Icons.chat),
+            icon: _buildCountBadge(
+              icon: Icons.chat_bubble_outline,
+              count: totalUnread,
+            ),
+            activeIcon: _buildCountBadge(
+              icon: Icons.chat,
+              count: totalUnread,
+            ),
             label: l10n.chat,
           ),
           BottomNavigationBarItem(
@@ -195,7 +222,35 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  /// 带小红点的图标
+  /// 带数字角标的图标（用于聊天 tab 显示未读数）
+  Widget _buildCountBadge({required IconData icon, required int count}) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Icon(icon),
+        if (count > 0)
+          Positioned(
+            right: -6,
+            top: -4,
+            child: Container(
+              constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: const BoxDecoration(
+                color: Colors.red,
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                count > 99 ? '99+' : '$count',
+                style: const TextStyle(color: Colors.white, fontSize: 10, height: 1),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// 带小红点的图标（用于通讯录 tab 显示好友请求）
   Widget _buildBadgeIcon({required IconData icon, required bool showBadge}) {
     return Stack(
       clipBehavior: Clip.none,

@@ -37,9 +37,13 @@ public class ChatMessage {
      */
     private Long localSeq;
     /**
-     * 状态
+     * 状态（0=未读, 1=已读）
      */
     private Integer status;
+    /**
+     * 推送状态：pending=待推送, server_received=服务器已收到, client_ack=客户端已确认, delivered=已送达
+     */
+    private String pushStatus;
     /**
      * 创建时间
      */

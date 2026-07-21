@@ -64,6 +64,9 @@ class ChatProvider extends ChangeNotifier {
   List<ChatMessage> get messages => _messages;
   List<Conversation> get conversations => _conversations;
 
+  /// 所有会话的总未读数，用于导航栏角标
+  int get totalUnreadCount => _conversations.fold(0, (sum, c) => sum + c.unreadCount);
+
   void addMessage(ChatMessage message) {
     _messages.add(message);
     notifyListeners();

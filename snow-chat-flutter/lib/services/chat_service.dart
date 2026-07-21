@@ -94,4 +94,40 @@ class ChatService {
       return false;
     }
   }
+
+  /// 发送消息回执：接收方确认收到消息
+  Future<bool> sendReceipt(int messageId, int userId, int targetId, String targetType) async {
+    try {
+      await apiClient.dio.post(
+        '/chat/message/receipt',
+        data: {
+          'messageId': messageId,
+          'userId': userId,
+          'targetId': targetId,
+          'targetType': targetType,
+        },
+      );
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// 请求服务器推送未推送成功的消息
+  Future<List<MessageModel>> fetchUndelivered(int userId, int targetId, String targetType) async {
+    try {
+      final response = await apiClient.dio.post(
+        '/chat/message/undelivered',
+        data: {
+          'userId': userId,
+          'targetId': targetId,
+          'targetType': targetType,
+        },
+      );
+      final data = response.data['data'] as List?;
+      return data?.map((e) => MessageModel.fromJson(e)).toList() ?? [];
+    } catch (e) {
+      return [];
+    }
+  }
 }

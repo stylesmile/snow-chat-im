@@ -56,6 +56,60 @@ class _ChatListTabState extends State<ChatListTab> {
     return _friendNames[conv.targetId] ?? '用户 ${conv.targetId}';
   }
 
+  /// 构建带未读数角标的头像（类似微信）
+  Widget _buildAvatar(Conversation conv) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        CircleAvatar(
+          backgroundColor: conv.targetType == 'group' ? Colors.blue : Colors.green,
+          child: Text(conv.targetType == 'group' ? '群' : '友'),
+        ),
+        // 未读数角标：显示在头像右上角
+        if (conv.unreadCount > 0)
+          Positioned(
+            right: -4,
+            top: -4,
+            child: Container(
+              constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: const BoxDecoration(
+                color: Colors.red,
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                conv.unreadCount > 99 ? '99+' : '${conv.unreadCount}',
+                style: const TextStyle(color: Colors.white, fontSize: 10, height: 1),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// 格式化时间：今天显示时分，昨天显示"昨天"，更早显示日期
+  String _formatTime(int timestamp) {
+    final date = DateTime.fromMillisecondsSinceEpoch(timestamp);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final messageDay = DateTime(date.year, date.month, date.day);
+
+    if (messageDay == today) {
+      // 今天：显示时分
+      return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    } else if (messageDay == today.subtract(const Duration(days: 1))) {
+      // 昨天
+      return '昨天';
+    } else if (now.year == date.year) {
+      // 今年：显示月日
+      return '${date.month}/${date.day}';
+    } else {
+      // 更早：显示年月日
+      return '${date.year}/${date.month}/${date.day}';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -152,14 +206,14 @@ class _ChatListTabState extends State<ChatListTab> {
                   chatProvider.removeConversation(conv.targetId, conv.targetType);
                 },
                 child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: conv.targetType == 'group' ? Colors.blue : Colors.green,
-                    child: Text(conv.targetType == 'group' ? '群' : '友'),
-                  ),
+                  leading: _buildAvatar(conv),
                   title: Text(_displayName(conv)),
                   subtitle: Text(conv.lastMsg.isNotEmpty ? conv.lastMsg : l10n.noMessages),
-                  trailing: conv.unreadCount > 0
-                      ? Badge(child: Text('${conv.unreadCount}'))
+                  trailing: conv.lastMsgTime > 0
+                      ? Text(
+                          _formatTime(conv.lastMsgTime),
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                        )
                       : null,
                   onTap: () {
                     Navigator.push(

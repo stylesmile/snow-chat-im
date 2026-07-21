@@ -34,4 +34,19 @@ public interface ChatMessageService extends BaseService<ChatMessage> {
      * 标记为已读（按会话维度）
      */
     void markAsRead(Long userId, Long targetId, String targetType);
+
+    /**
+     * 处理接收方的消息回执：更新推送状态并通知发送方
+     */
+    void processReceipt(Long messageId, Long userId);
+
+    /**
+     * 查询未推送成功的消息（REST API 用，返回列表）
+     */
+    List<ChatMessage> getUndeliveredMessages(Long userId, Long targetId, String targetType);
+
+    /**
+     * 查询未推送成功的消息并推送给用户（MQTT 推送用）
+     */
+    void fetchAndPushUndelivered(Long userId, Long targetId, String targetType);
 }

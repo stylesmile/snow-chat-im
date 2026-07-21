@@ -11,6 +11,7 @@ class Tables {
       content TEXT,
       local_seq INTEGER DEFAULT 0,
       status TEXT DEFAULT 'sent',
+      push_status TEXT DEFAULT 'pending',
       create_time INTEGER,
       update_time INTEGER
     )
