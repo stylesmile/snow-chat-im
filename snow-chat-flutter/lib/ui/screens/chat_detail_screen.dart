@@ -423,33 +423,20 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(displayName),
-        // 群聊显示三点菜单
+        // 群聊显示三点按钮，点击直接进入群聊详情
         actions: widget.targetType == 'group'
             ? [
-                PopupMenuButton<String>(
+                IconButton(
                   icon: const Icon(Icons.more_vert),
-                  onSelected: (value) {
-                    if (value == 'group_info') {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => GroupDetailScreen(groupId: widget.targetId),
-                        ),
-                      );
-                    }
-                  },
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(
-                      value: 'group_info',
-                      child: Row(
-                        children: [
-                          Icon(Icons.info_outline, size: 20),
-                          SizedBox(width: 12),
-                          Text('群聊信息'),
-                        ],
+                  tooltip: '群聊信息',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => GroupDetailScreen(groupId: widget.targetId),
                       ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ]
             : null,
