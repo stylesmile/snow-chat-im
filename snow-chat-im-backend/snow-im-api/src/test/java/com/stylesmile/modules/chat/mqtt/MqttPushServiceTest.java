@@ -33,7 +33,7 @@ class MqttPushServiceTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        service = new MqttPushService(new ObjectMapper());
+        service = new MqttPushService();
         ReflectionTestUtils.setField(service, "client", client);
         when(client.isConnected()).thenReturn(true);
     }

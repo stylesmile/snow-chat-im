@@ -149,7 +149,7 @@ public class ChatSession {
      * - 昨天：显示"昨天"
      * - 更早：显示日期（如"7/20"）
      */
-    private java.util.Date lastMsgTime;
+    private Date lastMsgTime;
 
     /**
      * 未读消息数 - 显示在会话列表中的徽章
@@ -172,8 +172,26 @@ public class ChatSession {
      * - 避免频繁更新数据库
      */
     private Integer unreadCount;
+
     /**
-     * 创建时间
+     * 创建时间 - 记录会话的创建时间
+     *
+     * 这个字段记录会话首次创建的时间。
+     * 用于审计、调试和会话生命周期管理。
+     *
+     * 数据库类型：DATETIME
+     * 约束：NOT NULL
+     * 默认值：CURRENT_TIMESTAMP
+     *
+     * 业务逻辑：
+     * - 会话创建时自动设置
+     * - 用于审计追踪
+     * - 可以用于清理过期会话
+     * - 可以用于数据统计和分析
+     *
+     * 注意：此字段与updateTime不同
+     * - createTime: 会话创建的时间（不变）
+     * - updateTime: 会话最后修改的时间（会变化）
      */
     private Date createTime;
 
@@ -228,7 +246,7 @@ public class ChatSession {
      * - 修改免打扰设置
      * - 清除未读计数
      */
-    private java.util.Date updateTime;
+    private Date updateTime;
 
     /**
      * 无参构造函数 - MyBatis和Jackson需要
