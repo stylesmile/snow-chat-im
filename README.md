@@ -51,3 +51,23 @@ springboot2 最流行的java技术
 druid数据源 强大的监控特性,多维度的统计和分析功能
 mybatis  灵活，学习成本低的持久层框架
 spring-cache 减少数据库查询操作，大幅度降低服务器压力
+
+
+
+Words 'chat' and 'instant messaging' in Chinese, Russian, Persian and a few other languages.
+
+聊天室 即時通訊
+чат мессенджер
+インスタントメッセージ
+인스턴트 메신저
+پیام رسان فوری
+تراسل فوري
+فوری پیغام رسانی
+Nhắn tin tức thời
+anlık mesajlaşma sohbet
+mensageiro instantâneo
+pesan instan
+mensajería instantánea
+চ্যাট ইন্সট্যান্ট মেসেজিং
+चैट त्वरित संदेश
+তাৎক্ষণিক বার্তা আদান প্রদান
