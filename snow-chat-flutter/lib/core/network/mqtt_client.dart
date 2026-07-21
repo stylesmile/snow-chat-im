@@ -51,25 +51,23 @@ class MqttChatClient {
     try {
       await client.connect(username, password);
       if (isConnected) {
-        // 连接成功日志：输出 host、port、clientId，便于排查连接问题
         debugPrint('[MQTT] connected to $host:$port as $effectiveClientId');
         // 订阅当前用户的私聊主题
         _subscribeAll(userId);
-        // 监听消息流；updates 可能为 null（连接异常时），需明确检测
+        // 监听消息流
         final updates = client.updates;
         if (updates == null) {
-          // 关键错误：updates 为 null 表示消息流未建立，消息将无法收到
           debugPrint('[MQTT] WARNING: client.updates is null, messages will NOT be received!');
         } else {
           updates.listen(_handleMessages);
           debugPrint('[MQTT] listening for messages on updates stream');
         }
+        // 连接成功后，通知外部可以订阅群主题
+        onConnected?.call();
       } else {
-        // 连接返回但状态非 connected，输出实际状态用于诊断
         debugPrint('[MQTT] connect returned but state=${client.connectionStatus?.state}');
       }
     } catch (e, st) {
-      // 连接异常：输出错误和堆栈
       debugPrint('[MQTT] connect failed: $e\n$st');
       client.disconnect();
       _client = null;

@@ -64,6 +64,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _mqttClient = MqttChatClient(
       host: ApiConstants.mqttHost,
       port: ApiConstants.mqttPort,
+      onConnected: () => _subscribeAllGroups(userId),
       onMessage: (cmd, data) {
         if (!mounted) return;
         if (cmd == WsCmd.friendAccepted) {
@@ -123,24 +124,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         }
       },
     );
-    // 连接成功后订阅所有群主题
+    // 连接 MQTT
     _mqttClient!.connect(
       userId: userId,
       username: ApiConstants.mqttUsername,
       password: ApiConstants.mqttPassword,
-    ).then((_) => _subscribeAllGroups(userId));
+    );
   }
 
   /// 处理收到的消息，更新本地会话与内存列表
   void _handleIncomingMessage(Map<String, dynamic> data, int userId) {
-    // HomeScreen 收到消息日志：用于确认消息到达 HomeScreen 路径
     debugPrint('[Home] _handleIncomingMessage userId=$userId, data=$data');
-    // 安全 int 解析：后端 Long/Date 可能序列化为 String 或 num
     final fromUserId = MessageUtils.toNullableInt(data['fromUserId']);
     final toUserId = MessageUtils.toNullableInt(data['toUserId']);
     final groupId = MessageUtils.toNullableInt(data['groupId']);
     final content = data['content'] as String? ?? '';
-    // createTime 兼容 ISO 字符串、毫秒数、null 三种情况
     final createTime = MessageUtils.toInt(
       data['createTime'],
       DateTime.now().millisecondsSinceEpoch,
@@ -148,19 +146,23 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
     final int? groupIdValue = groupId;
     final bool isGroup = groupIdValue != null;
-    // 私聊时：fromUserId == userId 说明我是发送方，targetId 取 toUserId；否则取 fromUserId
     final int targetId = isGroup
         ? groupIdValue
         : (fromUserId == userId ? (toUserId ?? 0) : (fromUserId ?? 0));
     final String targetType = isGroup ? 'group' : 'friend';
-    // 计算后的目标会话日志：便于排查会话匹配问题
-    debugPrint('[Home] resolved targetId=$targetId, targetType=$targetType');
+    debugPrint('[Home] resolved targetId=$targetId, targetType=$targetType, isGroup=$isGroup');
 
-    final existing = _chatProvider?.conversations.firstWhere(
+    // 查找或创建会话
+    final existingIndex = _chatProvider?.conversations.indexWhere(
       (c) => c.targetId == targetId && c.targetType == targetType,
-      orElse: () => Conversation(targetId: targetId, targetType: targetType),
     );
-    if (existing == null) return;
+    final Conversation existing;
+    if (existingIndex != null && existingIndex >= 0) {
+      existing = _chatProvider!.conversations[existingIndex];
+    } else {
+      existing = Conversation(targetId: targetId, targetType: targetType);
+    }
+    debugPrint('[Home] existing conversation found=$existingIndex, current unread=${existing.unreadCount}');
 
     final updated = Conversation(
       targetId: targetId,
@@ -169,6 +171,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       lastMsgTime: createTime,
       unreadCount: existing.unreadCount + 1,
     );
+    debugPrint('[Home] updating conversation: targetId=$targetId, new unread=${updated.unreadCount}');
     _chatProvider?.updateConversation(updated);
 
     ConversationService().saveSession(
