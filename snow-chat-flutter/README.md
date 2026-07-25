@@ -15,7 +15,7 @@ chat 是一个实时消息应用。使用 Flutter 开发，基于使用 BLoC 模
 
 ## 技术栈
 
-- **框架**: Flutter 3.8.1+
+- **框架**: Flutter 3.41.1+
 - **状态管理**: BLoC (flutter_bloc)
 - **网络**: Dio
 - **WebSocket**: STOMP (stomp_dart_client)
