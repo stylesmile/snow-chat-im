@@ -18,16 +18,21 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.baomidou.mybatisplus.core.conditions.Wrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.mockito.ArgumentCaptor;
 
 @ExtendWith(MockitoExtension.class)
 class ChatMessageServiceImplTest {
@@ -56,7 +61,8 @@ class ChatMessageServiceImplTest {
         ReflectionTestUtils.setField(service, "chatOfflineMessageMapper", chatOfflineMessageMapper);
         ReflectionTestUtils.setField(service, "chatSessionService", chatSessionService);
         ReflectionTestUtils.setField(service, "chatGroupMemberService", chatGroupMemberService);
-        doReturn(true).when(service).save(any(ChatMessage.class));
+        // save stub 用 lenient：sendMessage 测试需要，processReceipt 测试不需要
+        lenient().doReturn(true).when(service).save(any(ChatMessage.class));
     }
 
     @Test
@@ -119,6 +125,46 @@ class ChatMessageServiceImplTest {
         service.sendMessage(message);
 
         verify(mqttPushService).publish(eq("chat/group/7"), eq(2001), any());
+    }
+
+    /**
+     * 小需求2：processReceipt 应将 pushStatus 推进到 delivered 并通知发送方
+     *
+     * 验证流程：
+     * 1. 调用 update 将 pushStatus 设为 "delivered"（接收方确认收到，终端状态）
+     * 2. 查询消息获取发送方 ID
+     * 3. 向发送方推送 MSG_RECEIPT_ACK(2007) 通知"消息已送达"
+     *
+     * 使用 UpdateWrapper（非 lambda）使单元测试可断言具体 SET 值
+     */
+    @Test
+    void processReceipt_shouldMarkAsDeliveredAndNotifySender() {
+        // 准备：构造已入库消息，发送方 10L，接收方 42L，当前状态 server_received
+        ChatMessage message = message(10L, 42L, null);
+        message.setId(99L);
+        message.setPushStatus("server_received");
+        // stub getById：processReceipt 需查询消息获取发送方 ID 才能回推
+        doReturn(message).when(service).getById(99L);
+        // stub update：单元测试无法执行真实 SQL，返回 true 模拟成功
+        doReturn(true).when(service).update(any(Wrapper.class));
+
+        // 执行：接收方 42L 发送回执，确认收到 messageId=99 的消息
+        service.processReceipt(99L, 42L);
+
+        // 验证：update 被调用，捕获 wrapper 检查 SET 值
+        ArgumentCaptor<Wrapper> captor = ArgumentCaptor.forClass(Wrapper.class);
+        verify(service).update(captor.capture());
+        // UpdateWrapper 将 set 值存储在 paramNameValuePairs 中
+        UpdateWrapper<?> captured = (UpdateWrapper<?>) captor.getValue();
+        // 验证 SET 子句包含 push_status 列
+        assertTrue(captured.getSqlSet().contains("push_status"),
+                "SET 子句应包含 push_status 列");
+        // 验证 set 值为 delivered（接收方已确认收到，终端状态）
+        assertTrue(captured.getParamNameValuePairs().containsValue("delivered"),
+                "pushStatus 应被设为 delivered");
+
+        // 验证：向发送方 10L 推送 MSG_RECEIPT_ACK(2007)，通知"消息已送达"
+        verify(mqttPushService).publish(eq("chat/user/10"), eq(2007), any());
     }
 
     /**

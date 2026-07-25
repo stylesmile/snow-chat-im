@@ -2,6 +2,7 @@ package com.stylesmile.chat.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import com.stylesmile.chat.entity.ChatGroupMember;
 import com.stylesmile.chat.entity.ChatMessage;
 import com.stylesmile.chat.entity.ChatOfflineMessage;
@@ -262,10 +263,14 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
 
     @Override
     public void processReceipt(Long messageId, Long userId) {
-        // 1. 更新消息推送状态为 client_ack（客户端已确认收到）
-        LambdaUpdateWrapper<ChatMessage> wrapper = new LambdaUpdateWrapper<>();
-        wrapper.eq(ChatMessage::getId, messageId)
-               .set(ChatMessage::getPushStatus, "client_ack");
+        // 1. 更新消息推送状态为 delivered（接收方已确认收到）
+        // 使用 UpdateWrapper（非 lambda）而非 LambdaUpdateWrapper，避免单元测试中 lambda cache 不可用的问题
+        // 状态机：pending → server_received → delivered
+        //   - server_received：服务器收到发送方的消息
+        //   - delivered：接收方确认收到消息（终端状态）
+        UpdateWrapper<ChatMessage> wrapper = new UpdateWrapper<>();
+        wrapper.eq("id", messageId)
+               .set("push_status", "delivered");
         update(wrapper);
 
         // 2. 查询消息，获取发送方 ID，向发送方推送回执
