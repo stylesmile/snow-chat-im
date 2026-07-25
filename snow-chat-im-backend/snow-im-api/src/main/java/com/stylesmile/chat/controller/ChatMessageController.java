@@ -99,12 +99,26 @@ public class ChatMessageController {
 
     /**
      * 进入聊天页面时请求未推送成功的消息
+     * 返回未送达消息列表，由客户端主动拉取并写入本地 SQLite
      */
     @PostMapping("/undelivered")
     public Result<List<ChatMessage>> undelivered(@RequestBody FetchUndeliveredDTO body) {
         List<ChatMessage> messages = chatMessageService.getUndeliveredMessages(
                 body.getUserId(), body.getTargetId(), body.getTargetType());
         return Result.success(messages);
+    }
+
+    /**
+     * MQTT 重连后请求服务器补推未送达消息
+     * 与 /undelivered 区别：本接口由服务器通过 MQTT 主动推送给客户端（FETCH_UNDELIVERED_ACK），
+     * 而非返回列表由客户端拉取。适用于 MQTT 重连场景，客户端通知服务器"我回来了，把漏掉的消息推给我"。
+     */
+    @PostMapping("/sync")
+    public Result<Void> sync(@RequestBody FetchUndeliveredDTO body) {
+        // 委托给 service：查询未送达消息并通过 MQTT 推送到 chat/user/{userId} 主题
+        chatMessageService.fetchAndPushUndelivered(
+                body.getUserId(), body.getTargetId(), body.getTargetType());
+        return Result.success();
     }
 
     @Data

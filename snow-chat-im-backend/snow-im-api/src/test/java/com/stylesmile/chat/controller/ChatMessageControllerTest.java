@@ -77,6 +77,26 @@ class ChatMessageControllerTest {
         assertEquals("hello", message.getContent());
     }
 
+    /**
+     * 小需求1：MQTT 重连补推接口
+     * 验证 POST /chat/message/sync 委托给 service.fetchAndPushUndelivered
+     * 区别于 /undelivered（返回列表由客户端拉取），/sync 由服务器通过 MQTT 主动推送
+     */
+    @Test
+    void syncDelegatesToFetchAndPushUndelivered() {
+        // 准备：构造请求体，模拟 MQTT 重连后客户端请求补推未送达消息
+        ChatMessageController.FetchUndeliveredDTO body = new ChatMessageController.FetchUndeliveredDTO();
+        body.setUserId(1L);            // 当前用户 ID
+        body.setTargetId(2L);          // 对端用户 ID（私聊）或群组 ID
+        body.setTargetType("friend");  // 会话类型：friend=私聊 / group=群聊
+
+        // 执行：调用 sync 接口，应委托给 service.fetchAndPushUndelivered
+        assertSuccess(controller.sync(body));
+
+        // 验证：service.fetchAndPushUndelivered 被正确参数调用（通过 MQTT 推送而非返回列表）
+        verify(chatMessageService).fetchAndPushUndelivered(1L, 2L, "friend");
+    }
+
     private void assertSuccess(Result<?> result) {
         assertEquals("200", result.getCode());
     }
