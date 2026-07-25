@@ -6,6 +6,7 @@ import 'providers/auth_provider.dart';
 import 'providers/settings_provider.dart';
 import 'providers/chat_provider.dart';
 import 'providers/friend_request_provider.dart';
+import 'services/profile_service.dart';
 import 'core/constants/api_constants.dart';
 
 void main() async {
@@ -37,6 +38,10 @@ void main() async {
           create: (context) => FriendRequestProvider(
             context.read<AuthProvider>().apiClient,
           ),
+        ),
+        // ProfileService 依赖 AuthProvider 的 apiClient，用于头像上传与资料更新
+        Provider(
+          create: (context) => ProfileService(context.read<AuthProvider>().apiClient),
         ),
       ],
       child: const SnowChatApp(),
