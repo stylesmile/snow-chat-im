@@ -112,6 +112,26 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 更新头像并持久化。
+  ///
+  /// 典型场景：头像上传成功后调用，让 UI 立即展示新头像 URL。
+  /// 流程：设置 _avatar → 持久化到 SharedPreferences → 通知监听者刷新 UI。
+  Future<void> updateAvatar(String newAvatarUrl) async {
+    _avatar = newAvatarUrl; // 更新内存中的头像字段
+    await _saveAuthState(); // 持久化到本地存储
+    notifyListeners(); // 通知 UI 刷新
+  }
+
+  /// 更新昵称并持久化。
+  ///
+  /// 典型场景：编辑资料后调用，让所有依赖 nickname 的 UI 同步刷新。
+  /// 流程：设置 _nickname → 持久化到 SharedPreferences → 通知监听者刷新 UI。
+  Future<void> updateNickname(String newNickname) async {
+    _nickname = newNickname; // 更新内存中的昵称字段
+    await _saveAuthState(); // 持久化到本地存储
+    notifyListeners(); // 通知 UI 刷新
+  }
+
   /// 持久化登录状态到 SharedPreferences
   Future<void> _saveAuthState() async {
     final prefs = await SharedPreferences.getInstance();
