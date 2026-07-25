@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import '../core/network/api_client.dart';
 import '../models/message_model.dart';
 
@@ -114,6 +113,7 @@ class ChatService {
   }
 
   /// 请求服务器推送未推送成功的消息
+  /// 返回未送达消息列表，由客户端主动拉取并写入本地 SQLite
   Future<List<MessageModel>> fetchUndelivered(int userId, int targetId, String targetType) async {
     try {
       final response = await apiClient.dio.post(
@@ -128,6 +128,46 @@ class ChatService {
       return data?.map((e) => MessageModel.fromJson(e)).toList() ?? [];
     } catch (e) {
       return [];
+    }
+  }
+
+  /// MQTT 重连后请求服务器补推未送达消息
+  /// 与 [fetchUndelivered] 区别：本接口由服务器通过 MQTT 主动推送（FETCH_UNDELIVERED_ACK），
+  /// 而非返回列表由客户端拉取。适用于 MQTT 重连场景，客户端通知服务器"我回来了，把漏掉的消息推给我"。
+  Future<bool> syncUndelivered(int userId, int targetId, String targetType) async {
+    try {
+      // POST /chat/message/sync：服务器收到后查询未送达消息并通过 MQTT 推送
+      await apiClient.dio.post(
+        '/chat/message/sync',
+        data: {
+          'userId': userId,         // 当前用户 ID
+          'targetId': targetId,     // 对端用户 ID（私聊）或群组 ID
+          'targetType': targetType, // 会话类型：friend=私聊 / group=群聊
+        },
+      );
+      return true; // 请求成功，未送达消息将由 MQTT 推送
+    } catch (e) {
+      return false; // 请求失败，下次重连会再次尝试
+    }
+  }
+
+  /// MQTT 重连后批量请求所有会话补推未送达消息
+  ///
+  /// 遍历当前用户的所有会话，对每个会话调用 [syncUndelivered]。
+  /// 适用于 MQTT 自动重连成功后，客户端通知服务器"我回来了，把漏掉的消息推给我"。
+  ///
+  /// 使用 record 类型 `({int targetId, String targetType})` 解耦服务层与 provider 层，
+  /// 避免 ChatService 依赖 chat_provider.dart 的 Conversation 类。
+  ///
+  /// 单个会话请求失败不影响其他会话（syncUndelivered 内部已吞掉异常）。
+  Future<void> syncAllConversations(
+    int userId,
+    List<({int targetId, String targetType})> conversations,
+  ) async {
+    // 遍历所有会话，逐个请求服务器补推未送达消息
+    for (final conv in conversations) {
+      // 对每个会话调用 syncUndelivered，失败时内部返回 false，不影响后续会话
+      await syncUndelivered(userId, conv.targetId, conv.targetType);
     }
   }
 }

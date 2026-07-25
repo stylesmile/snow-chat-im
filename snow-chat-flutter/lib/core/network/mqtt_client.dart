@@ -15,6 +15,8 @@ class MqttChatClient {
   final MessageCallback? onMessage;
   final VoidCallback? onConnected;
   final VoidCallback? onDisconnected;
+  // MQTT 自动重连成功后的回调，用于通知上层应用补拉未送达消息
+  final VoidCallback? onReconnected;
 
   MqttChatClient({
     required this.host,
@@ -22,6 +24,7 @@ class MqttChatClient {
     this.onMessage,
     this.onConnected,
     this.onDisconnected,
+    this.onReconnected,
   });
 
   bool get isConnected => _client?.connectionStatus?.state == MqttConnectionState.connected;
@@ -41,7 +44,12 @@ class MqttChatClient {
     client.onConnected = onConnected;
     client.onDisconnected = onDisconnected;
     client.onAutoReconnect = () {};
-    client.onAutoReconnected = () => _subscribeAll(userId);
+    // 自动重连成功后：先重新订阅主题，再通知上层应用补拉未送达消息
+    client.onAutoReconnected = () {
+      _subscribeAll(userId);
+      // 触发 onReconnected 回调，上层应用可在此请求服务器补推未送达消息
+      onReconnected?.call();
+    };
     client.connectionMessage = MqttConnectMessage()
         .withClientIdentifier(effectiveClientId)
         .startClean()

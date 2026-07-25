@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/friend_request_provider.dart';
+import '../../services/chat_service.dart';
 import '../../services/conversation_service.dart';
 import '../../services/group_service.dart';
 import '../../core/constants/api_constants.dart';
@@ -65,6 +66,25 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       host: ApiConstants.mqttHost,
       port: ApiConstants.mqttPort,
       onConnected: () => _subscribeAllGroups(userId),
+      // MQTT 自动重连成功后的回调：请求服务器补推所有会话的未送达消息
+      // 触发时机：网络恢复 / MQTT broker 重启后客户端自动重连成功
+      onReconnected: () {
+        // 重连回调可能在 widget 已销毁后触发，需检查 mounted
+        if (!mounted) return;
+        // 从缓存的 ChatProvider 获取当前会话列表
+        final conversations = _chatProvider?.conversations ?? [];
+        // 空会话列表时跳过，避免无意义的网络请求
+        if (conversations.isEmpty) return;
+        // 将 Conversation 列表映射为 record，解耦服务层与 provider 层
+        // record 类型 ({int targetId, String targetType}) 避免 ChatService 依赖 Conversation 类
+        final conversationRecords = conversations
+            .map((c) => (targetId: c.targetId, targetType: c.targetType))
+            .toList();
+        // 创建 ChatService 并批量请求补推（fire-and-forget，不阻塞 MQTT 线程）
+        // ApiClient 从 AuthProvider 获取（didChangeDependencies 时已初始化）
+        final apiClient = context.read<AuthProvider>().apiClient;
+        ChatService(apiClient).syncAllConversations(userId, conversationRecords);
+      },
       onMessage: (cmd, data) {
         if (!mounted) return;
         if (cmd == WsCmd.friendAccepted) {
