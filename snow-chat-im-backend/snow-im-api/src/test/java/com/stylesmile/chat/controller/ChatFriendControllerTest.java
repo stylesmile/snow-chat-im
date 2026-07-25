@@ -80,10 +80,13 @@ class ChatFriendControllerTest {
 
     @Test
     void deletesBothDirectionsOfFriendship() {
+        // 控制器调用 service.removeFriend(userId, friendId)，由 service 内部负责双向删除
         Result<Void> result = controller.delete(1L, 2L);
 
+        // 删除成功返回 200
         assertSuccess(result);
-        verify(chatFriendService, org.mockito.Mockito.times(2)).remove(org.mockito.ArgumentMatchers.any());
+        // 验证 controller 委托给 service.removeFriend 一次（双向删除在 service 实现内部完成）
+        verify(chatFriendService).removeFriend(1L, 2L);
     }
 
     private void assertSuccess(Result<?> result) {

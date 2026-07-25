@@ -57,3 +57,16 @@ mica:
 logging:
   level:
     com.stylesmile: debug
+
+# MinIO 对象存储配置（私有 + Pre-signed URL 策略）
+# enabled=false 时降级到 InMemoryFileStorage（本地开发/测试）
+# 启用方式：docker compose up -d minio，然后改 enabled: true
+minio:
+  enabled: false                              # 默认关闭，避免无 MinIO 时启动失败
+  endpoint: http://localhost:9000             # MinIO API 端点
+  access-key: minioadmin                      # 默认访问密钥
+  secret-key: minioadmin                      # 默认秘密密钥
+  bucket: snow-chat                           # bucket 名称
+  public-url: ""                              # 私有策略下未使用，保留字段
+  region: us-east-1                           # 区域
+  public-read-policy: false                   # 私有策略：不设置公共读

@@ -39,25 +39,27 @@ class ChatFriendServiceImplTest {
     void delegatesFriendQueries() {
         List<ChatFriend> friends = List.of(new ChatFriend());
         ChatFriend friend = new ChatFriend();
-        when(mapper.getFriendsByUserId(1)).thenReturn(friends);
-        when(mapper.getFriend(1, 2)).thenReturn(friend);
+        // 业务方法签名期望 Long
+        when(mapper.getFriendsByUserId(1L)).thenReturn(friends);
+        when(mapper.getFriend(1L, 2L)).thenReturn(friend);
 
-        assertEquals(friends, service.getFriendsByUserId(1));
-        assertEquals(friend, service.getFriend(1, 2));
-        assertTrue(service.isFriend(1, 2));
-        when(mapper.getFriend(1, 3)).thenReturn(null);
-        assertFalse(service.isFriend(1, 3));
+        assertEquals(friends, service.getFriendsByUserId(1L));
+        assertEquals(friend, service.getFriend(1L, 2L));
+        assertTrue(service.isFriend(1L, 2L));
+        when(mapper.getFriend(1L, 3L)).thenReturn(null);
+        assertFalse(service.isFriend(1L, 3L));
     }
 
     @Test
     void createsFriendRelation() {
         doReturn(true).when(service).save(any(ChatFriend.class));
 
-        service.addFriend(1, 2);
+        // addFriend 签名期望 Long
+        service.addFriend(1L, 2L);
 
         ArgumentCaptor<ChatFriend> captor = ArgumentCaptor.forClass(ChatFriend.class);
         verify(service).save(captor.capture());
-        assertEquals(1, captor.getValue().getUserId());
-        assertEquals(2, captor.getValue().getFriendId());
+        assertEquals(1L, captor.getValue().getUserId());
+        assertEquals(2L, captor.getValue().getFriendId());
     }
 }

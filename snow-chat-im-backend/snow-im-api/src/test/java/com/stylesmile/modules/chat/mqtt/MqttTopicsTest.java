@@ -9,11 +9,13 @@ class MqttTopicsTest {
 
     @Test
     void buildsUserTopic() {
-        assertEquals("chat/user/42", MqttTopics.user(42));
+        // MqttTopics.user 签名期望 Long
+        assertEquals("chat/user/42", MqttTopics.user(42L));
     }
 
     @Test
     void buildsGroupTopic() {
-        assertEquals("chat/group/7", MqttTopics.group(7));
+        // MqttTopics.group 签名期望 Long
+        assertEquals("chat/group/7", MqttTopics.group(7L));
     }
 }

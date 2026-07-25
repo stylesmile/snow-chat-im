@@ -133,6 +133,13 @@
             <artifactId>spring-boot</artifactId>
         </dependency>
 
+        <!-- AWS S3 SDK v2：用于 MinIO 集成（S3 兼容协议） -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+            <version>2.30.0</version>
+        </dependency>
+
         <!-- Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

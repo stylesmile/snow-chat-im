@@ -1,0 +1,97 @@
+package com.stylesmile.chat.storage;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * InMemoryFileStorage（降级实现）的单元测试。
+ * 覆盖 upload / exists / delete / generatePresignedUrl 四个方法。
+ *
+ * @author mmm
+ */
+class InMemoryFileStorageTest {
+
+    private InMemoryFileStorage storage; // 被测对象
+
+    @BeforeEach
+    void setUp() {
+        // 每个测试前创建一个全新的内存存储实例，避免测试间状态污染
+        storage = new InMemoryFileStorage();
+    }
+
+    /**
+     * upload 应返回传入的 fileName（即对象 key），而非 URL。
+     * 这与"私有 + Pre-signed URL"策略一致：DB 存 key，URL 单独获取。
+     */
+    @Test
+    void uploadReturnsObjectKeyNotUrl() {
+        // 准备一个简单的字节流作为文件内容
+        byte[] data = "hello".getBytes(StandardCharsets.UTF_8);
+        ByteArrayInputStream input = new ByteArrayInputStream(data);
+
+        // 调用上传，文件名为 avatars/test.jpg
+        String result = storage.upload(input, "avatars/test.jpg", "image/jpeg", data.length);
+
+        // 断言返回值就是传入的 fileName（key）
+        assertEquals("avatars/test.jpg", result, "upload 应返回对象 key 而非 URL");
+    }
+
+    /**
+     * upload 后 exists 应返回 true。
+     */
+    @Test
+    void existsReturnsTrueAfterUpload() {
+        byte[] data = "hello".getBytes(StandardCharsets.UTF_8);
+        storage.upload(new ByteArrayInputStream(data), "avatars/a.png", "image/png", data.length);
+
+        // 断言文件存在
+        assertTrue(storage.exists("avatars/a.png"), "上传后 exists 应为 true");
+    }
+
+    /**
+     * 未上传的文件 exists 应返回 false。
+     */
+    @Test
+    void existsReturnsFalseForMissingFile() {
+        // 断言从未上传的文件不存在
+        assertFalse(storage.exists("avatars/missing.jpg"), "未上传的文件 exists 应为 false");
+    }
+
+    /**
+     * delete 后 exists 应返回 false。
+     */
+    @Test
+    void deleteRemovesFile() {
+        byte[] data = "hello".getBytes(StandardCharsets.UTF_8);
+        storage.upload(new ByteArrayInputStream(data), "avatars/del.jpg", "image/jpeg", data.length);
+        // 确认上传成功
+        assertTrue(storage.exists("avatars/del.jpg"));
+
+        // 执行删除
+        storage.delete("avatars/del.jpg");
+
+        // 断言删除后不再存在
+        assertFalse(storage.exists("avatars/del.jpg"), "删除后 exists 应为 false");
+    }
+
+    /**
+     * generatePresignedUrl 应返回包含 key 与 expires 参数的 URL 字符串。
+     * 内存实现不真正签名，仅返回可用于测试的占位 URL。
+     */
+    @Test
+    void generatePresignedUrlReturnsUrlWithExpiry() {
+        // 调用生成 pre-signed URL，有效期 60 分钟
+        String url = storage.generatePresignedUrl("avatars/test.jpg", 60);
+
+        // 断言 URL 包含 key 与 expires 标记
+        assertTrue(url.contains("avatars/test.jpg"), "URL 应包含对象 key");
+        assertTrue(url.contains("expires=60"), "URL 应包含过期时间参数");
+    }
+}

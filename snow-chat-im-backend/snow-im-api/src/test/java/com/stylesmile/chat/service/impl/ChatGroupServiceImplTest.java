@@ -43,46 +43,52 @@ class ChatGroupServiceImplTest {
     void delegatesGroupQueries() {
         ChatGroup group = new ChatGroup();
         List<ChatGroup> groups = List.of(group);
-        when(mapper.selectById(8)).thenReturn(group);
-        when(mapper.getGroupsByUserId(3)).thenReturn(groups);
+        // 业务方法签名期望 Long
+        when(mapper.selectById(8L)).thenReturn(group);
+        when(mapper.getGroupsByUserId(3L)).thenReturn(groups);
 
-        assertEquals(group, service.getGroupById(8));
-        assertEquals(groups, service.getGroupsByUserId(3));
+        assertEquals(group, service.getGroupById(8L));
+        assertEquals(groups, service.getGroupsByUserId(3L));
     }
 
     @Test
     void createsGroupWithDefaultLimitAndMembers() {
         doAnswer(invocation -> {
             ChatGroup group = invocation.getArgument(0);
-            group.setId(20);
+            // ChatGroup.id 类型为 Long，需用 20L 字面量
+            group.setId(20L);
             return true;
         }).when(service).save(any(ChatGroup.class));
 
-        Integer groupId = service.createGroup(1, "开发组", "avatar", null, List.of(2, 3));
+        // createGroup 第一个参数（ownerId）签名期望 Long，返回值类型为 Long
+        Long groupId = service.createGroup(1L, "开发组", "avatar", null, List.of(2L, 3L));
 
-        assertEquals(20, groupId);
+        assertEquals(20L, groupId);
         ArgumentCaptor<ChatGroup> captor = ArgumentCaptor.forClass(ChatGroup.class);
         verify(service).save(captor.capture());
         ChatGroup group = captor.getValue();
-        assertEquals(1, group.getOwnerId());
+        assertEquals(1L, group.getOwnerId());
         assertEquals("开发组", group.getName());
         assertEquals(500, group.getMaxMembers());
         assertEquals(0, group.getDelFlag());
         assertNotNull(group.getCreateTime());
         assertNotNull(group.getUpdateTime());
-        verify(memberService).addMember(20, 2);
-        verify(memberService).addMember(20, 3);
+        // addMember 签名期望 Long
+        verify(memberService).addMember(20L, 2L);
+        verify(memberService).addMember(20L, 3L);
     }
 
     @Test
     void createsGroupWithoutMembersUsingProvidedLimit() {
         doAnswer(invocation -> {
             ChatGroup group = invocation.getArgument(0);
-            group.setId(21);
+            // ChatGroup.id 类型为 Long
+            group.setId(21L);
             return true;
         }).when(service).save(any(ChatGroup.class));
 
-        assertEquals(21, service.createGroup(1, "群", null, 50, null));
+        // createGroup 第一个参数期望 Long，返回值类型为 Long
+        assertEquals(21L, service.createGroup(1L, "群", null, 50, null));
 
         ArgumentCaptor<ChatGroup> captor = ArgumentCaptor.forClass(ChatGroup.class);
         verify(service).save(captor.capture());
