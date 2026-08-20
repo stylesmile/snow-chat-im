@@ -1,4 +1,4 @@
-you/// REST 端点路径常量
+/// REST 端点路径常量
 /// REST endpoint path constants
 class ApiConstants {
   // ---------------------------------------------------------------------------
