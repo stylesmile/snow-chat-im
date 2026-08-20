@@ -63,7 +63,7 @@ logging:
 # 启用方式：docker compose up -d minio，然后改 enabled: true
 minio:
   enabled: false                              # 默认关闭，避免无 MinIO 时启动失败
-  endpoint: http://localhost:9000             # MinIO API 端点
+  endpoint: http://192.168.0.48:9000             # MinIO API 端点
   access-key: minioadmin                      # 默认访问密钥
   secret-key: minioadmin                      # 默认秘密密钥
   bucket: snow-chat                           # bucket 名称
