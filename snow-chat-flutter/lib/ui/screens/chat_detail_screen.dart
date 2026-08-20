@@ -5,7 +5,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/chat_service.dart';
 import '../../core/network/mqtt_client.dart';
 import '../../core/constants/ws_cmd.dart';
-import '../../core/constants/api_constants.dart';
+import '../../config/config.dart';
 import '../../core/utils/date_utils.dart' as app_date;
 import '../../core/utils/message_status_parser.dart';
 import '../../core/utils/message_utils.dart';
@@ -112,15 +112,15 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     // 使用独立 clientId，避免与 HomeScreen 的全局 MQTT 连接互踢
     final chatClientId = 'user_${userId}_chat_${widget.targetId}_${widget.targetType}';
     _mqttClient = MqttChatClient(
-      host: ApiConstants.mqttHost,
-      port: ApiConstants.mqttPort,
+      host: AppConfig.mqttHost,
+      port: AppConfig.mqttPort,
       onMessage: _handleMqttMessage,
     );
     // 等待连接完成后再订阅群主题
     await _mqttClient?.connect(
       userId: userId,
-      username: ApiConstants.mqttUsername,
-      password: ApiConstants.mqttPassword,
+      username: AppConfig.mqttUsername,
+      password: AppConfig.mqttPassword,
       clientId: chatClientId,
     );
     // 连接成功后订阅群主题

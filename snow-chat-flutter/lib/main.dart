@@ -7,7 +7,7 @@ import 'providers/settings_provider.dart';
 import 'providers/chat_provider.dart';
 import 'providers/friend_request_provider.dart';
 import 'services/profile_service.dart';
-import 'core/constants/api_constants.dart';
+import 'config/config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,7 +25,7 @@ void main() async {
   ]);
 
   // 恢复登录状态
-  final authProvider = AuthProvider(ApiConstants.baseUrl);
+  final authProvider = AuthProvider(AppConfig.baseUrl);
   await authProvider.init();
 
   runApp(

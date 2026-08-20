@@ -7,7 +7,7 @@ import '../../providers/friend_request_provider.dart';
 import '../../services/chat_service.dart';
 import '../../services/conversation_service.dart';
 import '../../services/group_service.dart';
-import '../../core/constants/api_constants.dart';
+import '../../config/config.dart';
 import '../../core/constants/ws_cmd.dart';
 import '../../core/network/mqtt_client.dart';
 import '../../core/utils/message_utils.dart';
@@ -63,8 +63,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   void _initMqtt(int userId) {
     _mqttClient = MqttChatClient(
-      host: ApiConstants.mqttHost,
-      port: ApiConstants.mqttPort,
+      host: AppConfig.mqttHost,
+      port: AppConfig.mqttPort,
       onConnected: () => _subscribeAllGroups(userId),
       // MQTT 自动重连成功后的回调：请求服务器补推所有会话的未送达消息
       // 触发时机：网络恢复 / MQTT broker 重启后客户端自动重连成功
@@ -147,8 +147,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     // 连接 MQTT
     _mqttClient!.connect(
       userId: userId,
-      username: ApiConstants.mqttUsername,
-      password: ApiConstants.mqttPassword,
+      username: AppConfig.mqttUsername,
+      password: AppConfig.mqttPassword,
     );
   }
 
