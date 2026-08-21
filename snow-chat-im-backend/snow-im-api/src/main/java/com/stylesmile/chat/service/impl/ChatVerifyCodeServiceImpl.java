@@ -5,6 +5,7 @@ import com.stylesmile.chat.entity.ChatVerifyCode;
 import com.stylesmile.chat.mapper.ChatVerifyCodeMapper;
 import com.stylesmile.chat.service.ChatVerifyCodeService;
 import com.stylesmile.chat.util.EmailSenderUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -17,6 +18,7 @@ import java.util.Random;
  * @author chenye
  * @date 2026/08/19
  */
+@Slf4j
 @Service
 public class ChatVerifyCodeServiceImpl implements ChatVerifyCodeService {
 
@@ -38,6 +40,7 @@ public class ChatVerifyCodeServiceImpl implements ChatVerifyCodeService {
     public boolean sendCode(String email, String type) {
         // 生成6位数字验证码
         String code = generateCode();
+        log.info(" email: {}, code : {}", email, code);
         // 计算过期时间：当前时间 + 5分钟
         Date expireTime = new Date(System.currentTimeMillis() + EXPIRE_SECONDS * 1000L);
 
@@ -75,6 +78,28 @@ public class ChatVerifyCodeServiceImpl implements ChatVerifyCodeService {
             System.err.println("验证码邮件发送失败: " + e.getMessage());
             return false;
         }
+    }
+
+    /**
+     * 仅校验验证码是否有效（不消耗/不标记为已使用）
+     * 用于注册流程的步骤1预览验证，最终注册时仍调用 verifyCode 消费验证码
+     */
+    @Override
+    public boolean checkCode(String email, String code, String type) {
+        if (StrUtil.isBlank(email) || StrUtil.isBlank(code)) {
+            return false;
+        }
+        // 查询最新一条未使用的同类型验证码记录（不标记已使用）
+        ChatVerifyCode record = verifyCodeMapper.selectLatestUnused(email, type);
+        if (record == null) {
+            return false;
+        }
+        // 检查是否过期
+        if (record.getExpireTime().before(new Date())) {
+            return false;
+        }
+        // 验证码不区分大小写比较
+        return record.getCode().equalsIgnoreCase(code);
     }
 
     /**

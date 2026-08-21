@@ -264,29 +264,29 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         items: [
           BottomNavigationBarItem(
             icon: _buildCountBadge(
-              icon: Icons.chat_bubble_outline,
+              image: 'assets/icons/chat/ic_chat_n.png',
               count: totalUnread,
             ),
             activeIcon: _buildCountBadge(
-              icon: Icons.chat,
+              image: 'assets/icons/chat/ic_chat_s.png',
               count: totalUnread,
             ),
             label: l10n.chat,
           ),
           BottomNavigationBarItem(
             icon: _buildBadgeIcon(
-              icon: Icons.people_outline,
+              image: 'assets/icons/contacts/ic_contacts_n.png',
               showBadge: hasFriendRequest,
             ),
             activeIcon: _buildBadgeIcon(
-              icon: Icons.people,
+              image: 'assets/icons/contacts/ic_contacts_s.png',
               showBadge: hasFriendRequest,
             ),
             label: l10n.contacts,
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.person_outline),
-            activeIcon: const Icon(Icons.person),
+            icon: Image.asset('assets/icons/profile/ic_mine_n.png', width: 24, height: 24, color: Colors.white54),
+            activeIcon: Image.asset('assets/icons/profile/ic_mine_s.png', width: 24, height: 24),
             label: l10n.profile,
           ),
         ],
@@ -298,11 +298,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   /// 带数字角标的图标（用于聊天 tab 显示未读数）
-  Widget _buildCountBadge({required IconData icon, required int count}) {
+  Widget _buildCountBadge({required String image, required int count}) {
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        Icon(icon),
+        Image.asset(image, width: 24, height: 24),
         if (count > 0)
           Positioned(
             right: -6,
@@ -326,11 +326,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   /// 带小红点的图标（用于通讯录 tab 显示好友请求）
-  Widget _buildBadgeIcon({required IconData icon, required bool showBadge}) {
+  Widget _buildBadgeIcon({required String image, required bool showBadge}) {
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        Icon(icon),
+        Image.asset(image, width: 24, height: 24),
         if (showBadge)
           Positioned(
             right: -2,

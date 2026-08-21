@@ -30,4 +30,15 @@ public interface ChatVerifyCodeService {
      * @return true 表示校验通过
      */
     boolean verifyCode(String email, String code, String type);
+
+    /**
+     * 仅校验验证码是否有效（不消耗/不标记为已使用）
+     * 用于注册流程的步骤1预览验证，最终注册时仍调用 verifyCode 消费验证码
+     *
+     * @param email 邮箱
+     * @param code  用户输入的验证码
+     * @param type  验证码类型
+     * @return true 表示校验通过
+     */
+    boolean checkCode(String email, String code, String type);
 }

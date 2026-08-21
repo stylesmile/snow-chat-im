@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
-import '../../core/theme/app_theme.dart';
 import '../../providers/auth_provider.dart';
 import 'home_screen.dart';
 import 'register_screen.dart';
@@ -16,7 +15,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _usernameController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -37,7 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    _usernameController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -48,8 +47,9 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     final auth = context.read<AuthProvider>();
+    // 邮箱作为用户名登录
     final success = await auth.login(
-      _usernameController.text.trim(),
+      _emailController.text.trim(),
       _passwordController.text,
     );
 
@@ -69,219 +69,161 @@ class _LoginScreenState extends State<LoginScreen> {
         SnackBar(
           content: Text(errorMsg),
           backgroundColor: Colors.red.shade700,
-          action: SnackBarAction(
-            label: l10n.settings,
-            textColor: Colors.white,
-            onPressed: () => _showSettingsDialog(),
-          ),
+          duration: const Duration(seconds: 3),
         ),
       );
     }
-  }
-
-  void _showSettingsDialog() {
-    final l10n = AppLocalizations.of(context)!;
-    final auth = context.read<AuthProvider>();
-    final currentUrl = auth.apiClient.baseUrl;
-
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(l10n.settings),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              '当前服务器地址:',
-              style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.6)),
-            ),
-            const SizedBox(height: 4),
-            SelectableText(
-              currentUrl,
-              style: const TextStyle(fontSize: 14),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              '请在终端中重新启动应用并指定正确的 IP:',
-              style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.6)),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const SelectableText(
-                'flutter run --dart-define=API_BASE_URL=http://YOUR_IP:8091',
-                style: TextStyle(fontSize: 11, fontFamily: 'monospace'),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(l10n.ok),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
-    final primary = theme.colorScheme.primary;
+    // 金色主色，来自设计稿
+    final accent = const Color(0xFFFFC940);
 
     return Scaffold(
-      appBar: AppBar(
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () => _showSettingsDialog(),
-            tooltip: l10n.settings,
-          ),
-        ],
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              primary.withAlpha(45),
-              primary.withAlpha(18),
-              AppTheme.background,
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Container(
-                      width: 96,
-                      height: 96,
-                      decoration: BoxDecoration(
-                        color: primary.withAlpha(51),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.chat_rounded,
-                        size: 48,
-                        color: primary,
-                      ),
+      backgroundColor: const Color(0xFF0A0A0A),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 80),
+                // 标题
+                Text(
+                  l10n.login,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.headlineLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: accent,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '欢迎回来',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white.withValues(alpha: 0.5)),
+                ),
+                const SizedBox(height: 48),
+                // 邮箱输入框
+                TextFormField(
+                  controller: _emailController,
+                  style: const TextStyle(color: Colors.white),
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: InputDecoration(
+                    hintText: l10n.email,
+                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
+                    prefixIcon: Icon(Icons.email_outlined, color: accent),
+                    filled: true,
+                    fillColor: const Color(0xFF1C1C1E),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
                     ),
-                    const SizedBox(height: 20),
-                    Text(
-                      l10n.appTitle,
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.headlineLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: primary,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                  ),
+                  validator: (v) => v == null || v.isEmpty ? l10n.invalidEmail : null,
+                ),
+                const SizedBox(height: 16),
+                // 密码输入框
+                TextFormField(
+                  controller: _passwordController,
+                  style: const TextStyle(color: Colors.white),
+                  obscureText: _obscurePassword,
+                  decoration: InputDecoration(
+                    hintText: l10n.password,
+                    hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
+                    prefixIcon: Icon(Icons.key_outlined, color: accent),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                        color: Colors.white.withValues(alpha: 0.4),
                       ),
+                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '欢迎回来',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.white70,
-                      ),
+                    filled: true,
+                    fillColor: const Color(0xFF1C1C1E),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
                     ),
-                    const SizedBox(height: 48),
-                    TextFormField(
-                      controller: _usernameController,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        labelText: l10n.username,
-                        prefixIcon: Icon(Icons.person_outline, color: primary),
-                      ),
-                      validator: (v) => v == null || v.isEmpty ? l10n.invalidUsername : null,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+                  ),
+                  validator: (v) => v == null || v.isEmpty ? l10n.invalidPassword : null,
+                  onFieldSubmitted: (_) => _handleLogin(),
+                ),
+                const SizedBox(height: 12),
+                // 找回密码链接（右对齐）
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const ForgetPasswordScreen()),
+                      );
+                    },
+                    style: TextButton.styleFrom(foregroundColor: accent),
+                    child: Text(l10n.forgotPassword, style: const TextStyle(fontSize: 13)),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                // 登录按钮
+                ElevatedButton(
+                  onPressed: _isLoading ? null : _handleLogin,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: accent,
+                    foregroundColor: const Color(0xFF0A0A0A),
+                    padding: const EdgeInsets.symmetric(vertical: 18),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
                     ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _passwordController,
-                      obscureText: _obscurePassword,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        labelText: l10n.password,
-                        prefixIcon: Icon(Icons.lock_outline, color: primary),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                            color: Colors.white70,
+                    elevation: 0,
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Color(0xFF0A0A0A),
                           ),
-                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                        )
+                      : Text(
+                          l10n.login,
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                      ),
-                      validator: (v) => v == null || v.isEmpty ? l10n.invalidPassword : null,
-                      onFieldSubmitted: (_) => _handleLogin(),
+                ),
+                const SizedBox(height: 24),
+                // 注册链接
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      l10n.noAccountYet,
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
                     ),
-                    const SizedBox(height: 12),
-                    // 忘记密码链接
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const ForgetPasswordScreen()),
-                          );
-                        },
-                        style: TextButton.styleFrom(foregroundColor: primary.withAlpha(200)),
-                        child: Text(l10n.forgotPassword, style: const TextStyle(fontSize: 13)),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    ElevatedButton(
-                      onPressed: _isLoading ? null : _handleLogin,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 2,
-                      ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Text(
-                              l10n.login,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                    ),
-                    const SizedBox(height: 20),
                     TextButton(
                       onPressed: () {
                         Navigator.of(context).push(
                           MaterialPageRoute(builder: (_) => const RegisterScreen()),
                         );
                       },
-                      style: TextButton.styleFrom(foregroundColor: primary),
-                      child: Text(l10n.noAccountYet),
+                      style: TextButton.styleFrom(foregroundColor: accent, padding: EdgeInsets.zero),
+                      child: Text(
+                        l10n.register,
+                        style: const TextStyle(decoration: TextDecoration.underline),
+                      ),
                     ),
                   ],
                 ),
-              ),
+              ],
             ),
           ),
         ),

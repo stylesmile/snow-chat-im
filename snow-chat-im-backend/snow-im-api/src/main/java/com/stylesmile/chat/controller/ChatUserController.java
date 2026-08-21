@@ -53,6 +53,19 @@ public class ChatUserController {
     }
 
     /**
+     * 仅校验验证码是否有效（不消耗，用于注册步骤1预览）
+     */
+    @PostMapping("/verify/code")
+    public Result verifyCodeOnly(@RequestBody VerifyCodeDTO body) {
+        if (body.getEmail() == null || body.getEmail().trim().isEmpty()
+                || body.getCode() == null || body.getCode().trim().isEmpty()) {
+            return Result.failMessage("邮箱或验证码不能为空");
+        }
+        boolean valid = verifyCodeService.checkCode(body.getEmail().trim(), body.getCode().trim(), body.getType());
+        return valid ? Result.success(true) : Result.failMessage("验证码错误或已过期");
+    }
+
+    /**
      * 发送邮箱验证码
      * type: register（注册验证） / reset_password（找回密码验证）
      *
@@ -129,5 +142,18 @@ public class ChatUserController {
         public void setCode(String code) { this.code = code; }
         public String getNewPassword() { return newPassword; }
         public void setNewPassword(String newPassword) { this.newPassword = newPassword; }
+    }
+
+    /** 仅校验验证码请求体（不消耗） */
+    public static class VerifyCodeDTO {
+        private String email;
+        private String code;
+        private String type;
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+        public String getCode() { return code; }
+        public void setCode(String code) { this.code = code; }
+        public String getType() { return type; }
+        public void setType(String type) { this.type = type; }
     }
 }

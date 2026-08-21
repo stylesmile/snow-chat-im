@@ -109,6 +109,29 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// 仅校验邮箱验证码是否有效（步骤1，不消耗验证码）
+  /// 调用 POST /chat/user/verify/code，验证通过后可重新发送
+  Future<bool> verifyRegisterCode(String email, String code) async {
+    _lastError = null;
+    try {
+      final result = await _apiClient.request('/chat/user/verify/code', data: {
+        'email': email,
+        'code': code,
+        'type': 'register',
+      });
+      // 后端直接返回 boolean，Result 包装可能不同，取 data 字段
+      final data = result['data'];
+      if (data is bool) return data;
+      // 兼容旧格式：code == '200'
+      final codeVal = result['code'];
+      return codeVal == '200' || codeVal == 200;
+    } on Exception catch (e) {
+      _lastError = '网络错误: $e';
+      if (kDebugMode) print('Verify code error: $e');
+      return false;
+    }
+  }
+
   /// 发送邮箱验证码
   /// POST /chat/user/send/email/code?email=&type=
   Future<bool> sendVerificationCode(String email, String type) async {
