@@ -37,13 +37,13 @@ public interface ChatUserService extends BaseService<ChatUser> {
     ChatUser getUserByEmail(String email);
 
     /**
-     * 用户登录
+     * 用户登录（支持用户名或邮箱登录）
      *
-     * @param username 用户名
+     * @param account  用户名或邮箱
      * @param password 密码（未加密的明文）
      * @return Result
      */
-    Result login(String username, String password);
+    Result login(String account, String password);
 
     /**
      * 统计在线用户数

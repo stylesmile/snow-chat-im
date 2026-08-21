@@ -109,15 +109,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white.withValues(alpha: 0.5)),
                 ),
                 const SizedBox(height: 48),
-                // 邮箱输入框
+                // 账号输入框（支持用户名或邮箱登录）
                 TextFormField(
                   controller: _emailController,
                   style: const TextStyle(color: Colors.white),
                   keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
-                    hintText: l10n.email,
+                    hintText: '用户名/邮箱',
                     hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
-                    prefixIcon: Icon(Icons.email_outlined, color: accent),
+                    prefixIcon: Icon(Icons.person_outline, color: accent),
                     filled: true,
                     fillColor: const Color(0xFF1C1C1E),
                     border: OutlineInputBorder(
@@ -126,7 +126,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
                   ),
-                  validator: (v) => v == null || v.isEmpty ? l10n.invalidEmail : null,
+                  validator: (v) => v == null || v.isEmpty ? l10n.invalidUsername : null,
                 ),
                 const SizedBox(height: 16),
                 // 密码输入框
