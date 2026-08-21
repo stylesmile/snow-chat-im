@@ -65,12 +65,7 @@ flutter:
   assets:
     # 图片资源：显式声明包含子目录，确保 navigation 等子目录下的图片能被正确打包
     - assets/images/
-    - assets/images/navigation/chat.png
-    - assets/images/navigation/chat_s.png
-    - assets/images/navigation/contract.png
-    - assets/images/navigation/contract_s.png
-    - assets/images/navigation/my.png
-    - assets/images/navigation/my_s.png
+    - assets/images/navigation/
     # 图标资源：显式声明各功能模块的图标子目录
     - assets/icons/
     - assets/icons/chat/
