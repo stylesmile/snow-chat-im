@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
+import '../../core/theme/app_theme.dart';
 import '../../providers/auth_provider.dart';
 import 'home_screen.dart';
 
@@ -80,7 +81,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
-    final purple = theme.colorScheme.primary;
+    // 主题主色（WINCHAT 品牌蓝），由 AppTheme.dark() 提供
+    final primary = theme.colorScheme.primary;
 
     return Scaffold(
       appBar: AppBar(
@@ -91,13 +93,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       extendBodyBehindAppBar: true,
       body: Container(
         decoration: BoxDecoration(
+          // 深色渐变背景：与登录页一致，品牌蓝淡入近黑背景
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              purple.withAlpha(45),
-              purple.withAlpha(18),
-              const Color(0xFFF9F5FF),
+              primary.withAlpha(45),
+              primary.withAlpha(18),
+              AppTheme.background,
             ],
           ),
         ),
@@ -115,13 +118,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       width: 96,
                       height: 96,
                       decoration: BoxDecoration(
-                        color: purple.withAlpha(51),
+                        // 图标底：品牌蓝低透明度蒙版，深色下形成柔和光晕
+                        color: primary.withAlpha(51),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
                         Icons.person_add_rounded,
                         size: 48,
-                        color: purple,
+                        color: primary,
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -130,7 +134,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       textAlign: TextAlign.center,
                       style: theme.textTheme.headlineLarge?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: purple,
+                        color: primary,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -138,59 +142,40 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       '创建您的新账号',
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey.shade600,
+                        // 深色模式下副标题使用半透明白，保证可读性
+                        color: Colors.white70,
                       ),
                     ),
                     const SizedBox(height: 32),
                     TextFormField(
                       controller: _usernameController,
-                      style: TextStyle(color: Colors.grey.shade700),
+                      // 输入文字为浅色：深色背景上 grey.shade700 不可读
+                      style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         labelText: l10n.username,
-                        prefixIcon: Icon(Icons.person_outline, color: purple),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade400, width: 1),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: purple, width: 2),
-                        ),
+                        prefixIcon: Icon(Icons.person_outline, color: primary),
+                        // 边框/填充由主题 inputDecorationTheme 统一提供
                       ),
                       validator: (v) => v == null || v.isEmpty ? l10n.invalidUsername : null,
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _nicknameController,
-                      style: TextStyle(color: Colors.grey.shade700),
+                      // 输入文字为浅色，与其他输入框一致
+                      style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         labelText: l10n.nickname,
-                        prefixIcon: Icon(Icons.badge_outlined, color: purple),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade400, width: 1),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: purple, width: 2),
-                        ),
+                        prefixIcon: Icon(Icons.badge_outlined, color: primary),
                       ),
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
                       controller: _emailController,
-                      style: TextStyle(color: Colors.grey.shade700),
+                      // 输入文字为浅色，与其他输入框一致
+                      style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         labelText: l10n.email,
-                        prefixIcon: Icon(Icons.email_outlined, color: purple),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade400, width: 1),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: purple, width: 2),
-                        ),
+                        prefixIcon: Icon(Icons.email_outlined, color: primary),
                       ),
                       keyboardType: TextInputType.emailAddress,
                       validator: (v) {
@@ -203,24 +188,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
-                      style: TextStyle(color: Colors.grey.shade700),
+                      // 输入文字为浅色，与其他输入框一致
+                      style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         labelText: l10n.password,
-                        prefixIcon: Icon(Icons.lock_outline, color: purple),
+                        prefixIcon: Icon(Icons.lock_outline, color: primary),
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                            color: Colors.grey.shade600,
+                            // 密码可见性切换图标：半透明白，弱化视觉噪音
+                            color: Colors.white70,
                           ),
                           onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade400, width: 1),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: purple, width: 2),
                         ),
                       ),
                       validator: (v) => v == null || v.isEmpty ? l10n.invalidPassword : null,
@@ -229,24 +208,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     TextFormField(
                       controller: _confirmPasswordController,
                       obscureText: _obscureConfirmPassword,
-                      style: TextStyle(color: Colors.grey.shade700),
+                      // 输入文字为浅色，与其他输入框一致
+                      style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         labelText: l10n.confirmPassword,
-                        prefixIcon: Icon(Icons.lock_outline, color: purple),
+                        prefixIcon: Icon(Icons.lock_outline, color: primary),
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
-                            color: Colors.grey.shade600,
+                            // 密码可见性切换图标：半透明白，弱化视觉噪音
+                            color: Colors.white70,
                           ),
                           onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: Colors.grey.shade400, width: 1),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: purple, width: 2),
                         ),
                       ),
                       validator: (v) => v == null || v.isEmpty ? l10n.confirmPasswordRequired : null,
@@ -256,7 +229,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ElevatedButton(
                       onPressed: _isLoading ? null : _handleRegister,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: purple,
+                        // 主按钮：品牌蓝底 + 白字，对应设计稿的大按钮
+                        backgroundColor: primary,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
@@ -284,7 +258,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     const SizedBox(height: 20),
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      style: TextButton.styleFrom(foregroundColor: purple),
+                      // 文字按钮：品牌蓝前景，深色下清晰可点
+                      style: TextButton.styleFrom(foregroundColor: primary),
                       child: Text(l10n.alreadyHaveAccount),
                     ),
                   ],
