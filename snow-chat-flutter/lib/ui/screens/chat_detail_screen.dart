@@ -6,13 +6,13 @@ import '../../services/chat_service.dart';
 import '../../core/network/mqtt_client.dart';
 import '../../core/constants/ws_cmd.dart';
 import '../../config/config.dart';
-import '../../core/utils/date_utils.dart' as app_date;
 import '../../core/utils/message_status_parser.dart';
 import '../../core/utils/message_utils.dart';
 import '../../models/message_model.dart';
 import '../../core/cache/message_cache_manager.dart';
 import '../../services/conversation_service.dart';
 import '../../providers/chat_provider.dart';
+import '../widgets/chat_bubble.dart';
 import 'group_detail_screen.dart';
 
 class ChatDetailScreen extends StatefulWidget {
@@ -451,9 +451,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.chat_bubble_outline, size: 48, color: Colors.grey.shade400),
+                            // 空状态图标：深色背景下使用低透明度白，柔和且可见
+                            const Icon(Icons.chat_bubble_outline, size: 48, color: Colors.white24),
                             const SizedBox(height: 8),
-                            Text(l10n.noMessages, style: TextStyle(color: Colors.grey.shade600)),
+                            // 空状态文字：半透明白，保证深色背景上可读
+                            Text(l10n.noMessages, style: const TextStyle(color: Colors.white54)),
                           ],
                         ),
                       )
@@ -499,48 +501,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             ),
             const SizedBox(width: 8),
           ],
+          // 气泡本体：提取为 ChatBubble 组件（我方=品牌蓝/对方=深色表面，均白字）
           Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: isMe ? theme.colorScheme.primary : Colors.grey.shade200,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-//                   if (!isMe)
-//                     Padding(
-//                       padding: const EdgeInsets.only(bottom: 2),
-//                       child: Text(
-//                         msg.fromUserId.toString(),
-//                         style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
-//                       ),
-//                     ),
-                  Text(
-                    msg.content,
-                    style: TextStyle(color: isMe ? Colors.white : Colors.black87),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        app_date.DateUtils.formatTime(msg.createTime),
-                        style: TextStyle(fontSize: 10, color: isMe ? Colors.white70 : Colors.grey.shade600),
-                      ),
-                      if (msg.status == 'sending') ...[
-                        const SizedBox(width: 4),
-                        const SizedBox(
-                          width: 12,
-                          height: 12,
-                          child: CircularProgressIndicator(strokeWidth: 1.5),
-                        ),
-                      ],
-                    ],
-                  ),
-                ],
-              ),
+            child: ChatBubble(
+              content: msg.content,
+              isMe: isMe,
+              createTime: msg.createTime,
+              status: msg.status,
             ),
           ),
           if (isMe) ...[
