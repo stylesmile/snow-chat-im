@@ -263,30 +263,33 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         unselectedItemColor: Colors.white54,
         items: [
           BottomNavigationBarItem(
+            // 聊天 tab：带未读数字角标，未选中用空心图标，选中用实心图标
             icon: _buildCountBadge(
-              image: 'assets/icons/chat/ic_chat_n.png',
+              icon: Icons.chat_bubble_outline,
               count: totalUnread,
             ),
             activeIcon: _buildCountBadge(
-              image: 'assets/icons/chat/ic_chat_s.png',
+              icon: Icons.chat_bubble,
               count: totalUnread,
             ),
             label: l10n.chat,
           ),
           BottomNavigationBarItem(
+            // 通讯录 tab：带小红点角标，未选中用空心图标，选中用实心图标
             icon: _buildBadgeIcon(
-              image: 'assets/icons/contacts/ic_contacts_n.png',
+              icon: Icons.people_outline,
               showBadge: hasFriendRequest,
             ),
             activeIcon: _buildBadgeIcon(
-              image: 'assets/icons/contacts/ic_contacts_s.png',
+              icon: Icons.people,
               showBadge: hasFriendRequest,
             ),
             label: l10n.contacts,
           ),
           BottomNavigationBarItem(
-            icon: Image.asset('assets/icons/profile/ic_mine_n.png', width: 24, height: 24, color: Colors.white54),
-            activeIcon: Image.asset('assets/icons/profile/ic_mine_s.png', width: 24, height: 24),
+            // 个人中心 tab：无角标，未选中用空心图标，选中用实心图标
+            icon: const Icon(Icons.person_outline, size: 24),
+            activeIcon: const Icon(Icons.person, size: 24),
             label: l10n.profile,
           ),
         ],
@@ -298,11 +301,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   /// 带数字角标的图标（用于聊天 tab 显示未读数）
-  Widget _buildCountBadge({required String image, required int count}) {
+  /// 使用 Icon 而非 Image.asset，确保 BottomNavigationBar 的颜色属性能自动着色
+  Widget _buildCountBadge({required IconData icon, required int count}) {
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        Image.asset(image, width: 24, height: 24),
+        // 图标本身：不指定颜色，由 BottomNavigationBar 的 IconTheme 自动提供选中/未选中颜色
+        Icon(icon, size: 24),
         if (count > 0)
           Positioned(
             right: -6,
@@ -326,11 +331,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   /// 带小红点的图标（用于通讯录 tab 显示好友请求）
-  Widget _buildBadgeIcon({required String image, required bool showBadge}) {
+  /// 使用 Icon 而非 Image.asset，确保 BottomNavigationBar 的颜色属性能自动着色
+  Widget _buildBadgeIcon({required IconData icon, required bool showBadge}) {
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        Image.asset(image, width: 24, height: 24),
+        // 图标本身：不指定颜色，由 BottomNavigationBar 的 IconTheme 自动提供选中/未选中颜色
+        Icon(icon, size: 24),
         if (showBadge)
           Positioned(
             right: -2,
