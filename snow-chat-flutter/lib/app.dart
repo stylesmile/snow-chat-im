@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
+import 'core/theme/app_theme.dart';
 import 'providers/settings_provider.dart';
 import 'providers/auth_provider.dart';
 import 'ui/screens/login_screen.dart';
@@ -18,46 +18,9 @@ class SnowChatApp extends StatelessWidget {
     return MaterialApp(
       title: 'SnowChat',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF9C6BEF),
-          brightness: Brightness.light,
-        ).copyWith(
-          primary: const Color(0xFFD4BBFF),
-        ),
-        useMaterial3: true,
-        appBarTheme: const AppBarTheme(
-          centerTitle: true,
-          elevation: 0,
-          systemOverlayStyle: SystemUiOverlayStyle(
-            statusBarColor: Colors.transparent,
-            statusBarIconBrightness: Brightness.dark,
-          ),
-        ),
-        cardTheme: CardThemeData(
-          elevation: 1,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          filled: true,
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFFC5AAF0),
-          brightness: Brightness.dark,
-        ).copyWith(
-          primary: const Color(0xFFD4BBFF),
-        ),
-        useMaterial3: true,
-      ),
+      // WINCHAT 设计稿为深色主题 + 品牌蓝，亮/暗模式统一使用深色主题
+      theme: AppTheme.dark(),
+      darkTheme: AppTheme.dark(),
       locale: settings.locale,
       localizationsDelegates: const [
         AppLocalizations.delegate,
