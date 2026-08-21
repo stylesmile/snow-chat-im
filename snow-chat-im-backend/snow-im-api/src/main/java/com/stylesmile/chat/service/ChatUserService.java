@@ -29,10 +29,18 @@ public interface ChatUserService extends BaseService<ChatUser> {
     ChatUser getUserById(Integer userId);
 
     /**
+     * 通过邮箱查询用户
+     *
+     * @param email 邮箱
+     * @return ChatUser
+     */
+    ChatUser getUserByEmail(String email);
+
+    /**
      * 用户登录
      *
      * @param username 用户名
-     * @param password 密码
+     * @param password 密码（未加密的明文）
      * @return Result
      */
     Result login(String username, String password);
@@ -45,13 +53,24 @@ public interface ChatUserService extends BaseService<ChatUser> {
     int countOnlineUsers();
 
     /**
-     * 用户注册
+     * 用户注册（需邮箱验证码校验）
      *
      * @param username 用户名
      * @param password 密码
      * @param nickname 昵称
-     * @param email    邮箱
+     * @param email    邮箱（必填）
+     * @param code     邮箱验证码
      * @return Result
      */
-    Result register(String username, String password, String nickname, String email);
+    Result register(String username, String password, String nickname, String email, String code);
+
+    /**
+     * 通过邮箱重置密码
+     *
+     * @param email    注册时使用的邮箱
+     * @param code     邮箱验证码
+     * @param newPassword 新密码
+     * @return Result
+     */
+    Result resetPasswordByEmail(String email, String code, String newPassword);
 }

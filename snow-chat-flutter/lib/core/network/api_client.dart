@@ -42,10 +42,11 @@ class ApiClient {
   }
 
   // Generic response wrapper
+  // data: POST body (JSON), query: URL query parameters
   Future<Map<String, dynamic>> request(String path,
-      {Map<String, dynamic>? data}) async {
+      {Map<String, dynamic>? data, Map<String, dynamic>? query}) async {
     try {
-      final response = await _dio.post(path, data: data);
+      final response = await _dio.post(path, data: data, queryParameters: query);
       return response.data as Map<String, dynamic>;
     } on DioException catch (e) {
       throw Exception('${e.response?.statusCode}: ${e.message}');

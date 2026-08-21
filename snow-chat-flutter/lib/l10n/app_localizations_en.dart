@@ -394,4 +394,34 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get friendRequestAccepted => 'Friend request accepted';
+
+  @override
+  String get forgotPassword => 'Forgot Password';
+
+  @override
+  String get verificationCode => 'Verification Code';
+
+  @override
+  String get sendCode => 'Send Code';
+
+  @override
+  String get codeSent => 'Code sent, check your email';
+
+  @override
+  String get codeSendFailed => 'Failed to send code, please retry';
+
+  @override
+  String get codeExpired => 'Code expired or incorrect';
+
+  @override
+  String get resetPassword => 'Reset Password';
+
+  @override
+  String get newPassword => 'New Password';
+
+  @override
+  String get passwordResetSuccess => 'Password reset successfully';
+
+  @override
+  String get backToLogin => 'Back to Login';
 }

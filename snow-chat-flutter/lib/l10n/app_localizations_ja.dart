@@ -394,4 +394,34 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get friendRequestAccepted => '友達リクエストが承認されました';
+
+  @override
+  String get forgotPassword => 'パスワードを忘れた';
+
+  @override
+  String get verificationCode => '認証コード';
+
+  @override
+  String get sendCode => 'コードを送信';
+
+  @override
+  String get codeSent => '認証コードを送信しました。メールを確認してください';
+
+  @override
+  String get codeSendFailed => 'コードの送信に失敗しました。もう一度お試しください';
+
+  @override
+  String get codeExpired => 'コードが無効または期限切れです';
+
+  @override
+  String get resetPassword => 'パスワードをリセット';
+
+  @override
+  String get newPassword => '新しいパスワード';
+
+  @override
+  String get passwordResetSuccess => 'パスワードのリセットに成功しました';
+
+  @override
+  String get backToLogin => 'ログインに戻る';
 }

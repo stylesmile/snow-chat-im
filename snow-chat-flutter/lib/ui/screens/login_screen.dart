@@ -5,6 +5,7 @@ import '../../core/theme/app_theme.dart';
 import '../../providers/auth_provider.dart';
 import 'home_screen.dart';
 import 'register_screen.dart';
+import 'forget_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -92,11 +93,9 @@ class _LoginScreenState extends State<LoginScreen> {
           children: [
             Text(
               '当前服务器地址:',
-              // 深色模式下辅助文字使用半透明白，保证对比度且不抢主信息
               style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.6)),
             ),
             const SizedBox(height: 4),
-            // 服务器地址：可选中复制，颜色跟随主题（深色模式下为浅色）
             SelectableText(
               currentUrl,
               style: const TextStyle(fontSize: 14),
@@ -104,14 +103,12 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 16),
             Text(
               '请在终端中重新启动应用并指定正确的 IP:',
-              // 次要说明文字：比主文字更弱一层
               style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.6)),
             ),
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                // 命令行代码块：深色表面上叠一层浅色蒙版，形成"代码块"的视觉层次
                 color: Colors.white.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -136,7 +133,6 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
-    // 主题主色（WINCHAT 品牌蓝），由 AppTheme.dark() 提供
     final primary = theme.colorScheme.primary;
 
     return Scaffold(
@@ -151,8 +147,6 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       body: Container(
         decoration: BoxDecoration(
-          // 深色渐变背景：品牌蓝自左上角淡入，渐变到近黑页面背景
-          // 与 WINCHAT 设计稿一致：深底 + 蓝色氛围，避免浅色刺眼
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -177,7 +171,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       width: 96,
                       height: 96,
                       decoration: BoxDecoration(
-                        // 图标底：品牌蓝低透明度蒙版，深色下形成柔和光晕
                         color: primary.withAlpha(51),
                         shape: BoxShape.circle,
                       ),
@@ -201,19 +194,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       '欢迎回来',
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        // 深色模式下副标题使用半透明白，保证可读性
                         color: Colors.white70,
                       ),
                     ),
                     const SizedBox(height: 48),
                     TextFormField(
                       controller: _usernameController,
-                      // 输入文字为浅色：深色背景上 grey.shade700 不可读
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         labelText: l10n.username,
                         prefixIcon: Icon(Icons.person_outline, color: primary),
-                        // 边框/填充由主题 inputDecorationTheme 统一提供（深灰填充 + 蓝色聚焦边框）
                       ),
                       validator: (v) => v == null || v.isEmpty ? l10n.invalidUsername : null,
                     ),
@@ -221,7 +211,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePassword,
-                      // 输入文字为浅色，与用户名输入框一致
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
                         labelText: l10n.password,
@@ -229,7 +218,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                            // 密码可见性切换图标：半透明白，弱化视觉噪音
                             color: Colors.white70,
                           ),
                           onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
@@ -238,11 +226,24 @@ class _LoginScreenState extends State<LoginScreen> {
                       validator: (v) => v == null || v.isEmpty ? l10n.invalidPassword : null,
                       onFieldSubmitted: (_) => _handleLogin(),
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 12),
+                    // 忘记密码链接
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const ForgetPasswordScreen()),
+                          );
+                        },
+                        style: TextButton.styleFrom(foregroundColor: primary.withAlpha(200)),
+                        child: Text(l10n.forgotPassword, style: const TextStyle(fontSize: 13)),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     ElevatedButton(
                       onPressed: _isLoading ? null : _handleLogin,
                       style: ElevatedButton.styleFrom(
-                        // 主按钮：品牌蓝底 + 白字，对应设计稿的大按钮
                         backgroundColor: primary,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -275,7 +276,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           MaterialPageRoute(builder: (_) => const RegisterScreen()),
                         );
                       },
-                      // 文字按钮：品牌蓝前景，深色下清晰可点
                       style: TextButton.styleFrom(foregroundColor: primary),
                       child: Text(l10n.noAccountYet),
                     ),

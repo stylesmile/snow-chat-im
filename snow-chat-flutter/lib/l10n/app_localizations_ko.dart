@@ -394,4 +394,34 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get friendRequestAccepted => '친구 요청이 수락되었습니다';
+
+  @override
+  String get forgotPassword => '비밀번호 찾기';
+
+  @override
+  String get verificationCode => '인증 코드';
+
+  @override
+  String get sendCode => '코드 전송';
+
+  @override
+  String get codeSent => '인증 코드가 전송되었습니다. 이메일을 확인해주세요';
+
+  @override
+  String get codeSendFailed => '코드 전송에 실패했습니다. 다시 시도해주세요';
+
+  @override
+  String get codeExpired => '코드가 유효하지 않거나 만료되었습니다';
+
+  @override
+  String get resetPassword => '비밀번호 재설정';
+
+  @override
+  String get newPassword => '새 비밀번호';
+
+  @override
+  String get passwordResetSuccess => '비밀번호가 성공적으로 재설정되었습니다';
+
+  @override
+  String get backToLogin => '로그인으로 돌아가기';
 }

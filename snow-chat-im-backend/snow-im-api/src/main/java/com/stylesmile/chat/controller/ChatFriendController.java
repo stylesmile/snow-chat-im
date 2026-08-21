@@ -1,5 +1,6 @@
 package com.stylesmile.chat.controller;
 
+import com.stylesmile.chat.dto.FriendRequestDTO;
 import com.stylesmile.common.util.Result;
 import com.stylesmile.chat.entity.ChatFriend;
 import com.stylesmile.chat.entity.ChatFriendRequest;
@@ -78,12 +79,7 @@ public class ChatFriendController {
         return Result.success();
     }
 
-    @Data
-    public static class FriendRequestDTO {
-        private Long fromUserId;
-        private Long toUserId;
-        private String remark;
-    }
+
 
     @Data
     public static class FriendHandleDTO {

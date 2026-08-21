@@ -56,7 +56,6 @@ class AuthProvider extends ChangeNotifier {
         return true;
       }
 
-      // 登录失败，保存后端返回的错误信息
       _lastError = result['msg'] as String? ?? '登录失败 (code: $code)';
       return false;
     } on Exception catch (e) {
@@ -66,7 +65,15 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> register(String username, String password, String nickname, String email) async {
+  /// 注册新用户（需邮箱验证码校验）
+  /// POST /chat/user/register  body: {username, password, nickname, email, code}
+  Future<bool> register(
+    String username,
+    String password,
+    String nickname,
+    String email,
+    String code,
+  ) async {
     _lastError = null;
     try {
       final result = await _apiClient.request('/chat/user/register', data: {
@@ -74,10 +81,11 @@ class AuthProvider extends ChangeNotifier {
         'password': password,
         'nickname': nickname,
         'email': email,
+        'code': code,
       });
 
-      final code = result['code'];
-      if (code == '200' || code == 200) {
+      final codeVal = result['code'];
+      if (codeVal == '200' || codeVal == 200) {
         final data = result['data'];
         if (data == null) {
           _lastError = '注册成功但返回数据为空';
@@ -92,11 +100,48 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
         return true;
       }
-      _lastError = result['msg'] as String? ?? '注册失败 (code: $code)';
+      _lastError = result['msg'] as String? ?? '注册失败 (code: $codeVal)';
       return false;
     } on Exception catch (e) {
       _lastError = '网络错误: $e';
       if (kDebugMode) print('Register error: $e');
+      return false;
+    }
+  }
+
+  /// 发送邮箱验证码
+  /// POST /chat/user/send/email/code?email=&type=
+  Future<bool> sendVerificationCode(String email, String type) async {
+    _lastError = null;
+    try {
+      final result = await _apiClient.request(
+        '/chat/user/send/email/code',
+        query: {'email': email, 'type': type},
+      );
+      final codeVal = result['code'];
+      return codeVal == '200' || codeVal == 200;
+    } on Exception catch (e) {
+      _lastError = '网络错误: $e';
+      if (kDebugMode) print('Send code error: $e');
+      return false;
+    }
+  }
+
+  /// 通过邮箱+验证码重置密码
+  /// POST /chat/user/reset/password  body: {email, code, newPassword}
+  Future<bool> resetPassword(String email, String code, String newPassword) async {
+    _lastError = null;
+    try {
+      final result = await _apiClient.request('/chat/user/reset/password', data: {
+        'email': email,
+        'code': code,
+        'newPassword': newPassword,
+      });
+      final codeVal = result['code'];
+      return codeVal == '200' || codeVal == 200;
+    } on Exception catch (e) {
+      _lastError = '网络错误: $e';
+      if (kDebugMode) print('Reset password error: $e');
       return false;
     }
   }
@@ -113,23 +158,17 @@ class AuthProvider extends ChangeNotifier {
   }
 
   /// 更新头像并持久化。
-  ///
-  /// 典型场景：头像上传成功后调用，让 UI 立即展示新头像 URL。
-  /// 流程：设置 _avatar → 持久化到 SharedPreferences → 通知监听者刷新 UI。
   Future<void> updateAvatar(String newAvatarUrl) async {
-    _avatar = newAvatarUrl; // 更新内存中的头像字段
-    await _saveAuthState(); // 持久化到本地存储
-    notifyListeners(); // 通知 UI 刷新
+    _avatar = newAvatarUrl;
+    await _saveAuthState();
+    notifyListeners();
   }
 
   /// 更新昵称并持久化。
-  ///
-  /// 典型场景：编辑资料后调用，让所有依赖 nickname 的 UI 同步刷新。
-  /// 流程：设置 _nickname → 持久化到 SharedPreferences → 通知监听者刷新 UI。
   Future<void> updateNickname(String newNickname) async {
-    _nickname = newNickname; // 更新内存中的昵称字段
-    await _saveAuthState(); // 持久化到本地存储
-    notifyListeners(); // 通知 UI 刷新
+    _nickname = newNickname;
+    await _saveAuthState();
+    notifyListeners();
   }
 
   /// 持久化登录状态到 SharedPreferences

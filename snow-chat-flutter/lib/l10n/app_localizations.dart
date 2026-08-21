@@ -873,6 +873,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Friend request accepted'**
   String get friendRequestAccepted;
+
+  /// Forgot password link on login screen
+  String get forgotPassword;
+
+  /// Verification code input label
+  String get verificationCode;
+
+  /// Send verification code button
+  String get sendCode;
+
+  /// Verification code sent success hint
+  String get codeSent;
+
+  /// Verification code send failure hint
+  String get codeSendFailed;
+
+  /// Verification code invalid hint
+  String get codeExpired;
+
+  /// Reset password screen title
+  String get resetPassword;
+
+  /// New password input label
+  String get newPassword;
+
+  /// Password reset success hint
+  String get passwordResetSuccess;
+
+  /// Back to login button/link
+  String get backToLogin;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

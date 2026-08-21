@@ -394,6 +394,36 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get friendRequestAccepted => '已通过好友申请';
+
+  @override
+  String get forgotPassword => '忘记密码';
+
+  @override
+  String get verificationCode => '验证码';
+
+  @override
+  String get sendCode => '发送验证码';
+
+  @override
+  String get codeSent => '验证码已发送，请查收邮件';
+
+  @override
+  String get codeSendFailed => '验证码发送失败，请重试';
+
+  @override
+  String get codeExpired => '验证码错误或已过期';
+
+  @override
+  String get resetPassword => '重置密码';
+
+  @override
+  String get newPassword => '新密码';
+
+  @override
+  String get passwordResetSuccess => '密码重置成功';
+
+  @override
+  String get backToLogin => '返回登录';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -786,4 +816,34 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get friendRequestAccepted => '已通過好友申請';
+
+  @override
+  String get forgotPassword => '忘記密碼';
+
+  @override
+  String get verificationCode => '驗證碼';
+
+  @override
+  String get sendCode => '發送驗證碼';
+
+  @override
+  String get codeSent => '驗證碼已發送，請查收郵件';
+
+  @override
+  String get codeSendFailed => '驗證碼發送失敗，請重試';
+
+  @override
+  String get codeExpired => '驗證碼錯誤或已過期';
+
+  @override
+  String get resetPassword => '重置密碼';
+
+  @override
+  String get newPassword => '新密碼';
+
+  @override
+  String get passwordResetSuccess => '密碼重置成功';
+
+  @override
+  String get backToLogin => '返回登入';
 }

@@ -70,3 +70,11 @@ minio:
   public-url: ""                              # 私有策略下未使用，保留字段
   region: us-east-1                           # 区域
   public-read-policy: false                   # 私有策略：不设置公共读
+
+# 邮箱发送配置（用于验证码、找回密码等场景）
+email:
+  smtp-host: smtpout.secureserver.net
+  smtp-port: 465
+  username: xxx
+  password: xxx
+  from: xxx
