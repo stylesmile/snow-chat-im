@@ -25,7 +25,7 @@ mybatis-plus:
   type-aliases-package: com.stylesmile.chat.entity
   global-config:
     db-config:
-      id-type: AUTO
+      id-type: ASSIGN_ID
       field-strategy: not_empty
       column-underline: true
       logic-delete-value: 0
