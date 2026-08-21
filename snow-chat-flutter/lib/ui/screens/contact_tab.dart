@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
+import '../../core/theme/app_theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/friend_request_provider.dart';
 import '../../services/contact_service.dart';
@@ -265,9 +266,10 @@ class _ContactTabState extends State<ContactTab> {
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w500,
+                            // 深色模式索引条：有数据的字母更亮（white70），无数据的弱化（white24）
                             color: hasData
-                                ? Colors.grey.shade600
-                                : Colors.grey.shade300,
+                                ? Colors.white70
+                                : Colors.white24,
                           ),
                         ),
                       ),
@@ -319,7 +321,8 @@ class _ContactTabState extends State<ContactTab> {
               ),
             ),
           const SizedBox(width: 4),
-          const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+          // 箭头图标：半透明白，深色背景下弱化视觉噪音
+          const Icon(Icons.chevron_right, color: Colors.white54, size: 20),
         ],
       ),
       onTap: onTap,
@@ -338,7 +341,8 @@ class _ContactTabState extends State<ContactTab> {
             padding: const EdgeInsets.symmetric(vertical: 60),
             child: Text(
               l10n.noContacts,
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+              // 空状态文字：半透明白，保证深色背景上可读
+              style: const TextStyle(color: Colors.white54, fontSize: 16),
             ),
           ),
         ),
@@ -353,10 +357,12 @@ class _ContactTabState extends State<ContactTab> {
           key: _sectionKeys[key],
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          color: const Color(0xFFF5F5F5),
+          // 分组标题条：深色表面色（原浅灰 #F5F5F5 在深色模式下是刺眼亮块）
+          color: AppTheme.surface,
           child: Text(
             key,
-            style: const TextStyle(fontSize: 13, color: Colors.grey, fontWeight: FontWeight.w500),
+            // 分组字母：半透明白，深色背景上可读
+            style: const TextStyle(fontSize: 13, color: Colors.white54, fontWeight: FontWeight.w500),
           ),
         ),
       );
@@ -378,7 +384,8 @@ class _ContactTabState extends State<ContactTab> {
                 ? Container(
                     width: 8,
                     height: 8,
-                    decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle),
+                    // 在线状态点：设计稿辅助绿（替换 Material 默认绿）
+                    decoration: const BoxDecoration(color: AppTheme.secondary, shape: BoxShape.circle),
                   )
                 : null,
             onTap: () {

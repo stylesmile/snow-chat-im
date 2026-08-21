@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
+import '../../core/theme/app_theme.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/contact_service.dart';
@@ -62,7 +63,8 @@ class _ChatListTabState extends State<ChatListTab> {
       clipBehavior: Clip.none,
       children: [
         CircleAvatar(
-          backgroundColor: conv.targetType == 'group' ? Colors.blue : Colors.green,
+          // 头像底色使用设计令牌：群组=品牌蓝，好友=辅助绿（替换 Material 默认色）
+          backgroundColor: conv.targetType == 'group' ? AppTheme.primary : AppTheme.secondary,
           child: Text(conv.targetType == 'group' ? '群' : '友'),
         ),
         // 未读数角标：显示在头像右上角
@@ -155,9 +157,11 @@ class _ChatListTabState extends State<ChatListTab> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey.shade400),
+                  // 空状态图标：深色背景下使用低透明度白，柔和且可见
+                  const Icon(Icons.chat_bubble_outline, size: 64, color: Colors.white24),
                   const SizedBox(height: 16),
-                  Text(l10n.noMessages, style: TextStyle(color: Colors.grey.shade600)),
+                  // 空状态文字：半透明白，保证深色背景上可读
+                  Text(l10n.noMessages, style: const TextStyle(color: Colors.white54)),
                 ],
               ),
             );
@@ -212,7 +216,8 @@ class _ChatListTabState extends State<ChatListTab> {
                   trailing: conv.lastMsgTime > 0
                       ? Text(
                           _formatTime(conv.lastMsgTime),
-                          style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                          // 时间文字：半透明白，深色背景上保持弱化但可读
+                          style: const TextStyle(fontSize: 12, color: Colors.white54),
                         )
                       : null,
                   onTap: () {

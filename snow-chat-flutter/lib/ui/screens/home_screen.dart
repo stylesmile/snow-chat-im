@@ -8,6 +8,7 @@ import '../../services/chat_service.dart';
 import '../../services/conversation_service.dart';
 import '../../services/group_service.dart';
 import '../../config/config.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/constants/ws_cmd.dart';
 import '../../core/network/mqtt_client.dart';
 import '../../core/utils/message_utils.dart';
@@ -126,7 +127,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(l10n.friendRequestAccepted),
-                backgroundColor: const Color(0xFF7C4DFF),
+                // 提示条背景：品牌蓝（原紫色 #7C4DFF 已随主题切换弃用）
+                backgroundColor: AppTheme.primary,
                 duration: const Duration(seconds: 2),
               ),
             );
@@ -256,8 +258,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         type: BottomNavigationBarType.fixed,
+        // 选中项：品牌蓝（主题主色）；未选中项：半透明白（深色模式标准）
         selectedItemColor: Theme.of(context).colorScheme.primary,
-        unselectedItemColor: Colors.grey,
+        unselectedItemColor: Colors.white54,
         items: [
           BottomNavigationBarItem(
             icon: _buildCountBadge(
