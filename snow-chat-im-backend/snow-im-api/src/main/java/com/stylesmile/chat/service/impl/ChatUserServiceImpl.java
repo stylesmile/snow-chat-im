@@ -47,10 +47,11 @@ public class ChatUserServiceImpl extends BaseServiceImpl<ChatUserMapper, ChatUse
     public Result login(String account, String password) {
         // 优先按用户名查询；查不到则按邮箱查询（支持邮箱登录）
         // First try username lookup; if not found, try email lookup (supports email login)
+//        ChatUser user = baseMapper.getUserByUsername(account);
         ChatUser user = baseMapper.getUserByUsername(account);
-        if (user == null) {
-            user = getUserByEmail(account);
-        }
+//        if (user == null) {
+//            user = getUserByEmail(account);
+//        }
         if (null == user) {
             return Result.failMessage("用户不存在");
         }
