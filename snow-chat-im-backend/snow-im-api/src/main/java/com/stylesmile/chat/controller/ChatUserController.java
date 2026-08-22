@@ -88,7 +88,7 @@ public class ChatUserController {
     /**
      * 通过邮箱+验证码重置密码
      *
-     * @param email       注册时使用的邮箱
+     * @param body.email       注册时使用的邮箱
      * @param code        邮箱验证码
      * @param newPassword 新密码
      * @return Result
