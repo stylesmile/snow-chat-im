@@ -424,4 +424,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get backToLogin => 'Back to Login';
+
+  @override
+  String get wallet => 'Wallet';
+
+  @override
+  String get encryptedAssets => 'Crypto Assets';
+
+  @override
+  String get winCard => 'WIN Card';
+
+  @override
+  String get usdtExchange => 'USDT Exchange Card';
+
+  @override
+  String get favorites => 'Favorites';
+
+  @override
+  String get moments => 'Moments';
+
+  @override
+  String get settingsMenu => 'Settings';
 }

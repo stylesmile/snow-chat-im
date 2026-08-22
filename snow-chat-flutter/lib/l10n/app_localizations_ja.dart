@@ -424,4 +424,25 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get backToLogin => 'ログインに戻る';
+
+  @override
+  String get wallet => 'ウォレット';
+
+  @override
+  String get encryptedAssets => '暗号資産';
+
+  @override
+  String get winCard => 'WINカード';
+
+  @override
+  String get usdtExchange => 'USDT取引所カード';
+
+  @override
+  String get favorites => 'お気に入り';
+
+  @override
+  String get moments => 'モーメンツ';
+
+  @override
+  String get settingsMenu => '設定';
 }

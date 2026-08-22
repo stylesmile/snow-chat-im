@@ -424,4 +424,25 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get backToLogin => '로그인으로 돌아가기';
+
+  @override
+  String get wallet => '지갑';
+
+  @override
+  String get encryptedAssets => '암호자산';
+
+  @override
+  String get winCard => 'WIN카드';
+
+  @override
+  String get usdtExchange => 'USDT 거래소 카드';
+
+  @override
+  String get favorites => '즐겨찾기';
+
+  @override
+  String get moments => '모멘츠';
+
+  @override
+  String get settingsMenu => '설정';
 }

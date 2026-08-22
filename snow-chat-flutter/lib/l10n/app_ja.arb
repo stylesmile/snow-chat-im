@@ -276,5 +276,20 @@
   "@newPassword": {"description": "新しいパスワード入力欄ラベル"},
   "passwordResetSuccess": "パスワードのリセットに成功しました",
   "@passwordResetSuccess": {"description": "パスワードリセット成功の表示"},
-  "backToLogin": "ログインに戻る"
+  "backToLogin": "ログインに戻る",
+  "@backToLogin": {"description": "ログイン戻るボタン"},
+  "wallet": "ウォレット",
+  "@wallet": {"description": "プロフィール-ウォレットメニュー"},
+  "encryptedAssets": "暗号資産",
+  "@encryptedAssets": {"description": "ウォレット副説明テキスト"},
+  "winCard": "WINカード",
+  "@winCard": {"description": "プロフィール-WINカードメニュー"},
+  "usdtExchange": "USDT取引所カード",
+  "@usdtExchange": {"description": "WINカード副説明テキスト"},
+  "favorites": "お気に入り",
+  "@favorites": {"description": "プロフィール-お気に入りメニュー"},
+  "moments": "モーメンツ",
+  "@moments": {"description": "プロフィール-モーメンツメニュー"},
+  "settingsMenu": "設定",
+  "@settingsMenu": {"description": "プロフィール-設定メニュー"}
 }

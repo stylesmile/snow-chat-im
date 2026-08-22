@@ -276,5 +276,20 @@
   "@newPassword": {"description": "새 비밀번호 입력란 레이블"},
   "passwordResetSuccess": "비밀번호가 성공적으로 재설정되었습니다",
   "@passwordResetSuccess": {"description": "비밀번호 재설정 성공 표시"},
-  "backToLogin": "로그인으로 돌아가기"
+  "backToLogin": "로그인으로 돌아가기",
+  "@backToLogin": {"description": "로그인 돌아가기 버튼"},
+  "wallet": "지갑",
+  "@wallet": {"description": "프로필-지갑 메뉴"},
+  "encryptedAssets": "암호자산",
+  "@encryptedAssets": {"description": "지갑 보조 설명 텍스트"},
+  "winCard": "WIN카드",
+  "@winCard": {"description": "프로필-WIN카드 메뉴"},
+  "usdtExchange": "USDT 거래소 카드",
+  "@usdtExchange": {"description": "WIN카드 보조 설명 텍스트"},
+  "favorites": "즐겨찾기",
+  "@favorites": {"description": "프로필-즐겨찾기 메뉴"},
+  "moments": "모멘츠",
+  "@moments": {"description": "프로필-모멘츠 메뉴"},
+  "settingsMenu": "설정",
+  "@settingsMenu": {"description": "프로필-설정 메뉴"}
 }

@@ -875,34 +875,106 @@ abstract class AppLocalizations {
   String get friendRequestAccepted;
 
   /// Forgot password link on login screen
+  ///
+  /// In en, this message translates to:
+  /// **'Forgot Password'**
   String get forgotPassword;
 
   /// Verification code input label
+  ///
+  /// In en, this message translates to:
+  /// **'Verification Code'**
   String get verificationCode;
 
   /// Send verification code button
+  ///
+  /// In en, this message translates to:
+  /// **'Send Code'**
   String get sendCode;
 
   /// Verification code sent success hint
+  ///
+  /// In en, this message translates to:
+  /// **'Code sent, check your email'**
   String get codeSent;
 
   /// Verification code send failure hint
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to send code, please retry'**
   String get codeSendFailed;
 
   /// Verification code invalid hint
+  ///
+  /// In en, this message translates to:
+  /// **'Code expired or incorrect'**
   String get codeExpired;
 
   /// Reset password screen title
+  ///
+  /// In en, this message translates to:
+  /// **'Reset Password'**
   String get resetPassword;
 
   /// New password input label
+  ///
+  /// In en, this message translates to:
+  /// **'New Password'**
   String get newPassword;
 
   /// Password reset success hint
+  ///
+  /// In en, this message translates to:
+  /// **'Password reset successfully'**
   String get passwordResetSuccess;
 
-  /// Back to login button/link
+  /// Back to login button
+  ///
+  /// In en, this message translates to:
+  /// **'Back to Login'**
   String get backToLogin;
+
+  /// Profile - Wallet menu
+  ///
+  /// In en, this message translates to:
+  /// **'Wallet'**
+  String get wallet;
+
+  /// Wallet subtitle text
+  ///
+  /// In en, this message translates to:
+  /// **'Crypto Assets'**
+  String get encryptedAssets;
+
+  /// Profile - WIN Card menu
+  ///
+  /// In en, this message translates to:
+  /// **'WIN Card'**
+  String get winCard;
+
+  /// WIN Card subtitle text
+  ///
+  /// In en, this message translates to:
+  /// **'USDT Exchange Card'**
+  String get usdtExchange;
+
+  /// Profile - Favorites menu
+  ///
+  /// In en, this message translates to:
+  /// **'Favorites'**
+  String get favorites;
+
+  /// Profile - Moments menu
+  ///
+  /// In en, this message translates to:
+  /// **'Moments'**
+  String get moments;
+
+  /// Profile - Settings menu
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settingsMenu;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

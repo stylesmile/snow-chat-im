@@ -276,5 +276,20 @@
   "@newPassword": {"description": "新密碼輸入框標籤"},
   "passwordResetSuccess": "密碼重置成功",
   "@passwordResetSuccess": {"description": "密碼重置成功提示"},
-  "backToLogin": "返回登入"
+  "backToLogin": "返回登入",
+  "@backToLogin": {"description": "返回登入按鈕"},
+  "wallet": "錢包",
+  "@wallet": {"description": "個人中心-錢包選單"},
+  "encryptedAssets": "加密資產",
+  "@encryptedAssets": {"description": "錢包子描述文字"},
+  "winCard": "WIN卡",
+  "@winCard": {"description": "個人中心-WIN卡選單"},
+  "usdtExchange": "USDT 交易所卡",
+  "@usdtExchange": {"description": "WIN卡子描述文字"},
+  "favorites": "收藏",
+  "@favorites": {"description": "個人中心-收藏選單"},
+  "moments": "朋友圈",
+  "@moments": {"description": "個人中心-朋友圈選單"},
+  "settingsMenu": "設定",
+  "@settingsMenu": {"description": "個人中心-設定選單"}
 }

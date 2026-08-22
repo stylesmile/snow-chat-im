@@ -36,7 +36,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get addFriend => '添加好友';
 
   @override
-  String get sendFriendRequest => '发送请求';
+  String get sendFriendRequest => '发送好友请求';
 
   @override
   String get accept => '接受';
@@ -387,7 +387,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noAccountYet => '还没有账号？去注册';
 
   @override
-  String get deleteFriend => '删除好友';
+  String get deleteFriend => 'Delete Friend';
 
   @override
   String get search => '搜索';
@@ -424,6 +424,27 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get backToLogin => '返回登录';
+
+  @override
+  String get wallet => '钱包';
+
+  @override
+  String get encryptedAssets => '加密资产';
+
+  @override
+  String get winCard => 'WIN卡';
+
+  @override
+  String get usdtExchange => 'USDT 交易所卡';
+
+  @override
+  String get favorites => '收藏';
+
+  @override
+  String get moments => '朋友圈';
+
+  @override
+  String get settingsMenu => '设置';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -846,4 +867,25 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get backToLogin => '返回登入';
+
+  @override
+  String get wallet => '錢包';
+
+  @override
+  String get encryptedAssets => '加密資產';
+
+  @override
+  String get winCard => 'WIN卡';
+
+  @override
+  String get usdtExchange => 'USDT 交易所卡';
+
+  @override
+  String get favorites => '收藏';
+
+  @override
+  String get moments => '朋友圈';
+
+  @override
+  String get settingsMenu => '設定';
 }

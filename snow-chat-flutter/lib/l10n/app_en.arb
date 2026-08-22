@@ -276,5 +276,20 @@
   "@newPassword": {"description": "New password input label"},
   "passwordResetSuccess": "Password reset successfully",
   "@passwordResetSuccess": {"description": "Password reset success hint"},
-  "backToLogin": "Back to Login"
+  "backToLogin": "Back to Login",
+  "@backToLogin": {"description": "Back to login button"},
+  "wallet": "Wallet",
+  "@wallet": {"description": "Profile - Wallet menu"},
+  "encryptedAssets": "Crypto Assets",
+  "@encryptedAssets": {"description": "Wallet subtitle text"},
+  "winCard": "WIN Card",
+  "@winCard": {"description": "Profile - WIN Card menu"},
+  "usdtExchange": "USDT Exchange Card",
+  "@usdtExchange": {"description": "WIN Card subtitle text"},
+  "favorites": "Favorites",
+  "@favorites": {"description": "Profile - Favorites menu"},
+  "moments": "Moments",
+  "@moments": {"description": "Profile - Moments menu"},
+  "settingsMenu": "Settings",
+  "@settingsMenu": {"description": "Profile - Settings menu"}
 }
