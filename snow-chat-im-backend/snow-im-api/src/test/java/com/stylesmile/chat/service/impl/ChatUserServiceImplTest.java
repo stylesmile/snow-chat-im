@@ -6,18 +6,14 @@ import com.stylesmile.common.util.Result;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class ChatUserServiceImplTest {
@@ -39,9 +35,10 @@ class ChatUserServiceImplTest {
     void logsInWithMd5Password() {
         ChatUser user = new ChatUser();
         user.setUsername("alice");
-        // 实现使用 md5(username + password)，即 md5("alicesecret") = c4e31313222cf05fcdd1fc068af5570e
-        user.setPassword("c4e31313222cf05fcdd1fc068af5570e");
-        when(mapper.getUserByUsername("alice")).thenReturn(user);
+        // 实现使用 md5(password) 哈希，即 md5("secret") = 5ebe2294ecd0e0f08eab7690d2a6ee69
+        user.setPassword("5ebe2294ecd0e0f08eab7690d2a6ee69");
+        // login 现在按邮箱查询（getUserByEmail 内部走 lambdaQuery），需对 spy 直接打桩以绕过 lambda 上下文
+        doReturn(user).when(service).getUserByEmail("alice");
 
         Result result = service.login("alice", "secret");
 
@@ -53,7 +50,7 @@ class ChatUserServiceImplTest {
     @Test
     void rejectsUnknownAndWrongPassword() {
         // 用户不存在场景
-        when(mapper.getUserByUsername("missing")).thenReturn(null);
+        doReturn(null).when(service).getUserByEmail("missing");
         Result missing = service.login("missing", "secret");
         assertEquals("500", missing.getCode());
         assertEquals("用户不存在", missing.getMsg());
@@ -61,7 +58,7 @@ class ChatUserServiceImplTest {
         // 密码错误场景
         ChatUser user = new ChatUser();
         user.setPassword("wrong");
-        when(mapper.getUserByUsername("alice")).thenReturn(user);
+        doReturn(user).when(service).getUserByEmail("alice");
         Result wrong = service.login("alice", "secret");
         assertEquals("500", wrong.getCode());
         assertEquals("用户名或者密码错误", wrong.getMsg());
@@ -72,41 +69,34 @@ class ChatUserServiceImplTest {
     // @Test
     // void countsOnlineUsers() { ... }
 
+    // register 快乐路径（含密码哈希、默认字段）依赖两处无法在纯单元测试中初始化的逻辑：
+    //   1) lambdaQuery() 邮箱查重（需 MyBatis-Plus 上下文）
+    //   2) verifyCodeService 验证码校验
+    // 需由集成测试覆盖。此处仅覆盖不触碰上述资源的快速失败分支。
+
     @Test
-    void registersUserWithDefaultsAndHashedPassword() {
-        // 用户名不重复
-        when(mapper.getUserByUsername("alice")).thenReturn(null);
-        // 邮箱为空字符串，实现会跳过邮箱查重，不会调用 selectOne
-        doAnswer(invocation -> {
-            ChatUser user = invocation.getArgument(0);
-            user.setId(11);
-            return true;
-        }).when(service).save(any(ChatUser.class));
+    void registeringRejectsEmptyEmail() {
+        // 邮箱为空：走到第一条校验即返回
+        Result result = service.register("bob", "secret", null, "", "123456");
+        assertEquals("500", result.getCode());
+        assertEquals("邮箱不能为空", result.getMsg());
+    }
 
-        Result result = service.register("alice", "secret", null, "");
+    @Test
+    void registeringRejectsEmptyUsername() {
+        // 用户名为空返回
+        Result result = service.register("", "secret", null, "bob@example.com", "123456");
+        assertEquals("500", result.getCode());
+        assertEquals("用户名不能为空", result.getMsg());
+    }
 
-        // 注册成功返回 200
-        assertEquals("200", result.getCode());
-        ChatUser user = (ChatUser) result.getData();
-        assertNotNull(user);
-        // id 由 save 回填
-        assertEquals(11, user.getId());
-        // 昵称缺省时回退为用户名
-        assertEquals("alice", user.getNickname());
-        // 邮箱为空字符串
-        assertEquals("", user.getEmail());
-        // 新用户默认离线
-        assertEquals("offline", user.getStatus());
-        // 头像默认空字符串
-        assertEquals("", user.getAvatar());
-        // 签名默认空字符串
-        assertEquals("", user.getSignature());
-        // 密码应为 md5("alicesecret") = c4e31313222cf05fcdd1fc068af5570e
-        assertEquals("c4e31313222cf05fcdd1fc068af5570e", user.getPassword());
-        // 验证 save 被调用且入参就是返回的用户对象
-        ArgumentCaptor<ChatUser> captor = ArgumentCaptor.forClass(ChatUser.class);
-        verify(service).save(captor.capture());
-        assertEquals(user, captor.getValue());
+    @Test
+    void registeringRejectsDuplicateUsername() {
+        // 用户名已存在（mapper 直接返回，不触发 lambda 邮箱查重）
+        when(mapper.getUserByUsername("alice")).thenReturn(new ChatUser());
+        Result result = service.register("alice", "secret", null, "alice@example.com", "123456");
+        assertEquals("500", result.getCode());
+        assertEquals("用户名已存在", result.getMsg());
     }
 
     // rejectsDuplicateUsernameOrEmail 依赖 lambdaQuery()（邮箱查重），

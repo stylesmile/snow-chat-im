@@ -1,5 +1,6 @@
 package com.stylesmile.chat.controller;
 
+import com.stylesmile.chat.dto.FriendRequestDTO;
 import com.stylesmile.chat.entity.ChatFriend;
 import com.stylesmile.chat.entity.ChatFriendRequest;
 import com.stylesmile.chat.service.ChatFriendRequestService;
@@ -43,7 +44,8 @@ class ChatFriendControllerTest {
 
     @Test
     void sendsFriendRequestFromDto() {
-        ChatFriendController.FriendRequestDTO dto = new ChatFriendController.FriendRequestDTO();
+        // FriendRequestDTO 已重构为 dto 包的独立类（不再嵌套在 ChatFriendController 内）
+        FriendRequestDTO dto = new FriendRequestDTO();
         dto.setFromUserId(1L);
         dto.setToUserId(2L);
         dto.setRemark("朋友");
