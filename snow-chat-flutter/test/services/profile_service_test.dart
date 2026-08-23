@@ -144,7 +144,7 @@ void main() {
     });
   });
 
-  /// uploadAvatar：POST /file/upload multipart/form-data
+  /// uploadAvatar：POST /chat/user/avatar/upload multipart/form-data
   group('ProfileService.uploadAvatar', () {
     late File tempFile;
 
@@ -166,7 +166,7 @@ void main() {
     test('should return UploadResult when upload succeeds', () async {
       // mock 后端返回 {code:200, data:{key, url}}
       mockApiClient.adapter.onPost(
-        '/file/upload',
+        '/chat/user/avatar/upload',
         (server) => server.reply(200, {
           'code': '200',
           'data': {
@@ -185,11 +185,11 @@ void main() {
 
     test('should return null when upload fails with network error', () async {
       mockApiClient.adapter.onPost(
-        '/file/upload',
+        '/chat/user/avatar/upload',
         (server) => server.throws(
           0,
           DioException(
-            requestOptions: RequestOptions(path: '/file/upload'),
+            requestOptions: RequestOptions(path: '/chat/user/avatar/upload'),
           ),
         ),
       );
@@ -201,7 +201,7 @@ void main() {
 
     test('should return null when response data is null', () async {
       mockApiClient.adapter.onPost(
-        '/file/upload',
+        '/chat/user/avatar/upload',
         (server) => server.reply(200, {'code': '500', 'data': null}),
       );
 
