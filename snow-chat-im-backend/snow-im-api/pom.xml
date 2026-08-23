@@ -100,6 +100,22 @@
             <artifactId>lombok</artifactId>
         </dependency>
 
+        <!-- JWT：用于生成和校验登录令牌（版本由根 pom dependencyManagement 统一管理） -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
         <!-- gRPC Dependencies -->
         <dependency>
             <groupId>io.grpc</groupId>

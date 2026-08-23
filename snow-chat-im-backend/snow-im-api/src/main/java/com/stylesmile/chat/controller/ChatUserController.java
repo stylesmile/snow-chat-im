@@ -2,10 +2,16 @@ package com.stylesmile.chat.controller;
 
 import com.stylesmile.chat.service.ChatUserService;
 import com.stylesmile.chat.service.ChatVerifyCodeService;
+import com.stylesmile.common.constant.UserConstant;
+import com.stylesmile.common.util.JwtUtil;
 import com.stylesmile.common.util.Result;
+import com.stylesmile.chat.entity.ChatUser;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * 聊天用户控制器
@@ -24,57 +30,124 @@ public class ChatUserController {
     private ChatVerifyCodeService verifyCodeService;
 
     /**
-     * 用户登录
+     * 用户登录：验证用户名密码，成功返回用户信息 + JWT token
      *
-     * @param username 用户名
-     * @param password 密码
-     * @return Result
+     * @param body     包含 username, password
+     * @param request  ServletRequest，用于后续获取 token
+     * @return Result  data 中包含 user 信息和 token
      */
     @PostMapping("/login")
-    public Result login(@RequestBody CredentialsDTO body) {
-        return chatUserService.login(body.getUsername(), body.getPassword());
+    public Result<Map<String, Object>> login(@RequestBody CredentialsDTO body,
+                                              HttpServletRequest request) {
+        Result<ChatUser> result = chatUserService.login(body.getUsername(), body.getPassword());
+        if (!"200".equals(result.getCode())) {
+            return Result.failMessage(result.getMsg());
+        }
+        ChatUser user = result.getData();
+        // 生成 JWT token
+        String token = JwtUtil.createToken(user.getId(), user.getUsername());
+        // 将 token 放入请求属性，供后续使用（保持和旧接口兼容）
+        request.setAttribute("currentToken", token);
+        // 返回结果：包裹 token 字段
+        Map<String, Object> data = new HashMap<>();
+        data.put("token", token);
+        data.put("user", user);
+        return Result.success(data);
+    }
+
+    /**
+     * 用户退出登录（纯客户端操作，服务端无需清理，直接返回成功）
+     * 客户端收到成功后清除本地存储的 token 即可
+     */
+    @PostMapping("/logout")
+    public Result<Void> logout() {
+        return Result.success();
+    }
+
+    /**
+     * 获取当前用户信息（从 token 中解析 userId）
+     */
+    @GetMapping("/info")
+    public Result<ChatUser> info(HttpServletRequest request) {
+        Integer userId = get_currentUserId(request);
+        if (userId == null) {
+            return Result.failMessage("未登录");
+        }
+        ChatUser user = chatUserService.getUserById(userId);
+        return user != null ? Result.success(user) : Result.failMessage("用户不存在");
+    }
+
+    /**
+     * 更新用户资料（昵称、头像、签名）
+     */
+    @PutMapping("/update")
+    public Result<Void> updateProfile(@RequestBody UpdateProfileDTO body,
+                                       HttpServletRequest request) {
+        Integer userId = get_currentUserId(request);
+        if (userId == null) {
+            return Result.failMessage("未登录");
+        }
+        ChatUser user = chatUserService.getUserById(userId);
+        if (user == null) {
+            return Result.failMessage("用户不存在");
+        }
+        if (body.getNickname() != null) {
+            user.setNickname(body.getNickname());
+        }
+        if (body.getAvatar() != null) {
+            user.setAvatar(body.getAvatar());
+        }
+        if (body.getSignature() != null) {
+            user.setSignature(body.getSignature());
+        }
+        chatUserService.updateById(user);
+        return Result.success();
     }
 
     /**
      * 用户注册（邮箱必填 + 验证码校验）
-     *
-     * @param body 包含 username, password, nickname, email, code
-     * @return Result
      */
     @PostMapping("/register")
-    public Result register(@RequestBody RegisterDTO body) {
-        return chatUserService.register(
+    public Result<Map<String, Object>> register(@RequestBody RegisterDTO body) {
+        Result<ChatUser> result = chatUserService.register(
                 body.getUsername(),
                 body.getPassword(),
                 body.getNickname(),
                 body.getEmail(),
                 body.getCode()
         );
+        if (!"200".equals(result.getCode())) {
+            return Result.failMessage(result.getMsg());
+        }
+        ChatUser user = result.getData();
+        // 注册成功后直接登录，返回 token
+        String token = JwtUtil.createToken(user.getId(), user.getUsername());
+        Map<String, Object> data = new HashMap<>();
+        data.put("token", token);
+        data.put("user", user);
+        return Result.success(data);
     }
 
     /**
      * 仅校验验证码是否有效（不消耗，用于注册步骤1预览）
      */
     @PostMapping("/verify/code")
-    public Result verifyCodeOnly(@RequestBody VerifyCodeDTO body) {
+    public Result<Boolean> verifyCodeOnly(@RequestBody VerifyCodeDTO body) {
         if (body.getEmail() == null || body.getEmail().trim().isEmpty()
                 || body.getCode() == null || body.getCode().trim().isEmpty()) {
             return Result.failMessage("邮箱或验证码不能为空");
         }
-        boolean valid = verifyCodeService.checkCode(body.getEmail().trim(), body.getCode().trim(), body.getType());
-        return valid ? Result.success(true) : Result.failMessage("验证码错误或已过期");
+        boolean valid = verifyCodeService.checkCode(
+                body.getEmail().trim(), body.getCode().trim(), body.getType());
+        return Result.success(valid);
     }
 
     /**
      * 发送邮箱验证码
      * type: register（注册验证） / reset_password（找回密码验证）
-     *
-     * @param email 收件邮箱
-     * @param type  验证码类型
-     * @return Result
      */
     @PostMapping("/send/email/code")
-    public Result sendEmailCode(@RequestParam String email, @RequestParam String type) {
+    public Result<Void> sendEmailCode(@RequestParam String email, @RequestParam String type) {
         if (email == null || email.trim().isEmpty()) {
             return Result.failMessage("邮箱不能为空");
         }
@@ -87,19 +160,23 @@ public class ChatUserController {
 
     /**
      * 通过邮箱+验证码重置密码
-     *
-     * @param body.email       注册时使用的邮箱
-     * @param code        邮箱验证码
-     * @param newPassword 新密码
-     * @return Result
      */
     @PostMapping("/reset/password")
-    public Result resetPassword(@RequestBody ResetPasswordDTO body) {
-        return chatUserService.resetPasswordByEmail(
-                body.getEmail(),
-                body.getCode(),
-                body.getNewPassword()
-        );
+    public Result<Void> resetPassword(@RequestBody ResetPasswordDTO body) {
+        return chatUserService.resetPasswordByEmail(body.getEmail(), body.getCode(), body.getNewPassword());
+    }
+
+    // -------------------------------------------------------------------------
+    // 辅助方法
+    // -------------------------------------------------------------------------
+
+    /**
+     * 从请求属性中获取当前登录用户 ID（由 AuthFilter 设置）
+     * 若未设置则返回 null（表示未登录）
+     */
+    private Integer get_currentUserId(HttpServletRequest request) {
+        Object attr = request.getAttribute("currentUserId");
+        return attr instanceof Integer ? (Integer) attr : null;
     }
 
     // -------------------------------------------------------------------------
@@ -120,7 +197,6 @@ public class ChatUserController {
     public static class RegisterDTO extends CredentialsDTO {
         private String nickname;
         private String email;
-        /** 邮箱验证码 */
         private String code;
         public String getNickname() { return nickname; }
         public void setNickname(String nickname) { this.nickname = nickname; }
@@ -130,10 +206,22 @@ public class ChatUserController {
         public void setCode(String code) { this.code = code; }
     }
 
+    /** 更新资料请求体 */
+    public static class UpdateProfileDTO {
+        private String nickname;
+        private String avatar;
+        private String signature;
+        public String getNickname() { return nickname; }
+        public void setNickname(String nickname) { this.nickname = nickname; }
+        public String getAvatar() { return avatar; }
+        public void setAvatar(String avatar) { this.avatar = avatar; }
+        public String getSignature() { return signature; }
+        public void setSignature(String signature) { this.signature = signature; }
+    }
+
     /** 重置密码请求体 */
     public static class ResetPasswordDTO {
         private String email;
-        /** 邮箱验证码 */
         private String code;
         private String newPassword;
         public String getEmail() { return email; }
