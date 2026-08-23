@@ -90,6 +90,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get noContacts => '연락처 없음';
 
   @override
+  String get fileHelper => '파일 전송 어시스턴트';
+
+  @override
   String get noGroups => '그룹 없음';
 
   @override

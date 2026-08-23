@@ -262,6 +262,12 @@ abstract class AppLocalizations {
   /// **'No contacts yet'**
   String get noContacts;
 
+  /// File transfer assistant entry title
+  ///
+  /// In en, this message translates to:
+  /// **'File Transfer Assistant'**
+  String get fileHelper;
+
   /// No groups
   ///
   /// In en, this message translates to:

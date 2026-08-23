@@ -54,6 +54,8 @@
   "@noMessages": {"description": "メッセージがないときの表示"},
   "noContacts": "連絡先なし",
   "@noContacts": {"description": "連絡先がないときの表示"},
+  "fileHelper": "ファイル転送アシスタント",
+  "@fileHelper": {"description": "ファイル転送アシスタントのタイトル"},
   "noGroups": "グループなし",
   "@noGroups": {"description": "グループがないときの表示"},
   "settings": "設定",

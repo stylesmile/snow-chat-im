@@ -54,10 +54,15 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
         LambdaQueryWrapper<ChatMessage> wrapper = new LambdaQueryWrapper<>();
 
         if ("friend".equalsIgnoreCase(targetType)) {
+            // 普通好友私聊：双向查询（from→to 或 to→from）
             wrapper.and(w -> w
                     .eq(ChatMessage::getFromUserId, userId).eq(ChatMessage::getToUserId, targetId)
                     .or()
                     .eq(ChatMessage::getFromUserId, targetId).eq(ChatMessage::getToUserId, userId));
+        } else if ("file_helper".equalsIgnoreCase(targetType)) {
+            // 文件传输助手：发送方为用户，接收方固定为 0（文件传输助手专用 ID）
+            wrapper.eq(ChatMessage::getFromUserId, userId)
+                   .eq(ChatMessage::getToUserId, 0L);
         } else if ("group".equalsIgnoreCase(targetType)) {
             wrapper.eq(ChatMessage::getGroupId, targetId);
         }
@@ -86,7 +91,7 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
 
         // 更新发送方会话
         Long targetId = message.getGroupId() != null ? message.getGroupId() : message.getToUserId();
-        String targetType = message.getGroupId() != null ? "group" : "friend";
+        String targetType = message.getGroupId() != null ? "group" : (message.getToUserId() == 0L ? "file_helper" : "friend");
         chatSessionService.getOrCreateSession(message.getFromUserId(), targetId, targetType);
 
         publishMessage(message);
@@ -254,7 +259,10 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
                .set(ChatMessage::getStatus, 1);
 
         if ("friend".equalsIgnoreCase(targetType)) {
-            wrapper.and(w -> w.eq(ChatMessage::getFromUserId, targetId));
+            wrapper.eq(ChatMessage::getFromUserId, targetId);
+        } else if ("file_helper".equalsIgnoreCase(targetType)) {
+            wrapper.eq(ChatMessage::getFromUserId, targetId)
+                   .eq(ChatMessage::getToUserId, 0L);
         } else if ("group".equalsIgnoreCase(targetType)) {
             wrapper.eq(ChatMessage::getGroupId, targetId);
         }

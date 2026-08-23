@@ -52,6 +52,26 @@ public class ChatMessageController {
     }
 
     /**
+     * 发送文件传输助手消息（固定接收方 ID = 0，用于"文件传输助手"会话）
+     */
+    @PostMapping("/send/file-helper")
+    public Result<Void> sendFileHelper(@RequestBody SendMessageDTO body) {
+        // 强制将接收方设置为 0（文件传输助手专用）
+        body.setToUserId(0L);
+        ChatMessage message = new ChatMessage();
+        message.setFromUserId(body.getFromUserId());
+        message.setToUserId(0L);
+        message.setType(body.getType());
+        message.setContent(body.getContent());
+        message.setLocalSeq(body.getLocalSeq());
+        message.setStatus(0);
+        message.setCreateTime(new java.util.Date());
+        message.setPushStatus("server_received");
+        chatMessageService.sendMessage(message);
+        return Result.success();
+    }
+
+    /**
      * 撤回消息
      */
     @PostMapping("/recall")

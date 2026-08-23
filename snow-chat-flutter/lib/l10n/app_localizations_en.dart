@@ -90,6 +90,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noContacts => 'No contacts yet';
 
   @override
+  String get fileHelper => 'File Transfer Assistant';
+
+  @override
   String get noGroups => 'No groups yet';
 
   @override

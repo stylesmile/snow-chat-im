@@ -161,6 +161,35 @@ class _ContactTabState extends State<ContactTab> {
     );
   }
 
+  /// 文件传输助手入口：点击直接打开与 fileId=0 的聊天窗口
+  Widget _buildFileHelperItem(AppLocalizations l10n) {
+    return ListTile(
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: const BoxDecoration(
+          color: Color(0xFF07C160),
+          borderRadius: BorderRadius.all(Radius.circular(6)),
+        ),
+        child: const Icon(Icons.cloud_upload, color: Colors.white, size: 22),
+      ),
+      title: Text(l10n.fileHelper, style: const TextStyle(fontSize: 16)),
+      trailing: const Icon(Icons.chevron_right, color: Colors.white54, size: 20),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ChatDetailScreen(
+              targetId: 0,   // 固定 fileId=0 代表文件传输助手
+              targetType: 'file_helper',
+              targetName: l10n.fileHelper,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;

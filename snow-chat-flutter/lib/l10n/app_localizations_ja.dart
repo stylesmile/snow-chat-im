@@ -90,6 +90,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get noContacts => '連絡先なし';
 
   @override
+  String get fileHelper => 'ファイル転送アシスタント';
+
+  @override
   String get noGroups => 'グループなし';
 
   @override

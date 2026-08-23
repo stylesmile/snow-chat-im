@@ -54,6 +54,8 @@
   "@noMessages": {"description": "No messages"},
   "noContacts": "No contacts yet",
   "@noContacts": {"description": "No contacts"},
+  "fileHelper": "File Transfer Assistant",
+  "@fileHelper": {"description": "File transfer assistant entry title"},
   "noGroups": "No groups yet",
   "@noGroups": {"description": "No groups"},
   "settings": "Settings",

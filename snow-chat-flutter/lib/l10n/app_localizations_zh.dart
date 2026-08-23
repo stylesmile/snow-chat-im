@@ -90,6 +90,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noContacts => '暂无联系人';
 
   @override
+  String get fileHelper => '文件传输助手';
+
+  @override
   String get noGroups => '暂无群组';
 
   @override
@@ -531,6 +534,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get noContacts => '暫無聯絡人';
+
+  @override
+  String get fileHelper => '檔案傳輸助手';
 
   @override
   String get noGroups => '暫無群組';

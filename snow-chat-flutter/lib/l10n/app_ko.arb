@@ -54,6 +54,8 @@
   "@noMessages": {"description": "메시지가 없을 때 표시"},
   "noContacts": "연락처 없음",
   "@noContacts": {"description": "연락처가 없을 때 표시"},
+  "fileHelper": "파일 전송 어시스턴트",
+  "@fileHelper": {"description": "파일 전송 어시스턴트 제목"},
   "noGroups": "그룹 없음",
   "@noGroups": {"description": "그룹이 없을 때 표시"},
   "settings": "설정",

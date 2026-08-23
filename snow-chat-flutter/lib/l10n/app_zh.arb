@@ -54,6 +54,8 @@
   "@noMessages": {"description": "无消息时的提示"},
   "noContacts": "暂无联系人",
   "@noContacts": {"description": "无联系人时的提示"},
+  "fileHelper": "文件传输助手",
+  "@fileHelper": {"description": "文件传输助手入口标题"},
   "noGroups": "暂无群组",
   "@noGroups": {"description": "无群组时的提示"},
   "settings": "设置",
