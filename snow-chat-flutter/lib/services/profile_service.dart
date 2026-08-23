@@ -55,12 +55,11 @@ class ProfileService {
 
   /// 上传头像文件（独立接口）
   ///
-  /// 调用 `POST /chat/user/avatar/upload`，一步完成：
-  /// - 上传文件到对象存储
-  /// - 持久化 key 到 DB
-  /// - 返回 {key, url}
+  /// 调用 `POST /file/avatar`，仅完成上传到对象存储（MinIO / InMemory）：
+  /// - 返回 {key, url}，url 为可访问地址（InMemory 模式为 base64 data URL，MinIO 为 pre-signed URL）
+  /// - **不写 DB**，由调用方（ProfileTab）负责后续头像回显
   ///
-  /// [url] 为 pre-signed URL，前端立即用于展示。
+  /// [url] 可直接用于前端头像展示。
   Future<UploadResult?> uploadAvatar(File imageFile) async {
     try {
       // 读取文件字节
@@ -70,11 +69,11 @@ class ProfileService {
       final formData = FormData.fromMap({
         'file': MultipartFile.fromBytes(bytes, filename: fileName),
       });
-      // 发送 POST 请求，使用 authProvider 配置的 baseUrl + token
+      // 发送 POST 请求到独立头像上传接口
       // 注意：必须显式设置 Options(contentType) 覆盖全局 application/json header，
       // 否则 multipart 边界会被破坏导致上传失败
       final response = await apiClient.dio.post(
-        '/chat/user/avatar/upload',
+        '/file/avatar',
         data: formData,
         options: Options(contentType: Headers.multipartFormDataContentType),
       );
