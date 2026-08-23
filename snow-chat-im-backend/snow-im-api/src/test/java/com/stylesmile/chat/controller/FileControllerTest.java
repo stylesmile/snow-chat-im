@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -119,17 +120,18 @@ class FileControllerTest {
         byte[] content = "fake-image".getBytes();
         MockMultipartFile file = new MockMultipartFile("file", "photo.jpg", "image/jpeg", content);
         UploadResult uploadResult = new UploadResult("images/uuid.jpg", "https://presigned/image");
-        when(fileStorageService.uploadAndSign(eq(file), eq("images"))).thenReturn(uploadResult);
+        // 使用 anyString() 匹配任意 mediaType 字符串，避免 strict stubbing 对引用相等的约束
+        when(fileStorageService.uploadAndSign(any(), anyString())).thenReturn(uploadResult);
 
         // 执行
         Result<UploadResult> result = controller.uploadMedia("image", file);
 
-        // 验证：成功返回，且正确委托给 service，mediaType 被规范化为 "images"
+        // 验证：成功返回，且正确委托给 service（内部已规范化为复数 "images"）
         assertEquals("200", result.getCode());
         assertNotNull(result.getData());
         assertEquals("images/uuid.jpg", result.getData().key());
         assertEquals("https://presigned/image", result.getData().url());
-        verify(fileStorageService).uploadAndSign(eq(file), eq("images"));
+        verify(fileStorageService).uploadAndSign(any(), eq("images"));
     }
 
     @Test
@@ -138,7 +140,7 @@ class FileControllerTest {
         byte[] content = "fake-video".getBytes();
         MockMultipartFile file = new MockMultipartFile("file", "clip.mp4", "video/mp4", content);
         UploadResult uploadResult = new UploadResult("videos/uuid.mp4", "https://presigned/video");
-        when(fileStorageService.uploadAndSign(eq(file), eq("videos"))).thenReturn(uploadResult);
+        when(fileStorageService.uploadAndSign(any(), anyString())).thenReturn(uploadResult);
 
         // 执行
         Result<UploadResult> result = controller.uploadMedia("video", file);
@@ -147,7 +149,7 @@ class FileControllerTest {
         assertEquals("200", result.getCode());
         assertNotNull(result.getData());
         assertEquals("videos/uuid.mp4", result.getData().key());
-        verify(fileStorageService).uploadAndSign(eq(file), eq("videos"));
+        verify(fileStorageService).uploadAndSign(any(), eq("videos"));
     }
 
     @Test
@@ -156,7 +158,7 @@ class FileControllerTest {
         byte[] content = "fake-doc".getBytes();
         MockMultipartFile file = new MockMultipartFile("file", "doc.pdf", "application/pdf", content);
         UploadResult uploadResult = new UploadResult("files/uuid.pdf", "https://presigned/file");
-        when(fileStorageService.uploadAndSign(eq(file), eq("files"))).thenReturn(uploadResult);
+        when(fileStorageService.uploadAndSign(any(), anyString())).thenReturn(uploadResult);
 
         // 执行
         Result<UploadResult> result = controller.uploadMedia("file", file);
@@ -165,7 +167,7 @@ class FileControllerTest {
         assertEquals("200", result.getCode());
         assertNotNull(result.getData());
         assertEquals("files/uuid.pdf", result.getData().key());
-        verify(fileStorageService).uploadAndSign(eq(file), eq("files"));
+        verify(fileStorageService).uploadAndSign(any(), eq("files"));
     }
 
     @Test

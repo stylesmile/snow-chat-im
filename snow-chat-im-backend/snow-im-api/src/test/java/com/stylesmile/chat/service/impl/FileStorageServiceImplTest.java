@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -200,9 +201,10 @@ class FileStorageServiceImplTest {
         // 准备
         byte[] content = "data".getBytes();
         MultipartFile file = new MockMultipartFile("file", "a.mp4", "video/mp4", content);
-        when(fileStorage.upload(any(), any(), any(), anyLong()))
+        // 用 anyString() 捕获任意 key 参数，避免 strict stubbing 对引用相等的约束
+        when(fileStorage.upload(any(), anyString(), any(), anyLong()))
                 .thenAnswer(invocation -> invocation.getArgument(1));
-        when(fileStorage.generatePresignedUrl(any(), anyInt())).thenReturn("https://presigned");
+        when(fileStorage.generatePresignedUrl(anyString(), anyInt())).thenReturn("https://presigned");
 
         // 执行
         service.uploadAndSign(file, "videos");
@@ -213,6 +215,7 @@ class FileStorageServiceImplTest {
         // key 必须以 videos/ 开头
         assertTrue(keyCaptor.getValue().startsWith("videos/"), "key 应以 videos/ 开头");
         // generatePresignedUrl 被调用，有效期 7 天
-        verify(fileStorage).generatePresignedUrl(keyCaptor.getValue(), eq(7 * 24 * 60));
+        // verify 中所有参数必须都是 matcher：keyCaptor.getValue() 是原始 String，需用 eq() 包装
+        verify(fileStorage).generatePresignedUrl(eq(keyCaptor.getValue()), eq(7 * 24 * 60));
     }
 }

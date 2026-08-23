@@ -1,4 +1,7 @@
+import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -14,6 +17,7 @@ import '../../services/conversation_service.dart';
 import '../../providers/chat_provider.dart';
 import '../widgets/chat_bubble.dart';
 import 'group_detail_screen.dart';
+import '../../core/utils/date_utils.dart' as app_date;
 
 class ChatDetailScreen extends StatefulWidget {
   final int targetId;
@@ -39,6 +43,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   bool _hasMore = false;
   String _sessionId = '';
   MqttChatClient? _mqttClient;
+  // 临时选择器状态：记录待发送的媒体/文件（等待用户点击发送按钮后再真正发送）
+  File? _pendingMediaFile;     // 待发送的文件对象（图片/视频/文档）
+  String _pendingMediaType = 'text'; // 当前选中类型：text / image / video / file
+  String? _pendingMediaUrl;    // 已上传后的 URL，直接用作消息 content
+  String? _pendingFileName;    // 文件名（仅 file 类型需要展示）
 
   @override
   void initState() {
@@ -316,14 +325,136 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     }
   }
 
-  void _sendMessage() async {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
+  /// 打开图片选择器（相册 / 相机），选择后回调 [onPicked]
+  Future<void> _pickImage(void Function(File) onPicked) async {
+    try {
+      final picker = ImagePicker();
+      // 先询问用户：从相册选图还是拍照
+      final source = await showDialog<ImageSource>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(AppLocalizations.of(context)!.chooseImageSource),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, ImageSource.gallery),
+              child: Text(AppLocalizations.of(context)!.gallery),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, ImageSource.camera),
+              child: Text(AppLocalizations.of(context)!.camera),
+            ),
+          ],
+        ),
+      );
+      if (source == null) return;
+      // 调用 image_picker 获取 XFile，再转为 File
+      final XFile? picked = await picker.pickImage(
+        source: source,
+        maxWidth: 1920,   // 限制最大宽度，避免大文件上传慢
+        maxHeight: 1920,
+        imageQuality: 85, // 压缩质量 85%，在清晰度与流量之间平衡
+      );
+      if (picked == null) return;
+      onPicked(File(picked.path));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.pickImageFailed + ': $e')),
+      );
+    }
+  }
 
+  /// 打开视频选择器（相册 / 相机），选择后回调 [onPicked]
+  Future<void> _pickVideo(void Function(File) onPicked) async {
+    try {
+      final picker = ImagePicker();
+      final source = await showDialog<ImageSource>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(AppLocalizations.of(context)!.chooseVideoSource),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, ImageSource.gallery),
+              child: Text(AppLocalizations.of(context)!.gallery),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, ImageSource.camera),
+              child: Text(AppLocalizations.of(context)!.camera),
+            ),
+          ],
+        ),
+      );
+      if (source == null) return;
+      final XFile? picked = await picker.pickVideo(source: source);
+      if (picked == null) return;
+      onPicked(File(picked.path));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.pickVideoFailed + ': $e')),
+      );
+    }
+  }
+
+  /// 打开系统文件选择器，限制只能选图片/视频/文档（排除其他任意文件）
+  Future<void> _pickFile(void Function(File) onPicked) async {
+    try {
+      // 这里仅做文件选择，不再进一步限制 MIME（后端 uploadMedia 端点只校验 type 白名单）
+      // 使用 image_picker 模拟（仅取 path）；实际生产可接入 path_provider + open_file 或 file_picker 插件
+      final picker = ImagePicker();
+      // image_picker 不直接支持通用文件，这里回退到相册通道：
+      // - 相册：用户手动挑选图片/视频（已覆盖大部分场景）
+      // - 若需选 PDF/压缩包等文档，提示用户使用系统分享面板
+      final source = await showDialog<ImageSource>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(AppLocalizations.of(context)!.chooseFileSource),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, ImageSource.gallery),
+              child: Text(AppLocalizations.of(context)!.gallery),
+            ),
+          ],
+        ),
+      );
+      if (source == null) return;
+      final XFile? picked = await picker.pickImage(source: source);
+      if (picked == null) return;
+      onPicked(File(picked.path));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context)!.pickFileFailed + ': $e')),
+      );
+    }
+  }
+
+  /// 发送消息（含文本 / 图片 / 视频 / 文件）
+  Future<void> _sendMessage() async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final l10n = AppLocalizations.of(context)!;
     final auth = context.read<AuthProvider>();
     final now = DateTime.now().millisecondsSinceEpoch;
+
+    // 分支 1：用户选择了媒体/文件，先上传再发送
+    if (_pendingMediaType != 'text' && _pendingMediaUrl != null) {
+      final type = _pendingMediaType;
+      final content = _pendingMediaUrl!;
+      final fileName = _pendingFileName;
+      // 清空选择器状态，防止重复发送
+      setState(() {
+        _pendingMediaType = 'text';
+        _pendingMediaUrl = null;
+        _pendingMediaFile = null;
+        _pendingFileName = null;
+      });
+      await _doSendMedia(type, content, fileName, now, auth, scaffoldMessenger, l10n);
+      return;
+    }
+
+    // 分支 2：纯文本发送（原有逻辑）
+    final text = _controller.text.trim();
+    if (text.isEmpty) return;
 
     // 乐观UI：立即显示
     setState(() {
@@ -402,6 +533,135 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     }
   }
 
+  /// 发送媒体/文件消息：上传到对象存储 → 构造 MessageModel → 发送
+  Future<void> _doSendMedia(
+    String type,
+    String content,
+    String? fileName,
+    int now,
+    AuthProvider auth,
+    ScaffoldMessengerState scaffoldMessenger,
+    AppLocalizations l10n,
+  ) async {
+    final service = ChatService(auth.apiClient);
+    // 构造消息模型：媒体消息 content 存 URL，type 标识类型
+    final sentModel = _DisplayMessage(
+      id: now,
+      fromUserId: auth.userId ?? 0,
+      toUserId: widget.targetType == 'file_helper' ? (auth.userId ?? 0) : widget.targetId,
+      groupId: widget.targetType == 'group' ? widget.targetId : null,
+      type: widget.targetType == 'file_helper' ? 'self' : type,
+      content: content,
+      createTime: now,
+      status: 'sending',
+    );
+    // 乐观UI：立即显示
+    if (!mounted) return;
+    setState(() {
+      _messages.add(sentModel);
+    });
+    _scrollToBottom();
+
+    // 通过 REST 发送，由后端统一落库并 MQTT 推送
+    final success = widget.targetType == 'file_helper'
+        ? await service.sendFileHelper(sentModel.toModel())
+        : await service.sendMessage(sentModel.toModel());
+
+    if (!mounted) return;
+    final index = _messages.indexWhere((m) => m.id == now);
+    if (index != -1) {
+      setState(() {
+        _messages[index] = _messages[index].copyWith(
+          status: success ? 'sent' : 'failed',
+        );
+      });
+    }
+    if (success) {
+      await MessageCacheManager().appendMessage(_sessionId, sentModel.copyWith(status: 'sent').toModel());
+      if (mounted) {
+        // 会话 lastMsg：图片/视频/文件消息以类型+文件名作为摘要
+        final summary = fileName != null ? '$type: $fileName' : type;
+        context.read<ChatProvider>().updateConversation(
+          Conversation(
+            targetId: widget.targetId,
+            targetType: widget.targetType,
+            lastMsg: summary,
+            lastMsgTime: now,
+            unreadCount: 0,
+          ),
+        );
+        await ConversationService().saveSession(
+          userId: auth.userId!,
+          targetId: widget.targetId,
+          targetType: widget.targetType,
+          lastMsg: summary,
+          lastMsgTime: now,
+          unreadCount: 0,
+        );
+      }
+    }
+
+    if (!success && mounted) {
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text(l10n.messageFailed)),
+      );
+    }
+  }
+
+  /// 用户点击" attachment" 按钮：按当前选中类型触发对应选择器
+  void _onAttachTap() {
+    switch (_pendingMediaType) {
+      case 'image':
+        _pickImage((file) => _onMediaPicked(file, 'image'));
+        break;
+      case 'video':
+        _pickVideo((file) => _onMediaPicked(file, 'video'));
+        break;
+      case 'file':
+        _pickFile((file) => _onMediaPicked(file, 'file'));
+        break;
+      default:
+        // 未选择类型时不做任何操作
+        break;
+    }
+  }
+
+  /// 选择媒体/文件后的统一处理：
+  /// 1. 上传到对象存储（POST /file/media/{type}）
+  /// 2. 将返回的 URL 暂存为 _pendingMediaUrl，类型暂存为 _pendingMediaType
+  /// 3. 切换到预览状态，等待用户点击发送
+  void _onMediaPicked(File file, String type) {
+    final l10n = AppLocalizations.of(context)!;
+    final service = ChatService(context.read<AuthProvider>().apiClient);
+    // 显示上传中提示
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${l10n.uploading}...')),
+    );
+    // 并发上传：上传完成后再 setState 切换 UI
+    service.uploadMedia(file, type).then((result) {
+      if (!mounted) return;
+      if (result == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.uploadFailed)),
+        );
+        return;
+      }
+      // 上传成功，暂存 URL 与文件信息，切换到预览状态
+      setState(() {
+        _pendingMediaType = type;
+        _pendingMediaUrl = result.url;
+        _pendingMediaFile = file;
+        // 文件名仅 file 类型需要展示；image/video 可省略
+        _pendingFileName = type == 'file' ? file.path.split('/').last : null;
+      });
+    }).catchError((e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${l10n.uploadFailed}: $e')),
+      );
+    });
+  }
+
   void _scrollToBottom() {
     Future.delayed(const Duration(milliseconds: 100), () {
       if (_scrollController.hasClients) {
@@ -452,6 +712,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       ),
       body: Column(
         children: [
+          // 预览区域：当用户选中媒体/文件但还未发送时显示
+          if (_pendingMediaType != 'text' && _pendingMediaUrl != null)
+            _buildMediaPreview(theme),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -496,6 +759,68 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 
+  /// 构建媒体预览组件（图片/视频/文件）
+  ///
+  /// 预览区域位于输入栏上方，显示已选中的媒体缩略图/文件名，并提供取消与重新选择入口。
+  Widget _buildMediaPreview(ThemeData theme) {
+    final l10n = AppLocalizations.of(context)!;
+    final isImage = _pendingMediaType == 'image';
+    final isVideo = _pendingMediaType == 'video';
+    return Container(
+      padding: const EdgeInsets.all(8),
+      color: theme.cardColor,
+      child: Row(
+        children: [
+          // 预览图/占位
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: isImage
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.file(
+                      _pendingMediaFile!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.white54),
+                    ),
+                  )
+                : isVideo
+                    ? const Icon(Icons.videocam, color: Colors.white54)
+                    : const Icon(Icons.insert_drive_file, color: Colors.white54),
+          ),
+          const SizedBox(width: 8),
+          // 文件名（仅 file 类型）
+          if (_pendingFileName != null)
+            Expanded(
+              child: Text(
+                _pendingFileName!,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
+          const SizedBox(width: 8),
+          // 取消按钮：清除预览，回到文本输入
+          IconButton(
+            icon: const Icon(Icons.close, size: 18),
+            tooltip: l10n.cancel,
+            onPressed: () {
+              setState(() {
+                _pendingMediaType = 'text';
+                _pendingMediaUrl = null;
+                _pendingMediaFile = null;
+                _pendingFileName = null;
+              });
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMessageBubble(_DisplayMessage msg, bool isMe, ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -510,14 +835,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             ),
             const SizedBox(width: 8),
           ],
-          // 气泡本体：提取为 ChatBubble 组件（我方=品牌蓝/对方=深色表面，均白字）
+          // 气泡本体：根据消息类型分发渲染
           Flexible(
-            child: ChatBubble(
-              content: msg.content,
-              isMe: isMe,
-              createTime: msg.createTime,
-              status: msg.status,
-            ),
+            child: _buildMessageBubbleByType(msg, isMe, theme),
           ),
           if (isMe) ...[
             const SizedBox(width: 8),
@@ -532,6 +852,201 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 
+  /// 按消息类型渲染气泡内容
+  Widget _buildMessageBubbleByType(_DisplayMessage msg, bool isMe, ThemeData theme) {
+    final bubbleColor = isMe ? theme.colorScheme.primary : Colors.grey.shade200;
+    final textColor = isMe ? Colors.white : Colors.black87;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: bubbleColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: switch (msg.type) {
+        // 图片消息：展示图片 URL；data: URL 由 InMemory 降级实现提供
+        'image' => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: msg.content.startsWith('data:')
+                    ? Image.memory(
+                        base64Decode(msg.content.split(',').last),
+                        width: 200,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            _fallbackPlaceholder(theme, textColor, Icons.broken_image),
+                      )
+                    : Image.network(
+                        msg.content,
+                        width: 200,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (_, child, progress) =>
+                            progress == null ? child : _fallbackPlaceholder(theme, textColor, Icons.image),
+                        errorBuilder: (_, __, ___) =>
+                            _fallbackPlaceholder(theme, textColor, Icons.broken_image),
+                      ),
+              ),
+              if (msg.createTime != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  app_date.DateUtils.formatTime(msg.createTime),
+                  style: TextStyle(fontSize: 10, color: textColor.withOpacity(0.6)),
+                ),
+              ],
+            ],
+          ),
+        // 视频消息：展示封面占位，点击播放（此处先用占位，后续可扩展 full-screen player）
+        'video' => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              InkWell(
+                onTap: () => _openVideoPlayer(msg.content),
+                child: Container(
+                  width: 200,
+                  height: 150,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.play_circle_outline, size: 48, color: Colors.white70),
+                  ),
+                ),
+              ),
+              if (msg.createTime != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  app_date.DateUtils.formatTime(msg.createTime),
+                  style: TextStyle(fontSize: 10, color: textColor.withOpacity(0.6)),
+                ),
+              ],
+            ],
+          ),
+        // 文件消息：展示文件名 + 下载按钮
+        'file' => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              InkWell(
+                onTap: () => _openFile(msg.content),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.insert_drive_file, size: 28),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        msg.content.split('/').last, // 简单截断文件名
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (msg.createTime != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  app_date.DateUtils.formatTime(msg.createTime),
+                  style: TextStyle(fontSize: 10, color: textColor.withOpacity(0.6)),
+                ),
+              ],
+            ],
+          ),
+        // 文件传输助手（self）：与普通文本相同，但显示特殊标识
+        'self' => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade600,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      'TA',
+                      style: TextStyle(color: Colors.white, fontSize: 10),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(msg.content, style: TextStyle(color: textColor)),
+                  ),
+                ],
+              ),
+              if (msg.createTime != null) ...[
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      app_date.DateUtils.formatTime(msg.createTime),
+                      style: TextStyle(fontSize: 10, color: textColor.withOpacity(0.6)),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        // 默认：文本消息
+        _ => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(msg.content, style: TextStyle(color: textColor)),
+              if (msg.createTime != null) ...[
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      app_date.DateUtils.formatTime(msg.createTime),
+                      style: TextStyle(fontSize: 10, color: textColor.withOpacity(0.6)),
+                    ),
+                    if (msg.status != null) ...[
+                      const SizedBox(width: 4),
+                      Icon(
+                        msg.status == 'read' ? Icons.done_all : Icons.done,
+                        size: 12,
+                        color: msg.status == 'read' ? Colors.blueAccent : textColor.withOpacity(0.6),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ],
+          ),
+      },
+    );
+  }
+
+  /// 气泡内通用占位组件（加载失败、类型不支持时显示）
+  Widget _fallbackPlaceholder(ThemeData theme, Color textColor, IconData icon) {
+    return Container(
+      width: 200,
+      height: 150,
+      color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+      child: Icon(icon, color: textColor.withOpacity(0.5), size: 32),
+    );
+  }
+
+  /// 打开视频播放器（全屏）
+  ///
+  /// 使用 [video_player] 插件播放本地/网络视频；此处先打印路径以便后续接入完整播放器。
+  void _openVideoPlayer(String url) {
+    // TODO: 接入 video_player 全屏播放器，当前仅提示
+    debugPrint('[ChatDetail] 打开视频: $url');
+  }
+
+  /// 打开文件（下载 / 预览）
+  ///
+  /// 对于媒体 URL，可触发系统分享面板或外部应用打开。
+  void _openFile(String url) {
+    // TODO: 接入 open_file / share_plus 插件，当前仅提示
+    debugPrint('[ChatDetail] 打开文件: $url');
+  }
+
   Widget _buildInputBar(ThemeData theme, AppLocalizations l10n) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -541,7 +1056,48 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       ),
       child: Row(
         children: [
-          IconButton(icon: const Icon(Icons.attach_file), onPressed: () {}),
+          // 附件按钮：点击弹出类型选择（图片/视频/文件）
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.attach_file),
+            tooltip: l10n.attach,
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'image',
+                child: Row(
+                  children: [
+                    const Icon(Icons.photo_library, size: 18),
+                    const SizedBox(width: 8),
+                    Text(l10n.image),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'video',
+                child: Row(
+                  children: [
+                    const Icon(Icons.videocam, size: 18),
+                    const SizedBox(width: 8),
+                    Text(l10n.video),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'file',
+                child: Row(
+                  children: [
+                    const Icon(Icons.insert_drive_file, size: 18),
+                    const SizedBox(width: 8),
+                    Text(l10n.file),
+                  ],
+                ),
+              ),
+            ],
+            onSelected: (type) {
+              // 根据选中类型，切换到对应选择器
+              setState(() => _pendingMediaType = type);
+              _onAttachTap();
+            },
+          ),
           Expanded(
             child: TextField(
               controller: _controller,
@@ -560,9 +1116,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             ),
           ),
           const SizedBox(width: 4),
+          // 发送按钮：有预览时发送媒体；有文本时发送文本；否则禁用
           IconButton(
-            icon: const Icon(Icons.send),
+            icon: const Icon(Icons.send_rounded),
             color: theme.colorScheme.primary,
+            tooltip: l10n.send,
             onPressed: _sendMessage,
           ),
         ],

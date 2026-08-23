@@ -1,5 +1,8 @@
+import 'dart:io';
+import 'package:dio/dio.dart';
 import '../core/network/api_client.dart';
 import '../models/message_model.dart';
+import '../models/upload_result.dart';
 
 class ChatService {
   final ApiClient apiClient;
@@ -188,6 +191,44 @@ class ChatService {
     for (final conv in conversations) {
       // 对每个会话调用 syncUndelivered，失败时内部返回 false，不影响后续会话
       await syncUndelivered(userId, conv.targetId, conv.targetType);
+    }
+  }
+
+  /// 上传媒体/附件文件到对象存储（images/、videos/、files/ 子目录）
+  ///
+  /// 对应后端 `POST /file/media/{type}` 端点：
+  /// - [type] 必须是 "image" / "video" / "file" 之一，与后端白名单一致；
+  /// - 返回上传后的 URL（pre-signed URL 或 base64 data URL），可直接用于消息 content；
+  /// - 调用方负责用返回的 URL 作为 [MessageModel.content]，type 字段设为对应值。
+  ///
+  /// @param file 本地媒体文件（图片/视频/文档）
+  /// @param type 媒体类型，映射到后端目录前缀：image→images/、video→videos/、file→files/
+  /// @return 上传成功返回 UploadResult（含 key 与 url）；失败返回 null
+  Future<UploadResult?> uploadMedia(File file, String type) async {
+    try {
+      // 读取文件字节并构造 multipart 表单
+      final bytes = await file.readAsBytes();
+      // 文件名取原始路径末段，便于后端保留扩展名生成对象 key
+      final fileName = file.path.split('/').last;
+      final formData = FormData.fromMap({
+        'file': MultipartFile.fromBytes(bytes, filename: fileName),
+      });
+      // 发送到独立媒体上传端点；必须显式设置 contentType 覆盖全局 application/json
+      final response = await apiClient.dio.post(
+        '/file/media/$type',
+        data: formData,
+        options: Options(contentType: Headers.multipartFormDataContentType),
+      );
+      // 解析响应：{code: '200', data: {key, url}}
+      final data = response.data['data'] as Map<String, dynamic>?;
+      if (data == null) {
+        return null;
+      }
+      return UploadResult.fromJson(data);
+    } catch (e) {
+      // 输出详细错误信息，便于排查上传失败原因
+      print('[ChatService] uploadMedia failed: $e');
+      return null;
     }
   }
 }

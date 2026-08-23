@@ -113,9 +113,11 @@ public class FileController {
         if (file == null || file.isEmpty()) {
             return Result.fail();
         }
-        // 复用通用上传逻辑（内部会自动改为 {type}/{uuid}.{ext} 格式）
-        // 通过重载 uploadAndSign 以 mediaType 参数支持动态目录前缀
-        UploadResult uploadResult = fileStorageService.uploadAndSign(file, type);
+        // 将 type 规范化为复数形式（image→images、video→videos、file→files），
+        // 与 FileStorageServiceImpl 的 ALLOWED_MEDIA_PREFIXES 保持一致
+        String mediaType = type + "s";
+        // 复用通用上传逻辑（内部会自动改为 {mediaType}/{uuid}.{ext} 格式）
+        UploadResult uploadResult = fileStorageService.uploadAndSign(file, mediaType);
         return Result.success(uploadResult);
     }
 }
