@@ -981,6 +981,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Settings'**
   String get settingsMenu;
+
+  /// Attach button tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Attach'**
+  String get attach;
+
+  /// Emoji button tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Emoji'**
+  String get emoji;
+
+  /// Image option
+  ///
+  /// In en, this message translates to:
+  /// **'Image'**
+  String get image;
+
+  /// Video option
+  ///
+  /// In en, this message translates to:
+  /// **'Video'**
+  String get video;
+
+  /// File option
+  ///
+  /// In en, this message translates to:
+  /// **'File'**
+  String get file;
+
+  /// Send button
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get send;
+
+  /// Image source dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Choose image source'**
+  String get chooseImageSource;
+
+  /// Video source dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Choose video source'**
+  String get chooseVideoSource;
+
+  /// File source dialog title
+  ///
+  /// In en, this message translates to:
+  /// **'Choose file source'**
+  String get chooseFileSource;
+
+  /// Gallery option
+  ///
+  /// In en, this message translates to:
+  /// **'Gallery'**
+  String get gallery;
+
+  /// Camera option
+  ///
+  /// In en, this message translates to:
+  /// **'Camera'**
+  String get camera;
+
+  /// Image pick failure hint
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to pick image'**
+  String get pickImageFailed;
+
+  /// Video pick failure hint
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to pick video'**
+  String get pickVideoFailed;
+
+  /// File pick failure hint
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to pick file'**
+  String get pickFileFailed;
+
+  /// Uploading progress hint
+  ///
+  /// In en, this message translates to:
+  /// **'Uploading'**
+  String get uploading;
+
+  /// Upload failure hint
+  ///
+  /// In en, this message translates to:
+  /// **'Upload failed'**
+  String get uploadFailed;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

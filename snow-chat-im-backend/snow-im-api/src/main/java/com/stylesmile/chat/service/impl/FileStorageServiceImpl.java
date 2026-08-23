@@ -42,10 +42,10 @@ public class FileStorageServiceImpl implements FileStorageService {
     private static final String AVATAR_KEY_PREFIX = "avatars/";
 
     /**
-     * 媒体文件对象 key 前缀映射：mediaType（images/videos/files）→ 目录前缀（images/、videos/、files/）。
-     * 仅允许这三种前缀，防止任意目录写入（路径穿越攻击）。
+     * 媒体文件对象 key 前缀映射：mediaType（images/videos/files/voices）→ 目录前缀（images/、videos/、files/、voices/）。
+     * 仅允许这四种前缀，防止任意目录写入（路径穿越攻击）。
      */
-    private static final Set<String> ALLOWED_MEDIA_PREFIXES = Set.of("images/", "videos/", "files/");
+    private static final Set<String> ALLOWED_MEDIA_PREFIXES = Set.of("images/", "videos/", "files/", "voices/");
 
     /**
      * pre-signed URL 有效期：7 天（单位：分钟）。

@@ -24,11 +24,19 @@ import java.util.Set;
 public class ChatMessageController {
 
     /**
-     * 消息类型白名单：text / image / video / file / self / recall。
+     * 消息类型白名单：text / image / video / file / voice / emoji / self / recall。
      * 用于 {@link #send} 端点的 type 字段校验，防止任意字符串写入消息表。
+     * - text：纯文本；
+     * - image：图片消息（content 为图片 URL）；
+     * - video：视频消息（content 为视频 URL）；
+     * - file：文件消息（content 为文件 URL + 文件名元数据）；
+     * - voice：语音消息（content 为音频 URL，附加 duration/size 元数据）；
+     * - emoji：表情消息（content 为 emoji 字符或本地 sticker URL）；
+     * - self：文件传输助手（发送给自己，同步到其他登录端）；
+     * - recall：已撤回消息。
      */
     private static final Set<String> ALLOWED_MESSAGE_TYPES = Set.of(
-            "text", "image", "video", "file", "self", "recall"
+            "text", "image", "video", "file", "voice", "emoji", "self", "recall"
     );
 
     @Resource

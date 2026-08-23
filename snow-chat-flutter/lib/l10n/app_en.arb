@@ -296,6 +296,8 @@
   "@settingsMenu": {"description": "Profile - Settings menu"},
   "attach": "Attach",
   "@attach": {"description": "Attach button tooltip"},
+  "emoji": "Emoji",
+  "@emoji": {"description": "Emoji button tooltip"},
   "image": "Image",
   "@image": {"description": "Image option"},
   "video": "Video",

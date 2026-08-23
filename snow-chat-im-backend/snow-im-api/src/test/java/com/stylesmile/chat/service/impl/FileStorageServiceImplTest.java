@@ -182,6 +182,23 @@ class FileStorageServiceImplTest {
     }
 
     @Test
+    void uploadAndSignWithMediaTypeVoices() {
+        // 准备
+        byte[] content = "fake-voice".getBytes();
+        MultipartFile file = new MockMultipartFile("file", "voice.ogg", "audio/ogg", content);
+        when(fileStorage.upload(any(), any(), eq("audio/ogg"), anyLong()))
+                .thenAnswer(invocation -> invocation.getArgument(1));
+        when(fileStorage.generatePresignedUrl(any(), anyInt())).thenReturn("https://presigned/voice");
+
+        // 执行
+        UploadResult result = service.uploadAndSign(file, "voices");
+
+        // 验证：key 前缀为 voices/
+        assertNotNull(result.key());
+        assertTrue(result.key().startsWith("voices/"), "key 应以 voices/ 开头");
+    }
+
+    @Test
     void uploadAndSignWithMediaTypeThrowsOnInvalidType() {
         // 准备：非法 mediaType（路径穿越风险）
         byte[] content = "evil".getBytes();

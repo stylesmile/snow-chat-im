@@ -294,6 +294,8 @@
   "@settingsMenu": {"description": "个人中心-设置菜单"},
   "attach": "附件",
   "@attach": {"description": "附件按钮提示"},
+  "emoji": "表情",
+  "@emoji": {"description": "表情按钮提示"},
   "image": "图片",
   "@image": {"description": "图片选项"},
   "video": "视频",

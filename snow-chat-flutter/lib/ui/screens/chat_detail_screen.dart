@@ -44,10 +44,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   String _sessionId = '';
   MqttChatClient? _mqttClient;
   // 临时选择器状态：记录待发送的媒体/文件（等待用户点击发送按钮后再真正发送）
-  File? _pendingMediaFile;     // 待发送的文件对象（图片/视频/文档）
-  String _pendingMediaType = 'text'; // 当前选中类型：text / image / video / file
+  File? _pendingMediaFile;     // 待发送的文件对象（图片/视频/文档/语音）
+  String _pendingMediaType = 'text'; // 当前选中类型：text / image / video / file / voice
   String? _pendingMediaUrl;    // 已上传后的 URL，直接用作消息 content
   String? _pendingFileName;    // 文件名（仅 file 类型需要展示）
+  // 表情面板状态
+  bool _showEmojiPanel = false; // 是否显示 emoji 选择面板
+  static const List<String> _emojiList = [ // 常用 emoji 列表（微信风格：一行 8 个，两行）
+    '😀','😂','🥰','😍','🤩','😘','😊','🥳',
+    '😎','🤔','😅','😭','😱','🤗','🫡','😇',
+    '👍','👏','🙏','💪','❤️','🔥','💯','🎉',
+  ];
 
   @override
   void initState() {
@@ -452,6 +459,18 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       return;
     }
 
+    // 分支 2：用户选择了 emoji，直接发送（无需上传）
+    if (_pendingMediaType == 'emoji' && _pendingMediaUrl != null) {
+      final content = _pendingMediaUrl!;
+      setState(() {
+        _pendingMediaType = 'text';
+        _pendingMediaUrl = null;
+        _showEmojiPanel = false;
+      });
+      await _doSendEmoji(content, now, auth, scaffoldMessenger, l10n);
+      return;
+    }
+
     // 分支 2：纯文本发送（原有逻辑）
     final text = _controller.text.trim();
     if (text.isEmpty) return;
@@ -605,6 +624,70 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       scaffoldMessenger.showSnackBar(
         SnackBar(content: Text(l10n.messageFailed)),
       );
+    }
+  }
+
+  /// 发送 emoji 消息（纯前端直接发送，无需上传）
+  ///
+  /// content 为单个 emoji 字符，type 固定为 "emoji"。
+  Future<void> _doSendEmoji(
+    String emoji,
+    int now,
+    AuthProvider auth,
+    ScaffoldMessengerState scaffoldMessenger,
+    AppLocalizations l10n,
+  ) async {
+    final service = ChatService(auth.apiClient);
+    // 构造消息模型
+    final sentModel = _DisplayMessage(
+      id: now,
+      fromUserId: auth.userId ?? 0,
+      toUserId: widget.targetType == 'file_helper' ? (auth.userId ?? 0) : widget.targetId,
+      groupId: widget.targetType == 'group' ? widget.targetId : null,
+      type: widget.targetType == 'file_helper' ? 'self' : 'emoji',
+      content: emoji,
+      createTime: now,
+      status: 'sending',
+    );
+    // 乐观UI：立即显示
+    if (!mounted) return;
+    setState(() => _messages.add(sentModel));
+    _scrollToBottom();
+    // 通过 REST 发送
+    final success = widget.targetType == 'file_helper'
+        ? await service.sendFileHelper(sentModel.toModel())
+        : await service.sendMessage(sentModel.toModel());
+    if (!mounted) return;
+    final index = _messages.indexWhere((m) => m.id == now);
+    if (index != -1) {
+      setState(() {
+        _messages[index] = _messages[index].copyWith(status: success ? 'sent' : 'failed');
+      });
+    }
+    if (success) {
+      await MessageCacheManager().appendMessage(_sessionId, sentModel.copyWith(status: 'sent').toModel());
+      if (mounted) {
+        context.read<ChatProvider>().updateConversation(
+          Conversation(
+            targetId: widget.targetId,
+            targetType: widget.targetType,
+            lastMsg: emoji,
+            lastMsgTime: now,
+            unreadCount: 0,
+          ),
+        );
+        await ConversationService().saveSession(
+          userId: auth.userId!,
+          targetId: widget.targetId,
+          targetType: widget.targetType,
+          lastMsg: emoji,
+          lastMsgTime: now,
+          unreadCount: 0,
+        );
+      }
+    }
+    if (!success && mounted) {
+      scaffoldMessenger.showSnackBar(SnackBar(content: Text(l10n.messageFailed)));
     }
   }
 
@@ -990,6 +1073,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               ],
             ],
           ),
+        // 表情消息：直接渲染 emoji 字符（大字体）
+        'emoji' => Center(
+            child: Text(
+              msg.content,
+              style: const TextStyle(fontSize: 36),
+            ),
+          ),
         // 默认：文本消息
         _ => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1048,82 +1138,154 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   Widget _buildInputBar(ThemeData theme, AppLocalizations l10n) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, -2))],
-      ),
-      child: Row(
-        children: [
-          // 附件按钮：点击弹出类型选择（图片/视频/文件）
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.attach_file),
-            tooltip: l10n.attach,
-            itemBuilder: (_) => [
-              PopupMenuItem(
-                value: 'image',
-                child: Row(
-                  children: [
-                    const Icon(Icons.photo_library, size: 18),
-                    const SizedBox(width: 8),
-                    Text(l10n.image),
-                  ],
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // 表情面板：点击表情按钮时弹出，再次点击关闭
+        if (_showEmojiPanel) _buildEmojiPanel(theme),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: theme.cardColor,
+            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, -2))],
+          ),
+          child: Row(
+            children: [
+              // 表情按钮：点击切换 emoji 面板显示
+              IconButton(
+                icon: const Icon(Icons.emoji_emotions),
+                tooltip: l10n.emoji,
+                onPressed: () {
+                  setState(() => _showEmojiPanel = !_showEmojiPanel);
+                  // 切换面板时清除其他 pending 状态
+                  if (!_showEmojiPanel) {
+                    _pendingMediaType = 'text';
+                    _pendingMediaUrl = null;
+                    _pendingMediaFile = null;
+                    _pendingFileName = null;
+                  }
+                },
+              ),
+              // 附件按钮：点击弹出类型选择（图片/视频/文件/语音）
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.attach_file),
+                tooltip: l10n.attach,
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                    value: 'image',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.photo_library, size: 18),
+                        const SizedBox(width: 8),
+                        Text(l10n.image),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'video',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.videocam, size: 18),
+                        const SizedBox(width: 8),
+                        Text(l10n.video),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'file',
+                    child: Row(
+                      children: [
+                        const Icon(Icons.insert_drive_file, size: 18),
+                        const SizedBox(width: 8),
+                        Text(l10n.file),
+                      ],
+                    ),
+                  ),
+                  // TODO: 语音暂不支持（需接入录音权限与音频上传），后续迭代
+                  // PopupMenuItem(value: 'voice', ...),
+                ],
+                onSelected: (type) {
+                  // 切换类型时关闭 emoji 面板
+                  setState(() {
+                    _showEmojiPanel = false;
+                    _pendingMediaType = type;
+                  });
+                  _onAttachTap();
+                },
+              ),
+              Expanded(
+                child: TextField(
+                  controller: _controller,
+                  decoration: InputDecoration(
+                    hintText: l10n.inputMessage,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      borderSide: BorderSide.none,
+                    ),
+                    filled: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  ),
+                  maxLines: null,
+                  textCapitalization: TextCapitalization.none,
+                  onSubmitted: (_) => _sendMessage(),
                 ),
               ),
-              PopupMenuItem(
-                value: 'video',
-                child: Row(
-                  children: [
-                    const Icon(Icons.videocam, size: 18),
-                    const SizedBox(width: 8),
-                    Text(l10n.video),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'file',
-                child: Row(
-                  children: [
-                    const Icon(Icons.insert_drive_file, size: 18),
-                    const SizedBox(width: 8),
-                    Text(l10n.file),
-                  ],
-                ),
+              const SizedBox(width: 4),
+              // 发送按钮
+              IconButton(
+                icon: const Icon(Icons.send_rounded),
+                color: theme.colorScheme.primary,
+                tooltip: l10n.send,
+                onPressed: _sendMessage,
               ),
             ],
-            onSelected: (type) {
-              // 根据选中类型，切换到对应选择器
-              setState(() => _pendingMediaType = type);
-              _onAttachTap();
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 构建表情选择面板（微信风格：网格布局，点击即发送）
+  ///
+  /// 面板高度固定（两行 emoji），背景色与输入栏一致，点击 emoji 后立即发送并收起面板。
+  Widget _buildEmojiPanel(ThemeData theme) {
+    return Container(
+      color: theme.cardColor,
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: GridView.count(
+        crossAxisCount: 8, // 每行 8 个 emoji
+        shrinkWrap: true, // 不自适应高度，避免布局溢出
+        physics: const NeverScrollableScrollPhysics(), // 禁用面板内部滚动
+        childAspectRatio: 1.2, // 宽高比
+        children: _emojiList.map((emoji) {
+          return GestureDetector(
+            onTap: () {
+              // 点击 emoji：直接发送，不经过上传流程
+              final auth = context.read<AuthProvider>();
+              final l10n = AppLocalizations.of(context)!;
+              final now = DateTime.now().millisecondsSinceEpoch;
+              // 先乐观显示再发送，避免 UI 卡顿
+              setState(() => _messages.add(_DisplayMessage(
+                id: now,
+                fromUserId: auth.userId ?? 0,
+                toUserId: widget.targetType == 'file_helper' ? (auth.userId ?? 0) : widget.targetId,
+                groupId: widget.targetType == 'group' ? widget.targetId : null,
+                type: widget.targetType == 'file_helper' ? 'self' : 'emoji',
+                content: emoji,
+                createTime: now,
+                status: 'sending',
+              )));
+              _scrollToBottom();
+              // 异步发送后关闭面板并更新状态
+              _doSendEmoji(emoji, now, auth, ScaffoldMessenger.of(context), l10n).whenComplete(() {
+                if (mounted) setState(() => _showEmojiPanel = false);
+              });
             },
-          ),
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              decoration: InputDecoration(
-                hintText: l10n.inputMessage,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              ),
-              maxLines: null,
-              textCapitalization: TextCapitalization.none,
-              onSubmitted: (_) => _sendMessage(),
+            child: Center(
+              child: Text(emoji, style: const TextStyle(fontSize: 28)),
             ),
-          ),
-          const SizedBox(width: 4),
-          // 发送按钮：有预览时发送媒体；有文本时发送文本；否则禁用
-          IconButton(
-            icon: const Icon(Icons.send_rounded),
-            color: theme.colorScheme.primary,
-            tooltip: l10n.send,
-            onPressed: _sendMessage,
-          ),
-        ],
+          );
+        }).toList(),
       ),
     );
   }

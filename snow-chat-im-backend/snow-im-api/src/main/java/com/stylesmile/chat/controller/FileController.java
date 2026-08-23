@@ -31,10 +31,10 @@ import java.util.Set;
 public class FileController {
 
     /**
-     * 媒体类型白名单：image / video / file。
+     * 媒体类型白名单：image / video / file / voice。
      * 用于校验路径变量 {@code {type}}，防止非法路径触发任意目录写入。
      */
-    private static final Set<String> ALLOWED_MEDIA_TYPES = Set.of("image", "video", "file");
+    private static final Set<String> ALLOWED_MEDIA_TYPES = Set.of("image", "video", "file", "voice");
 
     /**
      * 文件存储服务：负责上传与 pre-signed URL 生成。

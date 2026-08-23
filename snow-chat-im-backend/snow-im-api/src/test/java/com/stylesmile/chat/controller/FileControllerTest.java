@@ -171,6 +171,24 @@ class FileControllerTest {
     }
 
     @Test
+    void mediaUploadSuccessForVoiceType() {
+        // 准备：voice 类型的媒体文件（音频）
+        byte[] content = "fake-voice".getBytes();
+        MockMultipartFile file = new MockMultipartFile("file", "voice.ogg", "audio/ogg", content);
+        UploadResult uploadResult = new UploadResult("voices/uuid.ogg", "https://presigned/voice");
+        when(fileStorageService.uploadAndSign(any(), anyString())).thenReturn(uploadResult);
+
+        // 执行
+        Result<UploadResult> result = controller.uploadMedia("voice", file);
+
+        // 验证：成功返回，type 被规范化为复数 "voices"
+        assertEquals("200", result.getCode());
+        assertNotNull(result.getData());
+        assertEquals("voices/uuid.ogg", result.getData().key());
+        verify(fileStorageService).uploadAndSign(any(), eq("voices"));
+    }
+
+    @Test
     void mediaUploadReturnsFailForInvalidType() {
         // 准备：非法 type（路径穿越风险）
         byte[] content = "fake".getBytes();

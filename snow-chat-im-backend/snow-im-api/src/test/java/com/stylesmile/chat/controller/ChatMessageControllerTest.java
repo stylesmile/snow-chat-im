@@ -124,13 +124,13 @@ class ChatMessageControllerTest {
     }
 
     /**
-     * 消息类型白名单校验：合法 type（image/video/file/self/recall）应正常发送
+     * 消息类型白名单校验：合法 type（image/video/file/voice/emoji/self/recall）应正常发送
      */
     @Test
     void sendAcceptsAllowedMessageTypes() {
         // 循环前统一设置 lenient stub：避免 strict stubbing 在循环中叠加冲突
         org.mockito.Mockito.lenient().doNothing().when(chatMessageService).sendMessage(any());
-        for (String type : new String[]{"image", "video", "file", "self", "recall"}) {
+        for (String type : new String[]{"image", "video", "file", "voice", "emoji", "self", "recall"}) {
             // 准备
             SendMessageDTO dto = new SendMessageDTO();
             dto.setFromUserId(1L);

@@ -448,6 +448,54 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsMenu => '设置';
+
+  @override
+  String get attach => '附件';
+
+  @override
+  String get emoji => '表情';
+
+  @override
+  String get image => '图片';
+
+  @override
+  String get video => '视频';
+
+  @override
+  String get file => '文件';
+
+  @override
+  String get send => '发送';
+
+  @override
+  String get chooseImageSource => '选择图片来源';
+
+  @override
+  String get chooseVideoSource => '选择视频来源';
+
+  @override
+  String get chooseFileSource => '选择文件来源';
+
+  @override
+  String get gallery => '相册';
+
+  @override
+  String get camera => '相机';
+
+  @override
+  String get pickImageFailed => '选择图片失败';
+
+  @override
+  String get pickVideoFailed => '选择视频失败';
+
+  @override
+  String get pickFileFailed => '选择文件失败';
+
+  @override
+  String get uploading => '上传中';
+
+  @override
+  String get uploadFailed => '上传失败';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).

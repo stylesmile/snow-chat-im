@@ -448,4 +448,52 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get settingsMenu => '설정';
+
+  @override
+  String get attach => 'Attach';
+
+  @override
+  String get emoji => 'Emoji';
+
+  @override
+  String get image => 'Image';
+
+  @override
+  String get video => 'Video';
+
+  @override
+  String get file => 'File';
+
+  @override
+  String get send => 'Send';
+
+  @override
+  String get chooseImageSource => 'Choose image source';
+
+  @override
+  String get chooseVideoSource => 'Choose video source';
+
+  @override
+  String get chooseFileSource => 'Choose file source';
+
+  @override
+  String get gallery => 'Gallery';
+
+  @override
+  String get camera => 'Camera';
+
+  @override
+  String get pickImageFailed => 'Failed to pick image';
+
+  @override
+  String get pickVideoFailed => 'Failed to pick video';
+
+  @override
+  String get pickFileFailed => 'Failed to pick file';
+
+  @override
+  String get uploading => 'Uploading';
+
+  @override
+  String get uploadFailed => 'Upload failed';
 }
