@@ -2,11 +2,13 @@ package com.stylesmile.chat.controller;
 
 import com.stylesmile.chat.service.ChatUserService;
 import com.stylesmile.chat.service.ChatVerifyCodeService;
-import com.stylesmile.common.constant.UserConstant;
+import com.stylesmile.chat.service.FileStorageService;
 import com.stylesmile.common.util.JwtUtil;
 import com.stylesmile.common.util.Result;
+import com.stylesmile.chat.dto.UploadResult;
 import com.stylesmile.chat.entity.ChatUser;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,6 +30,9 @@ public class ChatUserController {
 
     @Resource
     private ChatVerifyCodeService verifyCodeService;
+
+    @Resource
+    private FileStorageService fileStorageService;
 
     /**
      * 用户登录：验证用户名密码，成功返回用户信息 + JWT token
@@ -62,6 +67,49 @@ public class ChatUserController {
     @PostMapping("/logout")
     public Result<Void> logout() {
         return Result.success();
+    }
+
+    /**
+     * 上传用户头像（独立接口，上传到avatars/目录，持久化到DB，返回展示URL）
+     *
+     * <p>流程：
+     * <ol>
+     *   <li>从 token 解析当前 userId（由 AuthFilter 设置）；</li>
+     *   <li>上传文件到对象存储（key 格式：avatars/{uuid}.{ext}）；</li>
+     *   <li>将存储 key 写入 ChatUser.avatar 字段；</li>
+     *   <li>返回 {key, url}，url 为永久可访问地址（非 pre-signed URL）。</li>
+     * </ol>
+     *
+     * @param file multipart 头像文件，表单字段名 file
+     * @return Result<Map> data 中包含 key（DB 存储值）和 url（前端展示地址）
+     */
+    @PostMapping("/avatar/upload")
+    public Result<Map<String, String>> uploadAvatar(@RequestParam("file") MultipartFile file,
+                                                     HttpServletRequest request) {
+        // 1. 从 token 获取当前用户 ID（AuthFilter 已设置）
+        Integer userId = get_currentUserId(request);
+        if (userId == null) {
+            return Result.failMessage("未登录");
+        }
+        // 2. 上传文件，获取 key 和预签名 URL
+        UploadResult uploadResult = fileStorageService.uploadAndSign(file);
+        if (uploadResult == null) {
+            return Result.failMessage("头像上传失败");
+        }
+        String key = uploadResult.key();
+        String presignedUrl = uploadResult.url();
+        // 3. 更新 DB 中的头像字段为 storage key
+        ChatUser user = chatUserService.getUserById(userId);
+        if (user == null) {
+            return Result.failMessage("用户不存在");
+        }
+        user.setAvatar(key);
+        chatUserService.updateById(user);
+        // 4. 返回：key 供后续查询，url 为可访问地址
+        Map<String, String> data = new HashMap<>();
+        data.put("key", key);
+        data.put("url", presignedUrl);
+        return Result.success(data);
     }
 
     /**
