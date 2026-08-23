@@ -4,6 +4,8 @@ import com.stylesmile.common.service.BaseService;
 import com.stylesmile.common.util.Result;
 import com.stylesmile.chat.entity.ChatUser;
 
+import java.util.List;
+
 /**
  * 聊天用户服务
  *
@@ -73,4 +75,12 @@ public interface ChatUserService extends BaseService<ChatUser> {
      * @return Result
      */
     Result resetPasswordByEmail(String email, String code, String newPassword);
+
+    /**
+     * 模糊搜索用户（匹配 username 或 nickname）
+     *
+     * @param keyword 搜索关键词
+     * @return 匹配的用户列表（最多返回前 20 条）
+     */
+    List<ChatUser> searchUsers(String keyword);
 }

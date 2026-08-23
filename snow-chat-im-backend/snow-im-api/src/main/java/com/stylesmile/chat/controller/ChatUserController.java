@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 import javax.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -110,6 +111,21 @@ public class ChatUserController {
         data.put("key", key);
         data.put("url", presignedUrl);
         return Result.success(data);
+    }
+
+    /**
+     * 模糊搜索用户（匹配 username 或 nickname，最多返回 20 条）
+     *
+     * @param keyword 搜索关键词
+     * @return 匹配的用户列表
+     */
+    @GetMapping("/search")
+    public Result<List<ChatUser>> searchUsers(@RequestParam String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return Result.success(java.util.List.of());
+        }
+        java.util.List<ChatUser> users = chatUserService.searchUsers(keyword.trim());
+        return Result.success(users);
     }
 
     /**

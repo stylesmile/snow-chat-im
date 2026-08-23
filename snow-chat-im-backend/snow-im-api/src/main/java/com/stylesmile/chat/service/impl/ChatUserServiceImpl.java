@@ -10,6 +10,7 @@ import com.stylesmile.chat.service.ChatVerifyCodeService;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import java.util.List;
 
 /**
  * 聊天用户服务实现
@@ -149,5 +150,16 @@ public class ChatUserServiceImpl extends BaseServiceImpl<ChatUserMapper, ChatUse
         user.setPassword(SecureUtil.md5(newPassword));
         updateById(user);
         return Result.success();
+    }
+
+    /**
+     * 模糊搜索用户（匹配 username 或 nickname）
+     */
+    @Override
+    public List<ChatUser> searchUsers(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return List.of();
+        }
+        return baseMapper.searchUsers(keyword.trim());
     }
 }

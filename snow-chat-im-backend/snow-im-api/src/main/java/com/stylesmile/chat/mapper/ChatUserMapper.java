@@ -5,6 +5,8 @@ import com.stylesmile.chat.entity.ChatUser;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.List;
+
 /**
  * 聊天用户 mapper
  *
@@ -21,4 +23,12 @@ public interface ChatUserMapper extends BaseMapper<ChatUser> {
      * @return ChatUser
      */
     ChatUser getUserByUsername(@Param("username") String username);
+
+    /**
+     * 模糊搜索用户（匹配 username 或 nickname）
+     *
+     * @param keyword 搜索关键词
+     * @return 匹配的用户列表
+     */
+    List<ChatUser> searchUsers(@Param("keyword") String keyword);
 }

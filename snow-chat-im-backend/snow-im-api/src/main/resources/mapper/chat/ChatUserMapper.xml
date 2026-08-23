@@ -7,4 +7,14 @@
     <select id="getUserByUsername" resultMap="chatUser">
         SELECT * FROM chat_user WHERE username = #{username} AND del_flag = 0
     </select>
+
+    <!-- 模糊搜索用户：匹配 username 或 nickname（排除已删除用户） -->
+    <select id="searchUsers" resultMap="chatUser">
+        SELECT * FROM chat_user
+        WHERE del_flag = 0
+          AND (username LIKE CONCAT('%', #{keyword}, '%')
+               OR nickname LIKE CONCAT('%', #{keyword}, '%'))
+        LIMIT 20
+    </select>
 </mapper>
+
