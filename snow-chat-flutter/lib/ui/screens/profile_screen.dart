@@ -3,12 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
-import '../../providers/settings_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/profile_service.dart';
 import '../widgets/avatar_widget.dart';
 import 'contact_tab.dart';
-import 'login_screen.dart';
+import 'settings_screen.dart';
 
 /// 个人中心独立页面（WINCHAT 设计稿风格）
 ///
@@ -48,7 +47,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final settings = context.watch<SettingsProvider>();
     final auth = context.watch<AuthProvider>();
 
     // 头像占位首字母
@@ -68,7 +66,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           padding: const EdgeInsets.symmetric(vertical: 16),
           children: [
             // === 顶部用户信息区 ===
-            _buildHeaderSection(context, auth, initials, l10n),
+            _buildHeaderSection(context, auth, initials, nickname),
             const SizedBox(height: 16),
 
             // === 钱包 & WIN卡 ===
@@ -99,38 +97,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ]),
             const SizedBox(height: 12),
 
-            // === 设置 ===
-            _buildMenuCard([
-              ProfileMenuItem(
-                iconColor: const Color(0xFF6B7280),
-                label: l10n.settingsMenu,
-              ),
-            ]),
-            const SizedBox(height: 12),
-
-            // === 语言切换 ===
-            _buildLanguageTile(settings, l10n),
-            const SizedBox(height: 12),
-
-            // === 隐私 ===
-            _buildSimpleTile(
-              iconColor: const Color(0xFF6B7280),
-              label: l10n.privacy,
-              onTap: () {},
-            ),
-            const SizedBox(height: 12),
-
-            // === 关于 ===
-            _buildSimpleTile(
-              iconColor: const Color(0xFF6B7280),
-              label: l10n.about,
-              subtitle: 'v1.0.0',
-              onTap: () {},
-            ),
-            const SizedBox(height: 24),
-
-            // === 退出登录 ===
-            _buildLogoutTile(auth, l10n),
+            // === 设置（点击进入子页面）===
+            _buildSettingTile(context, l10n),
           ],
         ),
       ),
@@ -148,7 +116,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     BuildContext context,
     AuthProvider auth,
     String initials,
-    AppLocalizations l10n,
+    String nickname,
   ) {
     if (auth.userId == null) return const SizedBox.shrink();
 
@@ -163,7 +131,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         child: Row(
           children: [
-            // 圆形头像
+            // 圆形头像（64x64，上传中叠加 loading）
             Stack(
               alignment: Alignment.center,
               children: [
@@ -173,14 +141,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   size: 64,
                 ),
                 if (_isUploading) ...[
+                  // 上传中：半透明遮罩
                   Container(
                     width: 64,
                     height: 64,
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.4),
+                      color: Colors.black.withValues(alpha: 0.4),
                       shape: BoxShape.circle,
                     ),
                   ),
+                  // 白色旋转进度指示器
                   const SizedBox(
                     width: 24,
                     height: 24,
@@ -198,8 +168,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // 昵称
                   Text(
-                    initials.isNotEmpty ? initials : '-',
+                    nickname.isNotEmpty ? nickname : '-',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -207,6 +178,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   const SizedBox(height: 4),
+                  // @username + 锁图标
                   Row(
                     children: [
                       Text(
@@ -230,7 +202,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  /// 构建一组菜单卡片
+  /// 构建分组菜单卡片
   Widget _buildMenuCard(List<ProfileMenuItem> items) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -296,109 +268,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  /// 普通 ListTile
-  Widget _buildSimpleTile({
-    required Color iconColor,
-    required String label,
-    String? subtitle,
-    required VoidCallback onTap,
-  }) {
-    return Column(
-      children: [
-        ListTile(
-          leading: _buildColoredIcon(iconColor),
-          title: Text(label, style: const TextStyle(color: Colors.white, fontSize: 16)),
-          trailing: subtitle != null
-              ? Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(subtitle, style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
-                    const SizedBox(width: 4),
-                    const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
-                  ],
-                )
-              : const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
-          onTap: onTap,
+  /// 构建"设置"条目（点击跳转到 SettingsScreen）
+  Widget _buildSettingTile(BuildContext context, AppLocalizations l10n) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        leading: _buildColoredIcon(const Color(0xFF6B7280)),
+        title: Text(
+          l10n.settingsMenu,
+          style: const TextStyle(color: Colors.white, fontSize: 16),
         ),
-        const Divider(height: 1, indent: 64, color: Color(0x0FFFFFFF)),
-      ],
-    );
-  }
-
-  /// 语言切换 ExpansionTile
-  Widget _buildLanguageTile(SettingsProvider settings, AppLocalizations l10n) {
-    return Column(
-      children: [
-        ExpansionTile(
-          leading: const Icon(Icons.language, color: Colors.grey, size: 24),
-          title: Text(
-            l10n.language,
-            style: const TextStyle(color: Colors.white, fontSize: 16),
-          ),
-          children: settings.availableLocales.map((localeInfo) {
-            final isSelected = settings.locale.languageCode == localeInfo.locale.languageCode &&
-                settings.locale.countryCode == localeInfo.locale.countryCode;
-            return RadioListTile<String>(
-              title: Text(
-                '${localeInfo.flag} ${settings.getLocaleName(localeInfo.locale)}',
-                style: const TextStyle(color: Colors.white70),
-              ),
-              value: localeInfo.locale.languageCode,
-              groupValue: isSelected ? settings.locale.languageCode : null,
-              activeColor: Theme.of(context).colorScheme.primary,
-              onChanged: (value) {
-                if (value != null) {
-                  settings.setLocale(localeInfo.locale);
-                }
-              },
-            );
-          }).toList(),
-        ),
-        const Divider(height: 1, indent: 64, color: Color(0x0FFFFFFF)),
-      ],
-    );
-  }
-
-  /// 退出登录 ListTile
-  Widget _buildLogoutTile(AuthProvider auth, AppLocalizations l10n) {
-    return Column(
-      children: [
-        ListTile(
-          leading: const Icon(Icons.logout, color: Colors.red, size: 24),
-          title: Text(
-            l10n.logout,
-            style: const TextStyle(color: Colors.red, fontSize: 16),
-          ),
-          onTap: () {
-            showDialog(
-              context: context,
-              builder: (dialogContext) => AlertDialog(
-                backgroundColor: _cardColor,
-                title: Text(l10n.logout, style: const TextStyle(color: Colors.white)),
-                content: Text(l10n.logout, style: const TextStyle(color: Colors.white70)),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(dialogContext),
-                    child: Text(l10n.cancel, style: const TextStyle(color: Colors.grey)),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(dialogContext);
-                      auth.logout();
-                      Navigator.of(context).pushAndRemoveUntil(
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
-                        (route) => false,
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                    child: Text(l10n.confirm),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      ],
+        trailing: const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const SettingsScreen()),
+          );
+        },
+      ),
     );
   }
 

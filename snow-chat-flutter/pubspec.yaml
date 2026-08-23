@@ -1,7 +1,7 @@
 name: snow_chat
 description: A real-time chat application.
 publish_to: 'none'
-version: 2.0.1
+version: 2.0.2
 
 environment:
   sdk: '>=3.2.0 <4.0.0'
