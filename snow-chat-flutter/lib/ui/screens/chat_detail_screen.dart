@@ -1143,10 +1143,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       }
       // 停止其他语音（若有）
       await _audioPlayer.stop();
-      // 设置播放源（网络 URL）并播放；audioplayers 6.x 使用 UrlSource + play()
-      await _audioPlayer.setSourceUrl(url);
+      // 设置播放源（网络 URL）并播放；audioplayers 6.x play() 需要 Source 参数
       setState(() => _playingVoiceMsgId = msgId);
-      await _audioPlayer.play();
+      await _audioPlayer.play(UrlSource(url));
       // 播放结束自动重置状态
       _audioPlayer.onPlayerComplete.listen((_) {
         if (mounted) {
