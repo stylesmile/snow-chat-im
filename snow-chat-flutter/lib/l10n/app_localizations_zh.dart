@@ -496,6 +496,21 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get uploadFailed => '上传失败';
+
+  @override
+  String get voice => '语音';
+
+  @override
+  String get voicePermissionDenied => '需要麦克风权限才能录音';
+
+  @override
+  String get voiceRecordFailed => '录音失败';
+
+  @override
+  String get voiceStopFailed => '停止录音失败';
+
+  @override
+  String get pickAssetFailed => '选择媒体失败';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).

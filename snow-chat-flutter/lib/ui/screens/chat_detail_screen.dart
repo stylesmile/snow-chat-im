@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:wechat_assets_picker/wechat_assets_picker.dart';
+import 'package:video_player/video_player.dart';
+import 'package:record/record.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -18,6 +20,9 @@ import '../../providers/chat_provider.dart';
 import '../widgets/chat_bubble.dart';
 import 'group_detail_screen.dart';
 import '../../core/utils/date_utils.dart' as app_date;
+
+/// 媒体类型：image / video / audio / file
+enum MediaType { image, video, audio, file }
 
 class ChatDetailScreen extends StatefulWidget {
   final int targetId;
@@ -43,18 +48,29 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   bool _hasMore = false;
   String _sessionId = '';
   MqttChatClient? _mqttClient;
-  // 临时选择器状态：记录待发送的媒体/文件（等待用户点击发送按钮后再真正发送）
-  File? _pendingMediaFile;     // 待发送的文件对象（图片/视频/文档/语音）
-  String _pendingMediaType = 'text'; // 当前选中类型：text / image / video / file / voice
-  String? _pendingMediaUrl;    // 已上传后的 URL，直接用作消息 content
-  String? _pendingFileName;    // 文件名（仅 file 类型需要展示）
+
+  // 临时选择器状态
+  File? _pendingMediaFile;
+  String _pendingMediaType = 'text'; // text / image / video / file / voice
+  String? _pendingMediaUrl;
+  String? _pendingFileName;
+
   // 表情面板状态
-  bool _showEmojiPanel = false; // 是否显示 emoji 选择面板
-  static const List<String> _emojiList = [ // 常用 emoji 列表（微信风格：一行 8 个，两行）
+  bool _showEmojiPanel = false;
+  static const List<String> _emojiList = [
     '😀','😂','🥰','😍','🤩','😘','😊','🥳',
     '😎','🤔','😅','😭','😱','🤗','🫡','😇',
     '👍','👏','🙏','💪','❤️','🔥','💯','🎉',
   ];
+
+  // 视频播放器控制器（每个视频消息独立持有）
+  final Map<int, VideoPlayerController> _videoPlayers = {};
+
+  // 录音状态
+  final AudioRecorder _recorder = AudioRecorder();
+  String? _recordingPath;
+  bool _isRecording = false;
+  Duration? _recordDuration;
 
   @override
   void initState() {
@@ -64,11 +80,27 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     _initMqtt();
   }
 
+  @override
+  void dispose() {
+    _controller.dispose();
+    _scrollController.dispose();
+    _mqttClient?.disconnect();
+    // 释放所有视频播放器
+    for (final controller in _videoPlayers.values) {
+      controller.dispose();
+    }
+    _videoPlayers.clear();
+    // 停止录音（如有）
+    if (_isRecording) {
+      _recorder.stop();
+    }
+    super.dispose();
+  }
+
   /// 进入聊天页时把该对话保存到本地会话列表，并清空未读数。
   Future<void> _ensureConversationSaved() async {
     final auth = context.read<AuthProvider>();
     if (auth.userId == null) return;
-
     final now = DateTime.now().millisecondsSinceEpoch;
     await ConversationService().saveSession(
       userId: auth.userId!,
@@ -78,13 +110,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       lastMsgTime: now,
       unreadCount: 0,
     );
-
-    // 通知服务端标记消息为已读
     final service = ChatService(auth.apiClient);
     service.markAsRead(auth.userId!, widget.targetId, widget.targetType);
-
     if (!mounted) return;
-    // 清空该会话的未读数，导航栏角标和列表角标同步更新
     context.read<ChatProvider>().updateConversation(
       Conversation(
         targetId: widget.targetId,
@@ -99,14 +127,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   Future<void> _initCache() async {
     final auth = context.read<AuthProvider>();
     if (auth.userId == null) return;
-
     _sessionId = widget.targetType == 'group'
         ? MessageCacheManager.sessionIdForGroup(widget.targetId)
         : MessageCacheManager.sessionIdForPrivate(auth.userId!, widget.targetId);
-
     await MessageCacheManager().init();
     final cached = await MessageCacheManager().recentMessages(_sessionId, limit: 30);
-
     if (mounted) {
       setState(() {
         _messages.addAll(cached.map((m) => _DisplayMessage.fromModel(m)));
@@ -114,32 +139,25 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         _hasMore = _messages.isNotEmpty;
       });
     }
-
-    // 后台同步服务端最新历史，并更新缓存
     await _loadHistory();
-
-    // 进入聊天页面时，请求服务器推送未推送成功的消息
     _fetchUndelivered();
   }
 
   void _initMqtt() async {
     final auth = context.read<AuthProvider>();
     final userId = auth.userId ?? 0;
-    // 使用独立 clientId，避免与 HomeScreen 的全局 MQTT 连接互踢
     final chatClientId = 'user_${userId}_chat_${widget.targetId}_${widget.targetType}';
     _mqttClient = MqttChatClient(
       host: AppConfig.mqttHost,
       port: AppConfig.mqttPort,
       onMessage: _handleMqttMessage,
     );
-    // 等待连接完成后再订阅群主题
     await _mqttClient?.connect(
       userId: userId,
       username: AppConfig.mqttUsername,
       password: AppConfig.mqttPassword,
       clientId: chatClientId,
     );
-    // 连接成功后订阅群主题
     if (widget.targetType == 'group') {
       _mqttClient?.subscribeGroup(widget.targetId);
     }
@@ -150,16 +168,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     if (!mounted) return;
     debugPrint('[ChatDetail] _handleMqttMessage cmd=$cmd, data=$data');
     if (cmd == WsCmd.msgPush) {
-      // 只处理与自己相关的消息
       final fromUserId = MessageUtils.toNullableInt(data['fromUserId']);
       final toUserId = MessageUtils.toNullableInt(data['toUserId']);
       final groupId = MessageUtils.toNullableInt(data['groupId']);
-
       bool isRelated = false;
       if (widget.targetType == 'group') {
         isRelated = groupId == widget.targetId;
       } else if (widget.targetType == 'file_helper') {
-        // 文件传输助手：消息是"发给自己的"（from=to=自己），推送到本人 topic
         final auth = context.read<AuthProvider>();
         isRelated = fromUserId == auth.userId && toUserId == auth.userId;
       } else {
@@ -167,8 +182,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         isRelated = (fromUserId == widget.targetId && toUserId == auth.userId) ||
                     (fromUserId == auth.userId && toUserId == widget.targetId);
       }
-      debugPrint('[ChatDetail] isRelated=$isRelated, targetType=${widget.targetType}, targetId=${widget.targetId}, from=$fromUserId, to=$toUserId, groupId=$groupId');
-
+      debugPrint('[ChatDetail] isRelated=$isRelated, targetType=${widget.targetType}, targetId=${widget.targetId}');
       if (isRelated) {
         final incoming = _DisplayMessage.fromJson(data);
         final localSeq = MessageUtils.toNullableInt(data['localSeq']);
@@ -190,17 +204,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           }
         });
         _scrollToBottom();
-
-        // 收到对方消息后，向服务器发送回执确认（仅对方发来的消息才回执）
         if (fromUserId != null && fromUserId != (context.read<AuthProvider>().userId ?? 0)) {
           _sendReceipt(incoming.id);
         }
       }
     } else if (cmd == WsCmd.msgReceiptAck) {
-      // 服务器回执：确认消息已推送给对方，更新 pushStatus 为 delivered
       final msgId = MessageUtils.toNullableInt(data['messageId']);
       if (msgId != null) {
-        debugPrint('[ChatDetail] msgReceiptAck for msgId=$msgId, updating pushStatus to delivered');
+        debugPrint('[ChatDetail] msgReceiptAck for msgId=$msgId');
         await MessageCacheManager().updatePushStatus(_sessionId, msgId, 'delivered');
         if (!mounted) return;
         setState(() {
@@ -211,7 +222,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         });
       }
     } else if (cmd == WsCmd.fetchUndeliveredAck) {
-      // 服务器推送未推送成功的消息列表
       final messages = data as List<dynamic>? ?? [];
       debugPrint('[ChatDetail] fetchUndeliveredAck: ${messages.length} messages');
       for (final msgData in messages) {
@@ -223,34 +233,27 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           setState(() => _messages.add(incoming));
         }
       }
-      // 重新排序并滚动到底部
       if (messages.isNotEmpty && mounted) {
         setState(() {
           _messages.sort((a, b) => a.createTime.compareTo(b.createTime));
         });
         _scrollToBottom();
       }
-    } else if (cmd == WsCmd.friendReqNotify) {
-      // 好友请求通知
     }
   }
 
-  /// 向服务器发送消息回执（接收方确认收到消息）- 通过 REST API
   void _sendReceipt(int messageId) {
     final auth = context.read<AuthProvider>();
     if (auth.userId == null) return;
     final service = ChatService(auth.apiClient);
     service.sendReceipt(messageId, auth.userId!, widget.targetId, widget.targetType);
-    debugPrint('[ChatDetail] sent msgReceipt for messageId=$messageId');
   }
 
-  /// 进入聊天页面时请求服务器推送未推送成功的消息 - 通过 REST API
   void _fetchUndelivered() async {
     final auth = context.read<AuthProvider>();
     if (auth.userId == null) return;
     final service = ChatService(auth.apiClient);
     final messages = await service.fetchUndelivered(auth.userId!, widget.targetId, widget.targetType);
-    debugPrint('[ChatDetail] fetchUndelivered: ${messages.length} messages');
     if (messages.isEmpty || !mounted) return;
     for (final msg in messages) {
       await MessageCacheManager().appendMessage(_sessionId, msg);
@@ -271,7 +274,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   Future<void> _loadHistory() async {
     final auth = context.read<AuthProvider>();
     if (auth.userId == null) return;
-
     if (mounted) setState(() => _isLoading = true);
     final service = ChatService(auth.apiClient);
     final messages = await service.getHistory(
@@ -281,27 +283,18 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       page: 1,
       size: 30,
     );
-
-    // 同步写入本地缓存
     for (final m in messages) {
       await MessageCacheManager().appendMessage(_sessionId, m);
     }
-
     if (!mounted) return;
-
-    // 以缓存为准重新加载，但保留 _messages 中已有但缓存快照还没同步的实时消息
-    // （避免竞态：MQTT 消息刚到、缓存写入尚未完成时被清空）
     final cached = await MessageCacheManager().recentMessages(_sessionId, limit: 30);
     if (!mounted) return;
     setState(() {
-      // 用 id 做 key 合并：缓存版本优先（可能含更新的 status），保留 _messages 中未同步的实时消息
       final merged = <int, _DisplayMessage>{};
-      for (final m in _messages) {
-        merged[m.id] = m;
-      }
+      for (final m in _messages) merged[m.id] = m;
       for (final m in cached) {
         final display = _DisplayMessage.fromModel(m);
-        merged[display.id] = display; // 缓存版本覆盖
+        merged[display.id] = display;
       }
       _messages
         ..clear()
@@ -314,14 +307,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   Future<void> _loadMore() async {
     if (!_hasMore || _messages.isEmpty) return;
-
     final earliest = _messages.first;
     final older = await MessageCacheManager().loadHistory(
       _sessionId,
       beforeTime: earliest.createTime,
       limit: 20,
     );
-
     if (older.isNotEmpty) {
       setState(() {
         _messages.insertAll(0, older.map((m) => _DisplayMessage.fromModel(m)));
@@ -332,123 +323,120 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     }
   }
 
-  /// 打开图片选择器（相册 / 相机），选择后回调 [onPicked]
-  Future<void> _pickImage(void Function(File) onPicked) async {
+  /// 使用 wechat_assets_picker 选择媒体（图片/视频/音频/文件）
+  ///
+  /// [type] 决定 RequestType：image / video / audio / all（all 包含文件）
+  /// 选择完成后回调 [onPicked] 携带 File
+  Future<void> _pickAsset({
+    required MediaType type,
+    required void Function(File) onPicked,
+  }) async {
     try {
-      final picker = ImagePicker();
-      // 先询问用户：从相册选图还是拍照
-      final source = await showDialog<ImageSource>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(AppLocalizations.of(context)!.chooseImageSource),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, ImageSource.gallery),
-              child: Text(AppLocalizations.of(context)!.gallery),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, ImageSource.camera),
-              child: Text(AppLocalizations.of(context)!.camera),
-            ),
-          ],
+      final RequestType requestType;
+      switch (type) {
+        case MediaType.image:
+          requestType = RequestType.image;
+          break;
+        case MediaType.video:
+          requestType = RequestType.video;
+          break;
+        case MediaType.audio:
+          requestType = RequestType.audio;
+          break;
+        case MediaType.file:
+          // wechat_assets_picker 不支持通用文件，降级为 image 后由后端按 ext 判断
+          // 实际生产建议接入 file_picker 插件
+          requestType = RequestType.image;
+          break;
+      }
+      final List<AssetEntity>? results = await AssetPicker.pickAssets(
+        context,
+        pickerConfig: AssetPickerConfig(
+          requestType: requestType,
+          maxAssets: 1,
+          gridCount: 4,
+          themeColor: Theme.of(context).colorScheme.primary,
+          textDelegate: AssetPickerTextDelegate(),
         ),
       );
-      if (source == null) return;
-      // 调用 image_picker 获取 XFile，再转为 File
-      final XFile? picked = await picker.pickImage(
-        source: source,
-        maxWidth: 1920,   // 限制最大宽度，避免大文件上传慢
-        maxHeight: 1920,
-        imageQuality: 85, // 压缩质量 85%，在清晰度与流量之间平衡
-      );
-      if (picked == null) return;
-      onPicked(File(picked.path));
+      if (results == null || results.isEmpty) return;
+      // 获取本地路径并转为 File
+      final path = await results.first.path;
+      if (path == null) return;
+      onPicked(File(path));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.pickImageFailed + ': $e')),
+        SnackBar(content: Text('${AppLocalizations.of(context)!.pickAssetFailed}: $e')),
       );
     }
   }
 
-  /// 打开视频选择器（相册 / 相机），选择后回调 [onPicked]
-  Future<void> _pickVideo(void Function(File) onPicked) async {
+  /// 开始录音
+  Future<void> _startRecording() async {
     try {
-      final picker = ImagePicker();
-      final source = await showDialog<ImageSource>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(AppLocalizations.of(context)!.chooseVideoSource),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, ImageSource.gallery),
-              child: Text(AppLocalizations.of(context)!.gallery),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, ImageSource.camera),
-              child: Text(AppLocalizations.of(context)!.camera),
-            ),
-          ],
-        ),
-      );
-      if (source == null) return;
-      final XFile? picked = await picker.pickVideo(source: source);
-      if (picked == null) return;
-      onPicked(File(picked.path));
+      if (!await _recorder.hasPermission()) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context)!.voicePermissionDenied)),
+        );
+        return;
+      }
+      final path = '${(await getTemporaryDirectory()).path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      await _recorder.start(const RecordConfig(), path: path);
+      setState(() {
+        _isRecording = true;
+        _recordingPath = path;
+        _recordDuration = Duration.zero;
+      });
+      // 定时更新录音时长
+      Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (!mounted || !_isRecording) {
+          timer.cancel();
+          return;
+        }
+        setState(() {
+          _recordDuration = (_recordDuration ?? Duration.zero) + const Duration(seconds: 1);
+        });
+      });
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.pickVideoFailed + ': $e')),
+        SnackBar(content: Text('${AppLocalizations.of(context)!.voiceRecordFailed}: $e')),
       );
     }
   }
 
-  /// 打开系统文件选择器，限制只能选图片/视频/文档（排除其他任意文件）
-  Future<void> _pickFile(void Function(File) onPicked) async {
+  /// 停止录音并上传
+  Future<void> _stopRecording() async {
     try {
-      // 这里仅做文件选择，不再进一步限制 MIME（后端 uploadMedia 端点只校验 type 白名单）
-      // 使用 image_picker 模拟（仅取 path）；实际生产可接入 path_provider + open_file 或 file_picker 插件
-      final picker = ImagePicker();
-      // image_picker 不直接支持通用文件，这里回退到相册通道：
-      // - 相册：用户手动挑选图片/视频（已覆盖大部分场景）
-      // - 若需选 PDF/压缩包等文档，提示用户使用系统分享面板
-      final source = await showDialog<ImageSource>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(AppLocalizations.of(context)!.chooseFileSource),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, ImageSource.gallery),
-              child: Text(AppLocalizations.of(context)!.gallery),
-            ),
-          ],
-        ),
-      );
-      if (source == null) return;
-      final XFile? picked = await picker.pickImage(source: source);
-      if (picked == null) return;
-      onPicked(File(picked.path));
+      if (!_isRecording) return;
+      final path = await _recorder.stop();
+      setState(() => _isRecording = false);
+      if (path == null) return;
+      // 上传语音并发送
+      final file = File(path);
+      _onMediaPicked(file, 'voice');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.pickFileFailed + ': $e')),
+        SnackBar(content: Text('${AppLocalizations.of(context)!.voiceStopFailed}: $e')),
       );
     }
   }
 
-  /// 发送消息（含文本 / 图片 / 视频 / 文件）
+  /// 发送消息（含文本 / 图片 / 视频 / 文件 / 语音）
   Future<void> _sendMessage() async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     final l10n = AppLocalizations.of(context)!;
     final auth = context.read<AuthProvider>();
     final now = DateTime.now().millisecondsSinceEpoch;
 
-    // 分支 1：用户选择了媒体/文件，先上传再发送
+    // 分支 1：用户选择了媒体/文件/语音，先上传再发送
     if (_pendingMediaType != 'text' && _pendingMediaUrl != null) {
       final type = _pendingMediaType;
       final content = _pendingMediaUrl!;
       final fileName = _pendingFileName;
-      // 清空选择器状态，防止重复发送
       setState(() {
         _pendingMediaType = 'text';
         _pendingMediaUrl = null;
@@ -459,7 +447,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       return;
     }
 
-    // 分支 2：用户选择了 emoji，直接发送（无需上传）
+    // 分支 2：用户选择了 emoji，直接发送
     if (_pendingMediaType == 'emoji' && _pendingMediaUrl != null) {
       final content = _pendingMediaUrl!;
       setState(() {
@@ -471,11 +459,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       return;
     }
 
-    // 分支 2：纯文本发送（原有逻辑）
+    // 分支 3：纯文本发送
     final text = _controller.text.trim();
     if (text.isEmpty) return;
-
-    // 乐观UI：立即显示
     setState(() {
       _messages.add(_DisplayMessage(
         id: now,
@@ -490,40 +476,30 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     });
     _controller.clear();
     _scrollToBottom();
-
-    // 通过REST发送，由后端统一落库并MQTT推送
     final service = ChatService(auth.apiClient);
-    // 文件传输助手：接收人改为自己（touserId=userId），类型标记为 self（新增消息类型）
     final bool isFileHelper = widget.targetType == 'file_helper';
     final sentModel = _DisplayMessage(
       id: now,
       fromUserId: auth.userId ?? 0,
       toUserId: isFileHelper ? (auth.userId ?? 0) : widget.targetId,
-      groupId: widget.targetType == 'group' ? widget.targetId : null,
+      groupId: isFileHelper ? null : (widget.targetType == 'group' ? widget.targetId : null),
       type: isFileHelper ? 'self' : 'text',
       content: text,
       createTime: now,
       status: 'sent',
     );
-    // 文件助手走独立接口（后端强制接收人=自己、类型=self，同步到本人其他登录端）
     final success = isFileHelper
         ? await service.sendFileHelper(sentModel.toModel())
         : await service.sendMessage(sentModel.toModel());
-
     if (!mounted) return;
-
-    // 更新本地消息状态并写入缓存
     final index = _messages.indexWhere((m) => m.id == now);
     if (index != -1) {
       setState(() {
-        _messages[index] = _messages[index].copyWith(
-          status: success ? 'sent' : 'failed',
-        );
+        _messages[index] = _messages[index].copyWith(status: success ? 'sent' : 'failed');
       });
     }
     if (success) {
       await MessageCacheManager().appendMessage(_sessionId, sentModel.copyWith(status: 'sent').toModel());
-      // 更新会话列表 lastMsg（私聊已去掉服务端回显，需客户端主动更新）
       if (mounted) {
         context.read<ChatProvider>().updateConversation(
           Conversation(
@@ -544,15 +520,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         );
       }
     }
-
-    if (!success) {
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text(l10n.messageFailed)),
-      );
+    if (!success && mounted) {
+      scaffoldMessenger.showSnackBar(SnackBar(content: Text(l10n.messageFailed)));
     }
   }
 
-  /// 发送媒体/文件消息：上传到对象存储 → 构造 MessageModel → 发送
+  /// 发送媒体/文件/语音消息：上传到对象存储 → 构造 MessageModel → 发送
   Future<void> _doSendMedia(
     String type,
     String content,
@@ -563,7 +536,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     AppLocalizations l10n,
   ) async {
     final service = ChatService(auth.apiClient);
-    // 构造消息模型：媒体消息 content 存 URL，type 标识类型
     final sentModel = _DisplayMessage(
       id: now,
       fromUserId: auth.userId ?? 0,
@@ -574,31 +546,22 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       createTime: now,
       status: 'sending',
     );
-    // 乐观UI：立即显示
     if (!mounted) return;
-    setState(() {
-      _messages.add(sentModel);
-    });
+    setState(() => _messages.add(sentModel));
     _scrollToBottom();
-
-    // 通过 REST 发送，由后端统一落库并 MQTT 推送
     final success = widget.targetType == 'file_helper'
         ? await service.sendFileHelper(sentModel.toModel())
         : await service.sendMessage(sentModel.toModel());
-
     if (!mounted) return;
     final index = _messages.indexWhere((m) => m.id == now);
     if (index != -1) {
       setState(() {
-        _messages[index] = _messages[index].copyWith(
-          status: success ? 'sent' : 'failed',
-        );
+        _messages[index] = _messages[index].copyWith(status: success ? 'sent' : 'failed');
       });
     }
     if (success) {
       await MessageCacheManager().appendMessage(_sessionId, sentModel.copyWith(status: 'sent').toModel());
       if (mounted) {
-        // 会话 lastMsg：图片/视频/文件消息以类型+文件名作为摘要
         final summary = fileName != null ? '$type: $fileName' : type;
         context.read<ChatProvider>().updateConversation(
           Conversation(
@@ -619,17 +582,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         );
       }
     }
-
     if (!success && mounted) {
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text(l10n.messageFailed)),
-      );
+      scaffoldMessenger.showSnackBar(SnackBar(content: Text(l10n.messageFailed)));
     }
   }
 
   /// 发送 emoji 消息（纯前端直接发送，无需上传）
-  ///
-  /// content 为单个 emoji 字符，type 固定为 "emoji"。
   Future<void> _doSendEmoji(
     String emoji,
     int now,
@@ -638,7 +596,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     AppLocalizations l10n,
   ) async {
     final service = ChatService(auth.apiClient);
-    // 构造消息模型
     final sentModel = _DisplayMessage(
       id: now,
       fromUserId: auth.userId ?? 0,
@@ -649,11 +606,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       createTime: now,
       status: 'sending',
     );
-    // 乐观UI：立即显示
     if (!mounted) return;
     setState(() => _messages.add(sentModel));
     _scrollToBottom();
-    // 通过 REST 发送
     final success = widget.targetType == 'file_helper'
         ? await service.sendFileHelper(sentModel.toModel())
         : await service.sendMessage(sentModel.toModel());
@@ -691,36 +646,33 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     }
   }
 
-  /// 用户点击" attachment" 按钮：按当前选中类型触发对应选择器
+  /// 用户点击附件按钮：按当前选中类型触发对应选择器
   void _onAttachTap() {
     switch (_pendingMediaType) {
       case 'image':
-        _pickImage((file) => _onMediaPicked(file, 'image'));
+        _pickAsset(type: MediaType.image, onPicked: (f) => _onMediaPicked(f, 'image'));
         break;
       case 'video':
-        _pickVideo((file) => _onMediaPicked(file, 'video'));
+        _pickAsset(type: MediaType.video, onPicked: (f) => _onMediaPicked(f, 'video'));
         break;
       case 'file':
-        _pickFile((file) => _onMediaPicked(file, 'file'));
+        _pickAsset(type: MediaType.file, onPicked: (f) => _onMediaPicked(f, 'file'));
         break;
       default:
-        // 未选择类型时不做任何操作
         break;
     }
   }
 
-  /// 选择媒体/文件后的统一处理：
+  /// 选择媒体/文件/语音后的统一处理：
   /// 1. 上传到对象存储（POST /file/media/{type}）
   /// 2. 将返回的 URL 暂存为 _pendingMediaUrl，类型暂存为 _pendingMediaType
   /// 3. 切换到预览状态，等待用户点击发送
   void _onMediaPicked(File file, String type) {
     final l10n = AppLocalizations.of(context)!;
     final service = ChatService(context.read<AuthProvider>().apiClient);
-    // 显示上传中提示
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('${l10n.uploading}...')),
     );
-    // 并发上传：上传完成后再 setState 切换 UI
     service.uploadMedia(file, type).then((result) {
       if (!mounted) return;
       if (result == null) {
@@ -729,12 +681,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         );
         return;
       }
-      // 上传成功，暂存 URL 与文件信息，切换到预览状态
       setState(() {
         _pendingMediaType = type;
         _pendingMediaUrl = result.url;
         _pendingMediaFile = file;
-        // 文件名仅 file 类型需要展示；image/video 可省略
         _pendingFileName = type == 'file' ? file.path.split('/').last : null;
       });
     }).catchError((e) {
@@ -748,7 +698,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   void _scrollToBottom() {
     Future.delayed(const Duration(milliseconds: 100), () {
       if (_scrollController.hasClients) {
-        // reverse: true 时 minScrollExtent 对应视觉底部（最新消息位置）
         _scrollController.animateTo(
           _scrollController.position.minScrollExtent,
           duration: const Duration(milliseconds: 300),
@@ -756,14 +705,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         );
       }
     });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    _scrollController.dispose();
-    _mqttClient?.disconnect();
-    super.dispose();
   }
 
   @override
@@ -775,7 +716,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(displayName),
-        // 群聊显示三点按钮，点击直接进入群聊详情
         actions: widget.targetType == 'group'
             ? [
                 IconButton(
@@ -795,7 +735,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       ),
       body: Column(
         children: [
-          // 预览区域：当用户选中媒体/文件但还未发送时显示
+          // 预览区域
           if (_pendingMediaType != 'text' && _pendingMediaUrl != null)
             _buildMediaPreview(theme),
           Expanded(
@@ -806,17 +746,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            // 空状态图标：深色背景下使用低透明度白，柔和且可见
                             const Icon(Icons.chat_bubble_outline, size: 48, color: Colors.white24),
                             const SizedBox(height: 8),
-                            // 空状态文字：半透明白，保证深色背景上可读
                             Text(l10n.noMessages, style: const TextStyle(color: Colors.white54)),
                           ],
                         ),
                       )
                     : NotificationListener<ScrollNotification>(
                         onNotification: (notification) {
-                          // reverse: true 时 maxScrollExtent 对应视觉顶部，上滑加载更早消息
                           if (notification is ScrollEndNotification &&
                               notification.metrics.pixels == notification.metrics.maxScrollExtent) {
                             _loadMore();
@@ -842,19 +779,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 
-  /// 构建媒体预览组件（图片/视频/文件）
-  ///
-  /// 预览区域位于输入栏上方，显示已选中的媒体缩略图/文件名，并提供取消与重新选择入口。
+  /// 构建媒体预览组件
   Widget _buildMediaPreview(ThemeData theme) {
     final l10n = AppLocalizations.of(context)!;
     final isImage = _pendingMediaType == 'image';
     final isVideo = _pendingMediaType == 'video';
+    final isVoice = _pendingMediaType == 'voice';
     return Container(
       padding: const EdgeInsets.all(8),
       color: theme.cardColor,
       child: Row(
         children: [
-          // 预览图/占位
           Container(
             width: 60,
             height: 60,
@@ -868,15 +803,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     child: Image.file(
                       _pendingMediaFile!,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.white54),
+                      errorBuilder: (_, __, ___) =>
+                          const Icon(Icons.broken_image, color: Colors.white54),
                     ),
                   )
                 : isVideo
                     ? const Icon(Icons.videocam, color: Colors.white54)
-                    : const Icon(Icons.insert_drive_file, color: Colors.white54),
+                    : isVoice
+                        ? const Icon(Icons.mic, color: Colors.white54)
+                        : const Icon(Icons.insert_drive_file, color: Colors.white54),
           ),
           const SizedBox(width: 8),
-          // 文件名（仅 file 类型）
           if (_pendingFileName != null)
             Expanded(
               child: Text(
@@ -885,8 +822,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 style: const TextStyle(fontSize: 13),
               ),
             ),
+          if (isVoice && _recordDuration != null) ...[
+            const SizedBox(width: 8),
+            Text(
+              '${_recordDuration!.inSeconds}""',
+              style: const TextStyle(fontSize: 13),
+            ),
+          ],
           const SizedBox(width: 8),
-          // 取消按钮：清除预览，回到文本输入
           IconButton(
             icon: const Icon(Icons.close, size: 18),
             tooltip: l10n.cancel,
@@ -896,6 +839,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 _pendingMediaUrl = null;
                 _pendingMediaFile = null;
                 _pendingFileName = null;
+                _recordDuration = null;
               });
             },
           ),
@@ -918,10 +862,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             ),
             const SizedBox(width: 8),
           ],
-          // 气泡本体：根据消息类型分发渲染
-          Flexible(
-            child: _buildMessageBubbleByType(msg, isMe, theme),
-          ),
+          Flexible(child: _buildMessageBubbleByType(msg, isMe, theme)),
           if (isMe) ...[
             const SizedBox(width: 8),
             CircleAvatar(
@@ -935,7 +876,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 
-  /// 按消息类型渲染气泡内容
   Widget _buildMessageBubbleByType(_DisplayMessage msg, bool isMe, ThemeData theme) {
     final bubbleColor = isMe ? theme.colorScheme.primary : Colors.grey.shade200;
     final textColor = isMe ? Colors.white : Colors.black87;
@@ -946,7 +886,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         borderRadius: BorderRadius.circular(12),
       ),
       child: switch (msg.type) {
-        // 图片消息：展示图片 URL；data: URL 由 InMemory 降级实现提供
         'image' => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -979,22 +918,26 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               ],
             ],
           ),
-        // 视频消息：展示封面占位，点击播放（此处先用占位，后续可扩展 full-screen player）
         'video' => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               InkWell(
-                onTap: () => _openVideoPlayer(msg.content),
-                child: Container(
-                  width: 200,
-                  height: 150,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.play_circle_outline, size: 48, color: Colors.white70),
-                  ),
+                onTap: () => _openVideoPlayer(msg.id, msg.content),
+                child: Stack(
+                  children: [
+                    Container(
+                      width: 200,
+                      height: 150,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.play_circle_outline, size: 48, color: Colors.white70),
+                      ),
+                    ),
+                    // TODO: 后续用 VideoPlayerController 展示首帧
+                  ],
                 ),
               ),
               if (msg.createTime != null) ...[
@@ -1006,16 +949,19 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               ],
             ],
           ),
-        // 文件消息：展示文件名 + 下载按钮
-        'file' => Column(
+        'voice' => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               InkWell(
-                onTap: () => _openFile(msg.content),
+                onTap: () => _playVoice(msg.content),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.insert_drive_file, size: 28),
+                    Icon(
+                      Icons.play_arrow,
+                      color: textColor,
+                      size: 24,
+                    ),
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
@@ -1036,7 +982,35 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               ],
             ],
           ),
-        // 文件传输助手（self）：与普通文本相同，但显示特殊标识
+        'file' => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              InkWell(
+                onTap: () => _openFile(msg.content),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.insert_drive_file, size: 28),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        msg.content.split('/').last,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: textColor, fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (msg.createTime != null) ...[
+                const SizedBox(height: 4),
+                Text(
+                  app_date.DateUtils.formatTime(msg.createTime),
+                  style: TextStyle(fontSize: 10, color: textColor.withOpacity(0.6)),
+                ),
+              ],
+            ],
+          ),
         'self' => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1054,9 +1028,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(msg.content, style: TextStyle(color: textColor)),
-                  ),
+                  Flexible(child: Text(msg.content, style: TextStyle(color: textColor))),
                 ],
               ),
               if (msg.createTime != null) ...[
@@ -1073,14 +1045,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               ],
             ],
           ),
-        // 表情消息：直接渲染 emoji 字符（大字体）
         'emoji' => Center(
             child: Text(
               msg.content,
               style: const TextStyle(fontSize: 36),
             ),
           ),
-        // 默认：文本消息
         _ => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1111,7 +1081,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 
-  /// 气泡内通用占位组件（加载失败、类型不支持时显示）
   Widget _fallbackPlaceholder(ThemeData theme, Color textColor, IconData icon) {
     return Container(
       width: 200,
@@ -1122,18 +1091,40 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   /// 打开视频播放器（全屏）
-  ///
-  /// 使用 [video_player] 插件播放本地/网络视频；此处先打印路径以便后续接入完整播放器。
-  void _openVideoPlayer(String url) {
-    // TODO: 接入 video_player 全屏播放器，当前仅提示
-    debugPrint('[ChatDetail] 打开视频: $url');
+  Future<void> _openVideoPlayer(int msgId, String url) async {
+    // 若已存在控制器则复用，否则创建
+    final controller = _videoPlayers[msgId] ?? VideoPlayerController.networkUrl(Uri.parse(url));
+    if (_videoPlayers[msgId] == null) {
+      _videoPlayers[msgId] = controller;
+      try {
+        await controller.initialize();
+      } catch (e) {
+        debugPrint('[ChatDetail] 视频初始化失败: $e');
+        return;
+      }
+    }
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => VideoPlayerScreen(controller: controller, url: url),
+      ),
+    );
+    // 导航返回后 dispose 控制器释放资源
+    if (mounted) {
+      final c = _videoPlayers.remove(msgId);
+      c?.dispose();
+    }
+  }
+
+  /// 播放语音消息
+  Future<void> _playVoice(String url) async {
+    // TODO: 接入 audioplayers 插件播放网络音频，当前仅提示
+    debugPrint('[ChatDetail] 播放语音: $url');
   }
 
   /// 打开文件（下载 / 预览）
-  ///
-  /// 对于媒体 URL，可触发系统分享面板或外部应用打开。
   void _openFile(String url) {
-    // TODO: 接入 open_file / share_plus 插件，当前仅提示
+    // TODO: 接入 open_file / share_plus 插件
     debugPrint('[ChatDetail] 打开文件: $url');
   }
 
@@ -1141,7 +1132,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // 表情面板：点击表情按钮时弹出，再次点击关闭
+        // 表情面板
         if (_showEmojiPanel) _buildEmojiPanel(theme),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1151,61 +1142,32 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           ),
           child: Row(
             children: [
-              // 表情按钮：点击切换 emoji 面板显示
+              // 表情按钮
               IconButton(
                 icon: const Icon(Icons.emoji_emotions),
                 tooltip: l10n.emoji,
                 onPressed: () {
-                  setState(() => _showEmojiPanel = !_showEmojiPanel);
-                  // 切换面板时清除其他 pending 状态
-                  if (!_showEmojiPanel) {
-                    _pendingMediaType = 'text';
-                    _pendingMediaUrl = null;
-                    _pendingMediaFile = null;
-                    _pendingFileName = null;
-                  }
+                  setState(() {
+                    _showEmojiPanel = !_showEmojiPanel;
+                    if (!_showEmojiPanel) {
+                      _pendingMediaType = 'text';
+                      _pendingMediaUrl = null;
+                      _pendingMediaFile = null;
+                      _pendingFileName = null;
+                    }
+                  });
                 },
               ),
-              // 附件按钮：点击弹出类型选择（图片/视频/文件/语音）
+              // 附件按钮
               PopupMenuButton<String>(
                 icon: const Icon(Icons.attach_file),
                 tooltip: l10n.attach,
                 itemBuilder: (_) => [
-                  PopupMenuItem(
-                    value: 'image',
-                    child: Row(
-                      children: [
-                        const Icon(Icons.photo_library, size: 18),
-                        const SizedBox(width: 8),
-                        Text(l10n.image),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'video',
-                    child: Row(
-                      children: [
-                        const Icon(Icons.videocam, size: 18),
-                        const SizedBox(width: 8),
-                        Text(l10n.video),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'file',
-                    child: Row(
-                      children: [
-                        const Icon(Icons.insert_drive_file, size: 18),
-                        const SizedBox(width: 8),
-                        Text(l10n.file),
-                      ],
-                    ),
-                  ),
-                  // TODO: 语音暂不支持（需接入录音权限与音频上传），后续迭代
-                  // PopupMenuItem(value: 'voice', ...),
+                  PopupMenuItem(value: 'image', child: Row(children: [const Icon(Icons.photo_library, size: 18), const SizedBox(width: 8), Text(l10n.image)])),
+                  PopupMenuItem(value: 'video', child: Row(children: [const Icon(Icons.videocam, size: 18), const SizedBox(width: 8), Text(l10n.video)])),
+                  PopupMenuItem(value: 'file', child: Row(children: [const Icon(Icons.insert_drive_file, size: 18), const SizedBox(width: 8), Text(l10n.file)])),
                 ],
                 onSelected: (type) {
-                  // 切换类型时关闭 emoji 面板
                   setState(() {
                     _showEmojiPanel = false;
                     _pendingMediaType = type;
@@ -1218,10 +1180,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   controller: _controller,
                   decoration: InputDecoration(
                     hintText: l10n.inputMessage,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                      borderSide: BorderSide.none,
-                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
                     filled: true,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   ),
@@ -1231,7 +1190,19 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 ),
               ),
               const SizedBox(width: 4),
-              // 发送按钮
+              // 语音按钮：长按录音，松开发送
+              if (!_isRecording)
+                IconButton(
+                  icon: const Icon(Icons.mic),
+                  tooltip: l10n.voice,
+                  onPressed: () => _startRecording(),
+                )
+              else
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: l10n.cancel,
+                  onPressed: () => _stopRecording(),
+                ),
               IconButton(
                 icon: const Icon(Icons.send_rounded),
                 color: theme.colorScheme.primary,
@@ -1245,26 +1216,21 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 
-  /// 构建表情选择面板（微信风格：网格布局，点击即发送）
-  ///
-  /// 面板高度固定（两行 emoji），背景色与输入栏一致，点击 emoji 后立即发送并收起面板。
   Widget _buildEmojiPanel(ThemeData theme) {
     return Container(
       color: theme.cardColor,
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: GridView.count(
-        crossAxisCount: 8, // 每行 8 个 emoji
-        shrinkWrap: true, // 不自适应高度，避免布局溢出
-        physics: const NeverScrollableScrollPhysics(), // 禁用面板内部滚动
-        childAspectRatio: 1.2, // 宽高比
+        crossAxisCount: 8,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        childAspectRatio: 1.2,
         children: _emojiList.map((emoji) {
           return GestureDetector(
             onTap: () {
-              // 点击 emoji：直接发送，不经过上传流程
               final auth = context.read<AuthProvider>();
               final l10n = AppLocalizations.of(context)!;
               final now = DateTime.now().millisecondsSinceEpoch;
-              // 先乐观显示再发送，避免 UI 卡顿
               setState(() => _messages.add(_DisplayMessage(
                 id: now,
                 fromUserId: auth.userId ?? 0,
@@ -1276,16 +1242,61 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 status: 'sending',
               )));
               _scrollToBottom();
-              // 异步发送后关闭面板并更新状态
               _doSendEmoji(emoji, now, auth, ScaffoldMessenger.of(context), l10n).whenComplete(() {
                 if (mounted) setState(() => _showEmojiPanel = false);
               });
             },
-            child: Center(
-              child: Text(emoji, style: const TextStyle(fontSize: 28)),
-            ),
+            child: Center(child: Text(emoji, style: const TextStyle(fontSize: 28))),
           );
         }).toList(),
+      ),
+    );
+  }
+}
+
+/// 全屏视频播放器页面
+class VideoPlayerScreen extends StatefulWidget {
+  final VideoPlayerController controller;
+  final String url;
+  const VideoPlayerScreen({super.key, required this.controller, required this.url});
+
+  @override
+  State<VideoPlayerScreen> createState() => _VideoPlayerScreenState();
+}
+
+class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(() => setState(() {}));
+    widget.controller.play();
+  }
+
+  @override
+  void dispose() {
+    // 不在这里 dispose，由调用方管理生命周期
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: Center(
+        child: widget.controller.value.isInitialized
+            ? AspectRatio(
+                aspectRatio: widget.controller.value.aspectRatio,
+                child: VideoPlayer(widget.controller),
+              )
+            : const CircularProgressIndicator(color: Colors.white),
       ),
     );
   }
@@ -1300,7 +1311,7 @@ class _DisplayMessage {
   final String type;
   final String content;
   final String status;
-  final String pushStatus; // 推送状态：pending/server_received/client_ack/delivered
+  final String pushStatus;
   final int createTime;
 
   _DisplayMessage({
@@ -1318,7 +1329,6 @@ class _DisplayMessage {
   factory _DisplayMessage.fromJson(dynamic json) {
     if (json == null) return _DisplayMessage(id: 0, fromUserId: 0, type: 'text', content: '', createTime: 0);
     return _DisplayMessage(
-      // 使用安全 int 解析：后端 Long/Date 可能序列化为 String 或 num
       id: MessageUtils.toInt(json['id']),
       fromUserId: MessageUtils.toInt(json['fromUserId']),
       toUserId: MessageUtils.toNullableInt(json['toUserId']),
@@ -1327,7 +1337,6 @@ class _DisplayMessage {
       content: json['content'] as String? ?? '',
       status: parseMessageStatus(json['status']),
       pushStatus: json['pushStatus'] as String? ?? 'pending',
-      // createTime 兼容 ISO 字符串、毫秒数、DateTime 三种格式
       createTime: json['createTime'] is DateTime
           ? (json['createTime'] as DateTime).millisecondsSinceEpoch
           : MessageUtils.toInt(json['createTime']),

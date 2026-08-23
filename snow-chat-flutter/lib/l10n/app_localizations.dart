@@ -1077,6 +1077,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Upload failed'**
   String get uploadFailed;
+
+  /// Voice button tooltip
+  ///
+  /// In en, this message translates to:
+  /// **'Voice'**
+  String get voice;
+
+  /// Recording permission denied hint
+  ///
+  /// In en, this message translates to:
+  /// **'Microphone permission required to record'**
+  String get voicePermissionDenied;
+
+  /// Recording failure hint
+  ///
+  /// In en, this message translates to:
+  /// **'Recording failed'**
+  String get voiceRecordFailed;
+
+  /// Stop recording failure hint
+  ///
+  /// In en, this message translates to:
+  /// **'Stop recording failed'**
+  String get voiceStopFailed;
+
+  /// wechat_assets_picker failure hint
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to pick media'**
+  String get pickAssetFailed;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

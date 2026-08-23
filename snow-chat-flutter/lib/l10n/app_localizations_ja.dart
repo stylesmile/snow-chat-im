@@ -496,4 +496,19 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get uploadFailed => 'Upload failed';
+
+  @override
+  String get voice => 'Voice';
+
+  @override
+  String get voicePermissionDenied => 'Microphone permission required to record';
+
+  @override
+  String get voiceRecordFailed => 'Recording failed';
+
+  @override
+  String get voiceStopFailed => 'Stop recording failed';
+
+  @override
+  String get pickAssetFailed => 'Failed to pick media';
 }

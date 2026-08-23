@@ -194,15 +194,16 @@ class ChatService {
     }
   }
 
-  /// 上传媒体/附件文件到对象存储（images/、videos/、files/ 子目录）
+  /// 上传媒体/附件文件到对象存储（images/、videos/、files/、voices/ 子目录）
   ///
   /// 对应后端 `POST /file/media/{type}` 端点：
-  /// - [type] 必须是 "image" / "video" / "file" 之一，与后端白名单一致；
+  /// - [type] 必须是 "image" / "video" / "file" / "voice" 之一，与后端白名单一致；
   /// - 返回上传后的 URL（pre-signed URL 或 base64 data URL），可直接用于消息 content；
   /// - 调用方负责用返回的 URL 作为 [MessageModel.content]，type 字段设为对应值。
   ///
-  /// @param file 本地媒体文件（图片/视频/文档）
-  /// @param type 媒体类型，映射到后端目录前缀：image→images/、video→videos/、file→files/
+  /// @param file 本地媒体文件（图片/视频/文档/音频）
+  /// @param type 媒体类型，映射到后端目录前缀：
+  ///   image→images/、video→videos/、file→files/、voice→voices/
   /// @return 上传成功返回 UploadResult（含 key 与 url）；失败返回 null
   Future<UploadResult?> uploadMedia(File file, String type) async {
     try {

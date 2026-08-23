@@ -323,5 +323,15 @@
   "uploading": "上传中",
   "@uploading": {"description": "上传中提示"},
   "uploadFailed": "上传失败",
-  "@uploadFailed": {"description": "上传失败提示"}
+  "@uploadFailed": {"description": "上传失败提示"},
+  "voice": "语音",
+  "@voice": {"description": "语音按钮提示"},
+  "voicePermissionDenied": "需要麦克风权限才能录音",
+  "@voicePermissionDenied": {"description": "录音权限被拒绝提示"},
+  "voiceRecordFailed": "录音失败",
+  "@voiceRecordFailed": {"description": "录音失败提示"},
+  "voiceStopFailed": "停止录音失败",
+  "@voiceStopFailed": {"description": "停止录音失败提示"},
+  "pickAssetFailed": "选择媒体失败",
+  "@pickAssetFailed": {"description": "wechat_assets_picker 选择失败提示"}
 }

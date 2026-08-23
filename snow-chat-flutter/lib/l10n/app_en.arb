@@ -325,5 +325,15 @@
   "uploading": "Uploading",
   "@uploading": {"description": "Uploading progress hint"},
   "uploadFailed": "Upload failed",
-  "@uploadFailed": {"description": "Upload failure hint"}
+  "@uploadFailed": {"description": "Upload failure hint"},
+  "voice": "Voice",
+  "@voice": {"description": "Voice button tooltip"},
+  "voicePermissionDenied": "Microphone permission required to record",
+  "@voicePermissionDenied": {"description": "Recording permission denied hint"},
+  "voiceRecordFailed": "Recording failed",
+  "@voiceRecordFailed": {"description": "Recording failure hint"},
+  "voiceStopFailed": "Stop recording failed",
+  "@voiceStopFailed": {"description": "Stop recording failure hint"},
+  "pickAssetFailed": "Failed to pick media",
+  "@pickAssetFailed": {"description": "wechat_assets_picker failure hint"}
 }
