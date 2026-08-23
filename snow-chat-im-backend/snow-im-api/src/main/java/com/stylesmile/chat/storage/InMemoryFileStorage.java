@@ -4,6 +4,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.io.InputStream;
+import java.util.Base64;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -12,7 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 当 minio.enabled=false 或未配置时启用，用于本地开发与单元测试。
  *
  * <p>注意：应用重启后所有文件丢失；upload 返回对象 key（与接口契约一致），
- * generatePresignedUrl 返回带 expires 参数的占位 URL（不真正签名）。
+ * generatePresignedUrl 返回 base64 data URL（内嵌图片数据，永久有效，无需签名）。
  *
  * @author mmm
  * @see FileStorage
@@ -24,15 +25,23 @@ public class InMemoryFileStorage implements FileStorage {
 
     // 内存存储：key → 文件字节
     private final Map<String, byte[]> storage = new ConcurrentHashMap<>();
-    // 占位 URL 前缀
-    private final String baseUrl;
+    // 默认 MIME 类型（未知扩展名时使用）
+    private static final String DEFAULT_CONTENT_TYPE = "application/octet-stream";
 
     /**
-     * 默认构造器，使用固定占位 URL 前缀。
+     * 根据文件名扩展名推断 MIME 类型。
      */
-    public InMemoryFileStorage() {
-        // 设置占位 URL 前缀（仅供测试）
-        this.baseUrl = "http://localhost:8080/files";
+    private static String inferContentType(String key) {
+        int dot = key.lastIndexOf('.');
+        if (dot < 0) return DEFAULT_CONTENT_TYPE;
+        String ext = key.substring(dot + 1).toLowerCase();
+        return switch (ext) {
+            case "jpg", "jpeg" -> "image/jpeg";
+            case "png" -> "image/png";
+            case "gif" -> "image/gif";
+            case "webp" -> "image/webp";
+            default -> DEFAULT_CONTENT_TYPE;
+        };
     }
 
     /**
@@ -72,11 +81,24 @@ public class InMemoryFileStorage implements FileStorage {
     }
 
     /**
-     * 生成占位的 pre-signed URL（带 expires 参数）。
+     * 生成 base64 data URL（内嵌图片数据，永久有效）。
+     *
+     * <p>与 MinIO 不同：InMemory 模式不生成外部可访问 URL，而是将文件字节
+     * 直接编码为 {@code data:image/xxx;base64,...} 格式，前端可直接用于 img src。
+     *
+     * @param fileName              对象 key
+     * @param expirationMinutes     有效期（本实现忽略，data URL 永久有效）
+     * @return base64 data URL 字符串
      */
     @Override
     public String generatePresignedUrl(String fileName, int expirationMinutes) {
-        // 拼接占位 URL，包含 key 与过期时间
-        return baseUrl + "/" + fileName + "?expires=" + expirationMinutes;
+        byte[] data = storage.get(fileName);
+        if (data == null || data.length == 0) {
+            return ""; // 文件不存在时返回空串
+        }
+        // 推断 MIME 类型并拼接 data URL
+        String contentType = inferContentType(fileName);
+        String base64 = Base64.getEncoder().encodeToString(data);
+        return "data:" + contentType + ";base64," + base64;
     }
 }
