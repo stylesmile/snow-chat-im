@@ -3,8 +3,8 @@
 -- ----------------------------
 DROP TABLE IF EXISTS `chat_offline_message`;
 CREATE TABLE `chat_offline_message` (
-  `id` int(0) NOT NULL AUTO_INCREMENT,
-  `to_user_id` int(0) NOT NULL COMMENT '接收方用户ID',
+  `id` bigint(0) NOT NULL AUTO_INCREMENT,
+  `to_user_id` bigint(0) NOT NULL COMMENT '接收方用户ID',
   `topic` varchar(128) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT '原始 topic',
   `cmd` int(0) NOT NULL COMMENT '命令码',
   `payload` text CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT '消息 json',

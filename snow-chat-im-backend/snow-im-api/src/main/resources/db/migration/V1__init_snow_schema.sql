@@ -9,9 +9,9 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- ----------------------------
 DROP TABLE IF EXISTS `log_login`;
 CREATE TABLE `log_login`  (
-  `id` int(0) NOT NULL AUTO_INCREMENT,
+  `id` bigint(0) NOT NULL AUTO_INCREMENT,
   `name` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
-  `user_id` int(0) NULL DEFAULT NULL,
+  `user_id` bigint(0) NULL DEFAULT NULL,
   `username` varchar(32) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
   `ip` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
   `create_time` datetime(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
@@ -20,18 +20,11 @@ CREATE TABLE `log_login`  (
 ) ENGINE = InnoDB AUTO_INCREMENT = 3 CHARACTER SET = utf8 COLLATE = utf8_general_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
--- Records of log_login
--- ----------------------------
-INSERT INTO `log_login` VALUES (1, '登陆日志', 1, 'admin', '1', '2019-03-17 15:05:52', 1);
-INSERT INTO `log_login` VALUES (2, '登陆日志', 1, 'admin', '0:0:0:0:0:0:0:1', '2019-03-17 15:22:57', 1);
-INSERT INTO `log_login` VALUES (3, '登陆日志', 1, 'admin', '0:0:0:0:0:0:0:1', '2019-03-17 15:23:13', 1);
-
--- ----------------------------
 -- Table structure for sys_depart
 -- ----------------------------
 DROP TABLE IF EXISTS `sys_depart`;
 CREATE TABLE `sys_depart`  (
-  `id` int(0) NOT NULL AUTO_INCREMENT,
+  `id` bigint(0) NOT NULL AUTO_INCREMENT,
   `parent_id` int(0) NULL DEFAULT NULL,
   `name` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
   `code` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
@@ -58,7 +51,7 @@ INSERT INTO `sys_depart` VALUES (8, NULL, '营销部', NULL, NULL, 0, 0);
 -- ----------------------------
 DROP TABLE IF EXISTS `sys_dict`;
 CREATE TABLE `sys_dict`  (
-  `id` int(0) NOT NULL AUTO_INCREMENT COMMENT '主键id',
+  `id` bigint(0) NOT NULL AUTO_INCREMENT COMMENT '主键id',
   `num` int(0) NULL DEFAULT NULL COMMENT '排序',
   `pid` int(0) NULL DEFAULT NULL COMMENT '父级字典',
   `name` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL COMMENT '名称',
@@ -86,8 +79,8 @@ INSERT INTO `sys_dict` VALUES (59, 3, 56, '已删除', NULL, '3');
 -- ----------------------------
 DROP TABLE IF EXISTS `sys_menu`;
 CREATE TABLE `sys_menu`  (
-  `id` int(0) NOT NULL AUTO_INCREMENT,
-  `parent_id` int(0) NULL DEFAULT 0 COMMENT '父级id',
+  `id` bigint(0) NOT NULL AUTO_INCREMENT,
+  `parent_id` bigint(0) NULL DEFAULT 0 COMMENT '父级id',
   `name` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
   `url` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT '',
   `code` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL,
@@ -115,7 +108,7 @@ INSERT INTO `sys_menu` VALUES (9, 1, '字典数据管理', '', NULL, '1', 5, 0);
 -- ----------------------------
 DROP TABLE IF EXISTS `sys_role`;
 CREATE TABLE `sys_role`  (
-  `id` int(0) NOT NULL AUTO_INCREMENT,
+  `id` bigint(0) NOT NULL AUTO_INCREMENT,
   `name` varchar(32) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
   `code` varchar(32) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
   `sort` int(0) NOT NULL DEFAULT 0,

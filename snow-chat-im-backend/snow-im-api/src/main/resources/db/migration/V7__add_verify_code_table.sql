@@ -2,7 +2,7 @@
 -- Verify code table: used for email registration verification and password reset
 
 CREATE TABLE IF NOT EXISTS `chat_verify_code` (
-  `id`          INT          NOT NULL AUTO_INCREMENT,
+  `id`          bigint          NOT NULL AUTO_INCREMENT,
   `email`       VARCHAR(128) NOT NULL                COMMENT '邮箱地址',
   `code`        VARCHAR(10)  NOT NULL                COMMENT '6位验证码',
   `type`        VARCHAR(20)  NOT NULL DEFAULT 'register' COMMENT '验证码类型：register / reset_password',
