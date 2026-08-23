@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 import 'package:video_player/video_player.dart';
 import 'package:record/record.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
@@ -68,11 +69,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   // 视频播放器控制器（每个视频消息独立持有）
   final Map<int, VideoPlayerController> _videoPlayers = {};
 
+  // 音频播放器（全局单例，同一时刻只播一条语音）
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
   // 录音状态
   final AudioRecorder _recorder = AudioRecorder();
   String? _recordingPath;
   bool _isRecording = false;
   Duration? _recordDuration;
+
+  // 当前播放中的语音消息 ID（用于气泡更新播放状态）
+  int? _playingVoiceMsgId;
 
   @override
   void initState() {
@@ -92,6 +99,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       controller.dispose();
     }
     _videoPlayers.clear();
+    // 停止音频播放
+    _audioPlayer.stop();
     // 停止录音（如有）
     if (_isRecording) {
       _recorder.stop();
@@ -955,12 +964,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               InkWell(
-                onTap: () => _playVoice(msg.content),
+                onTap: () => _playVoice(msg.id, msg.content),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      Icons.play_arrow,
+                      _playingVoiceMsgId == msg.id
+                          ? Icons.stop_circle
+                          : Icons.play_arrow,
                       color: textColor,
                       size: 24,
                     ),
@@ -1119,9 +1130,33 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   /// 播放语音消息
-  Future<void> _playVoice(String url) async {
-    // TODO: 接入 audioplayers 插件播放网络音频，当前仅提示
-    debugPrint('[ChatDetail] 播放语音: $url');
+  ///
+  /// [msgId] 消息 ID（用于气泡图标切换）；[url] 音频 URL。
+  /// 使用 [AudioPlayer] 播放网络音频；播放中点击停止，播放结束自动重置状态。
+  Future<void> _playVoice(int msgId, String url) async {
+    try {
+      // 若正在播放同一条语音则停止
+      if (_playingVoiceMsgId == msgId) {
+        await _audioPlayer.stop();
+        setState(() => _playingVoiceMsgId = null);
+        return;
+      }
+      // 停止其他语音（若有）
+      await _audioPlayer.stop();
+      // 设置播放源（网络 URL）并播放；audioplayers 6.x 使用 UrlSource + play()
+      await _audioPlayer.setSourceUrl(url);
+      setState(() => _playingVoiceMsgId = msgId);
+      await _audioPlayer.play();
+      // 播放结束自动重置状态
+      _audioPlayer.onPlayerComplete.listen((_) {
+        if (mounted) {
+          setState(() => _playingVoiceMsgId = null);
+        }
+      });
+    } catch (e) {
+      debugPrint('[ChatDetail] 播放语音失败: $e');
+      setState(() => _playingVoiceMsgId = null);
+    }
   }
 
   /// 打开文件（下载 / 预览）
