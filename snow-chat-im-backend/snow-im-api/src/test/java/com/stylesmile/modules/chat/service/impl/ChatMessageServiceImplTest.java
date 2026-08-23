@@ -27,11 +27,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
 import org.mockito.ArgumentCaptor;
 
 @ExtendWith(MockitoExtension.class)
@@ -165,6 +167,37 @@ class ChatMessageServiceImplTest {
 
         // 验证：向发送方 10L 推送 MSG_RECEIPT_ACK(2007)，通知"消息已送达"
         verify(mqttPushService).publish(eq("chat/user/10"), eq(2007), any());
+    }
+
+    /**
+     * 文件传输助手（type=self）：发送给自己，接收人=自己
+     *
+     * 验证：
+     * 1. 发送方的会话应归类为 file_helper（而不是 friend）
+     * 2. 消息推送到自己的 topic（同步到自己的其他登录端）
+     *
+     * 该测试当前处于 RED：现有代码靠 toUserId==0 识别文件助手，
+     * 改为接收人=自己后，还没有按 type='self' 归类/推送的能力。
+     */
+    @Test
+    void sendMessage_selfMessage_shouldCreateFileHelperSessionAndPushToSelf() {
+        // 准备：文件传输助手消息，type=self，from=to=10（发送给自己）
+        ChatMessage selfMsg = new ChatMessage();
+        selfMsg.setId(99L);
+        selfMsg.setFromUserId(10L);
+        selfMsg.setToUserId(10L);
+        selfMsg.setType("self");
+        selfMsg.setContent("note");
+        // 自己在线：实时推送，不额外存离线消息
+        when(mqttConnectStatusListener.isOnline("user_10")).thenReturn(true);
+
+        // 执行：发送文件传输助手消息
+        service.sendMessage(selfMsg);
+
+        // 验证：发送方会话 targetType 必须是 file_helper（而非 friend）
+        verify(chatSessionService, atLeastOnce()).getOrCreateSession(10L, 10L, "file_helper");
+        // 验证：推送到自己的 topic（chat/user/10），让其他设备也能收到
+        verify(mqttPushService).publish(eq("chat/user/10"), eq(2001), any());
     }
 
     /**

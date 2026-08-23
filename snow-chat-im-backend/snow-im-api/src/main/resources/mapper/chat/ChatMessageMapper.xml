@@ -12,6 +12,9 @@
             <when test="targetType == 'group'">
                 group_id = #{targetId}
             </when>
+            <when test="targetType == 'file_helper'">
+                type = 'self' AND to_user_id = #{userId}
+            </when>
             <otherwise>
                 ((from_user_id = #{userId} AND to_user_id = #{targetId})
                 OR (from_user_id = #{targetId} AND to_user_id = #{userId}))

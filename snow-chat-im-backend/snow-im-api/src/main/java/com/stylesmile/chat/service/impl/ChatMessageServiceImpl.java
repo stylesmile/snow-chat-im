@@ -33,6 +33,11 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
 
     private static final Logger log = LoggerFactory.getLogger(ChatMessageServiceImpl.class);
 
+    // 消息类型：self 表示"文件传输助手"（发给自己的消息，同步到自己的其他登录端）
+    private static final String TYPE_SELF = "self";
+    // 会话目标类型：file_helper 对应文件传输助手会话
+    private static final String TARGET_FILE_HELPER = "file_helper";
+
     @Resource
     private MqttPushService mqttPushService;
     @Resource
@@ -59,10 +64,10 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
                     .eq(ChatMessage::getFromUserId, userId).eq(ChatMessage::getToUserId, targetId)
                     .or()
                     .eq(ChatMessage::getFromUserId, targetId).eq(ChatMessage::getToUserId, userId));
-        } else if ("file_helper".equalsIgnoreCase(targetType)) {
-            // 文件传输助手：发送方为用户，接收方固定为 0（文件传输助手专用 ID）
-            wrapper.eq(ChatMessage::getFromUserId, userId)
-                   .eq(ChatMessage::getToUserId, 0L);
+        } else if (TARGET_FILE_HELPER.equalsIgnoreCase(targetType)) {
+            // 文件传输助手：type=self（发给自己的消息），接收人即自己
+            wrapper.eq(ChatMessage::getType, TYPE_SELF)
+                   .eq(ChatMessage::getToUserId, userId);
         } else if ("group".equalsIgnoreCase(targetType)) {
             wrapper.eq(ChatMessage::getGroupId, targetId);
         }
@@ -91,7 +96,9 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
 
         // 更新发送方会话
         Long targetId = message.getGroupId() != null ? message.getGroupId() : message.getToUserId();
-        String targetType = message.getGroupId() != null ? "group" : (message.getToUserId() == 0L ? "file_helper" : "friend");
+        // 会话目标类型：群消息=group；type=self（发给自己的文件助手消息）=file_helper；其余=friend
+        String targetType = message.getGroupId() != null ? "group"
+                : (TYPE_SELF.equals(message.getType()) ? TARGET_FILE_HELPER : "friend");
         chatSessionService.getOrCreateSession(message.getFromUserId(), targetId, targetType);
 
         publishMessage(message);
@@ -155,7 +162,9 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
         }
         // 更新接收方会话与未读数
         Long targetId = message.getGroupId() != null ? message.getGroupId() : message.getFromUserId();
-        String targetType = message.getGroupId() != null ? "group" : "friend";
+        // 会话目标类型：群消息=group；type=self（发给自己的文件助手消息）也会被推送到自己 topic，归为 file_helper；其余=friend
+        String targetType = message.getGroupId() != null ? "group"
+                : (TYPE_SELF.equals(message.getType()) ? TARGET_FILE_HELPER : "friend");
         chatSessionService.getOrCreateSession(userId, targetId, targetType);
         chatSessionService.updateLastMessage(userId, targetId, targetType, message.getContent());
     }
@@ -260,9 +269,10 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
 
         if ("friend".equalsIgnoreCase(targetType)) {
             wrapper.eq(ChatMessage::getFromUserId, targetId);
-        } else if ("file_helper".equalsIgnoreCase(targetType)) {
-            wrapper.eq(ChatMessage::getFromUserId, targetId)
-                   .eq(ChatMessage::getToUserId, 0L);
+        } else if (TARGET_FILE_HELPER.equalsIgnoreCase(targetType)) {
+            // 文件传输助手：type=self（发给自己的消息），接收人即自己
+            wrapper.eq(ChatMessage::getType, TYPE_SELF)
+                   .eq(ChatMessage::getToUserId, userId);
         } else if ("group".equalsIgnoreCase(targetType)) {
             wrapper.eq(ChatMessage::getGroupId, targetId);
         }
@@ -332,6 +342,12 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
         if ("friend".equalsIgnoreCase(targetType)) {
             wrapper.eq(ChatMessage::getToUserId, userId)
                    .eq(ChatMessage::getFromUserId, targetId)
+                   .ne(ChatMessage::getPushStatus, "client_ack")
+                   .ne(ChatMessage::getPushStatus, "delivered");
+        } else if (TARGET_FILE_HELPER.equalsIgnoreCase(targetType)) {
+            // 文件传输助手：type=self（发给自己的消息），补投给自己的其他在线/离线设备
+            wrapper.eq(ChatMessage::getType, TYPE_SELF)
+                   .eq(ChatMessage::getToUserId, userId)
                    .ne(ChatMessage::getPushStatus, "client_ack")
                    .ne(ChatMessage::getPushStatus, "delivered");
         } else if ("group".equalsIgnoreCase(targetType)) {

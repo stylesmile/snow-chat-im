@@ -52,16 +52,20 @@ public class ChatMessageController {
     }
 
     /**
-     * 发送文件传输助手消息（固定接收方 ID = 0，用于"文件传输助手"会话）
+     * 发送文件传输助手消息（发送给自己，接收人=自己）
+     *
+     * 文件传输助手本质是"发给自己的消息"：
+     * - 接收人强制设为发送人自己，便于消息同步到本人的其他登录端
+     * - 类型标记为 self，用于在后端各查询/分类中识别文件助手消息
      */
     @PostMapping("/send/file-helper")
     public Result<Void> sendFileHelper(@RequestBody SendMessageDTO body) {
-        // 强制将接收方设置为 0（文件传输助手专用）
-        body.setToUserId(0L);
+        // 接收人改成自己（使消息能推送到本人 topic，同步到其他登录端）
+        body.setToUserId(body.getFromUserId());
         ChatMessage message = new ChatMessage();
         message.setFromUserId(body.getFromUserId());
-        message.setToUserId(0L);
-        message.setType(body.getType());
+        message.setToUserId(body.getFromUserId()); // 接收人=自己
+        message.setType("self");                   // 新增消息类型：self（文件传输助手）
         message.setContent(body.getContent());
         message.setLocalSeq(body.getLocalSeq());
         message.setStatus(0);

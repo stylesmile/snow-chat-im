@@ -68,6 +68,26 @@ class ChatService {
     }
   }
 
+  /// 发送文件传输助手消息（发送给自己，接收人=自己）
+  ///
+  /// 文件传输助手本质是"发给自己的消息"，走独立接口 /send/file-helper，
+  /// 后端会强制把接收人设为自己、并把消息类型标记为 self，
+  /// 从而把消息同步到本人的其他登录端。
+  ///
+  /// @param message 待发送的消息（含发送人、内容等）
+  /// @return 是否发送成功
+  Future<bool> sendFileHelper(MessageModel message) async {
+    try {
+      await apiClient.dio.post(
+        '/chat/message/send/file-helper',
+        data: message.toJson(),
+      );
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   /// 撤回消息
   Future<bool> recallMessage(int userId, int messageId) async {
     try {

@@ -142,6 +142,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       bool isRelated = false;
       if (widget.targetType == 'group') {
         isRelated = groupId == widget.targetId;
+      } else if (widget.targetType == 'file_helper') {
+        // 文件传输助手：消息是"发给自己的"（from=to=自己），推送到本人 topic
+        final auth = context.read<AuthProvider>();
+        isRelated = fromUserId == auth.userId && toUserId == auth.userId;
       } else {
         final auth = context.read<AuthProvider>();
         isRelated = (fromUserId == widget.targetId && toUserId == auth.userId) ||
@@ -339,17 +343,22 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
     // 通过REST发送，由后端统一落库并MQTT推送
     final service = ChatService(auth.apiClient);
+    // 文件传输助手：接收人改为自己（touserId=userId），类型标记为 self（新增消息类型）
+    final bool isFileHelper = widget.targetType == 'file_helper';
     final sentModel = _DisplayMessage(
       id: now,
       fromUserId: auth.userId ?? 0,
-      toUserId: widget.targetId,
+      toUserId: isFileHelper ? (auth.userId ?? 0) : widget.targetId,
       groupId: widget.targetType == 'group' ? widget.targetId : null,
-      type: 'text',
+      type: isFileHelper ? 'self' : 'text',
       content: text,
       createTime: now,
       status: 'sent',
     );
-    final success = await service.sendMessage(sentModel.toModel());
+    // 文件助手走独立接口（后端强制接收人=自己、类型=self，同步到本人其他登录端）
+    final success = isFileHelper
+        ? await service.sendFileHelper(sentModel.toModel())
+        : await service.sendMessage(sentModel.toModel());
 
     if (!mounted) return;
 

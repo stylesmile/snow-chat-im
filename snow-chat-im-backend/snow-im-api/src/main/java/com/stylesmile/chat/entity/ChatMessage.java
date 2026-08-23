@@ -25,7 +25,7 @@ public class ChatMessage {
      */
     private Long groupId;
     /**
-     * 消息类型 text/image/file/video
+     * 消息类型 text/image/file/video；self 表示"文件传输助手"（发给自己的消息）
      */
     private String type;
     /**
