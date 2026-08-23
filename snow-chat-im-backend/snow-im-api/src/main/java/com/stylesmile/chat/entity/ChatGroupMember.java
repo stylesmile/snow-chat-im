@@ -1,6 +1,8 @@
 package com.stylesmile.chat.entity;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.util.Date;
 
@@ -8,6 +10,8 @@ import java.util.Date;
  * @author chenye
  * @date 2018/12/10
  */
+@NoArgsConstructor
+@AllArgsConstructor
 @Data
 public class ChatGroupMember {
     /**
@@ -35,7 +39,5 @@ public class ChatGroupMember {
      */
     private Integer mute;
 
-    public ChatGroupMember() {
-    }
+}
 
-    }

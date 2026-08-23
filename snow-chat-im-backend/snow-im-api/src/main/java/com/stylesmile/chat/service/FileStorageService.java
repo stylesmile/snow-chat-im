@@ -16,7 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 public interface FileStorageService {
 
     /**
-     * 上传文件并生成 pre-signed URL。
+     * 上传文件并生成 pre-signed URL（默认目录前缀 {@code avatars/}）。
      *
      * <p>流程：
      * <ol>
@@ -30,6 +30,25 @@ public interface FileStorageService {
      * @return 包含 key 与 pre-signed URL 的结果对象
      */
     UploadResult uploadAndSign(MultipartFile file);
+
+    /**
+     * 上传媒体/附件文件并生成 pre-signed URL（按 mediaType 选择目录前缀）。
+     *
+     * <p>与 {@link #uploadAndSign(MultipartFile)} 的区别：
+     * <ul>
+     *   <li>{@code mediaType=images} → {@code images/{uuid}.{ext}}；</li>
+     *   <li>{@code mediaType=videos} → {@code videos/{uuid}.{ext}}；</li>
+     *   <li>{@code mediaType=files} → {@code files/{uuid}.{ext}}。</li>
+     * </ul>
+     * 供消息附件上传使用：前端上传成功后将返回的 URL 存入消息 {@code content} 字段，
+     * 并用 {@code type}（image/video/file）标识消息类型，前端消息气泡据此渲染。
+     *
+     * @param file      前端上传的 multipart 文件
+     * @param mediaType 媒体类型标识（images / videos / files），用于生成目录前缀
+     * @return 包含 key 与 pre-signed URL 的结果对象
+     * @throws IllegalArgumentException 当 mediaType 不在允许集合中时抛出
+     */
+    UploadResult uploadAndSign(MultipartFile file, String mediaType);
 
     /**
      * 为已存储的头像 key 实时生成可访问 URL。

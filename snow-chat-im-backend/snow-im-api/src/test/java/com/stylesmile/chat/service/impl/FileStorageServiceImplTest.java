@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -24,10 +25,13 @@ import static org.mockito.Mockito.when;
 /**
  * FileStorageServiceImpl 单元测试
  *
- * 验证 uploadAndSign 方法：
- * 1. 生成 avatars/{uuid}.{ext} 形式的对象 key
- * 2. 依次调用 FileStorage.upload → FileStorage.generatePresignedUrl
- * 3. 返回 UploadResult(key, url)
+ * 验证 uploadAndSign 两个重载方法：
+ * <ol>
+ *   <li>{@code uploadAndSign(MultipartFile)}：默认 avatars/ 前缀；</li>
+ *   <li>{@code uploadAndSign(MultipartFile, String)}：按 mediaType 动态前缀。</li>
+ * </ol>
+ *
+ * @author mmm
  */
 @ExtendWith(MockitoExtension.class)
 class FileStorageServiceImplTest {
@@ -43,6 +47,8 @@ class FileStorageServiceImplTest {
         // 手动构造 service，注入 mock 的 FileStorage
         service = new FileStorageServiceImpl(fileStorage);
     }
+
+    // ==================== uploadAndSign(MultipartFile) ====================
 
     @Test
     void uploadAndSignReturnsKeyAndUrl() {
@@ -120,21 +126,93 @@ class FileStorageServiceImplTest {
         assertTrue(result.key().startsWith("avatars/"));
     }
 
+    // ==================== uploadAndSign(MultipartFile, String) ====================
+
     @Test
-    void uploadAndSignPassesFileSizeToStorage() {
-        // 准备：构造特定大小的文件
-        byte[] content = new byte[1024]; // 1KB
-        MultipartFile file = new MockMultipartFile("file", "a.jpg", "image/jpeg", content);
+    void uploadAndSignWithMediaTypeUsesCorrectPrefix() {
+        // 准备：images 类型文件
+        byte[] content = "fake-image".getBytes();
+        MultipartFile file = new MockMultipartFile("file", "pic.jpg", "image/jpeg", content);
+        when(fileStorage.upload(any(), any(), eq("image/jpeg"), anyLong()))
+                .thenAnswer(invocation -> invocation.getArgument(1)); // 返回传入的 key
+        when(fileStorage.generatePresignedUrl(any(), anyInt())).thenReturn("https://presigned/image");
+
+        // 执行
+        UploadResult result = service.uploadAndSign(file, "images");
+
+        // 验证：key 前缀为 images/
+        assertNotNull(result.key());
+        assertTrue(result.key().startsWith("images/"), "key 应以 images/ 开头");
+        assertTrue(result.key().endsWith(".jpg"), "key 应保留原始扩展名");
+    }
+
+    @Test
+    void uploadAndSignWithMediaTypeVideos() {
+        // 准备
+        byte[] content = "fake-video".getBytes();
+        MultipartFile file = new MockMultipartFile("file", "clip.mp4", "video/mp4", content);
+        when(fileStorage.upload(any(), any(), eq("video/mp4"), anyLong()))
+                .thenAnswer(invocation -> invocation.getArgument(1));
+        when(fileStorage.generatePresignedUrl(any(), anyInt())).thenReturn("https://presigned/video");
+
+        // 执行
+        UploadResult result = service.uploadAndSign(file, "videos");
+
+        // 验证：key 前缀为 videos/
+        assertNotNull(result.key());
+        assertTrue(result.key().startsWith("videos/"), "key 应以 videos/ 开头");
+    }
+
+    @Test
+    void uploadAndSignWithMediaTypeFiles() {
+        // 准备
+        byte[] content = "fake-doc".getBytes();
+        MultipartFile file = new MockMultipartFile("file", "doc.pdf", "application/pdf", content);
+        when(fileStorage.upload(any(), any(), eq("application/pdf"), anyLong()))
+                .thenAnswer(invocation -> invocation.getArgument(1));
+        when(fileStorage.generatePresignedUrl(any(), anyInt())).thenReturn("https://presigned/file");
+
+        // 执行
+        UploadResult result = service.uploadAndSign(file, "files");
+
+        // 验证：key 前缀为 files/
+        assertNotNull(result.key());
+        assertTrue(result.key().startsWith("files/"), "key 应以 files/ 开头");
+    }
+
+    @Test
+    void uploadAndSignWithMediaTypeThrowsOnInvalidType() {
+        // 准备：非法 mediaType（路径穿越风险）
+        byte[] content = "evil".getBytes();
+        MultipartFile file = new MockMultipartFile("file", "x.txt", "text/plain", content);
+
+        // 执行+验证：应抛出 IllegalArgumentException，阻止任意目录写入
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.uploadAndSign(file, "etc_passwd")
+        );
+        // 验证异常信息包含非法类型，便于排查
+        assertTrue(ex.getMessage().contains("etc_passwd"), "异常信息应包含非法类型");
+    }
+
+    @Test
+    void uploadAndSignWithMediaTypeCallsStorageWithCorrectArgs() {
+        // 准备
+        byte[] content = "data".getBytes();
+        MultipartFile file = new MockMultipartFile("file", "a.mp4", "video/mp4", content);
         when(fileStorage.upload(any(), any(), any(), anyLong()))
-                .thenReturn("avatars/uuid.jpg");
+                .thenAnswer(invocation -> invocation.getArgument(1));
         when(fileStorage.generatePresignedUrl(any(), anyInt())).thenReturn("https://presigned");
 
         // 执行
-        service.uploadAndSign(file);
+        service.uploadAndSign(file, "videos");
 
-        // 验证：fileSize 正确传递（1024 字节）
-        ArgumentCaptor<Long> sizeCaptor = ArgumentCaptor.forClass(Long.class);
-        verify(fileStorage).upload(any(), any(), any(), sizeCaptor.capture());
-        assertEquals(1024L, sizeCaptor.getValue());
+        // 验证：upload 被调用，contentType="video/mp4"，size 正确
+        ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
+        verify(fileStorage).upload(any(), keyCaptor.capture(), eq("video/mp4"), eq((long) content.length));
+        // key 必须以 videos/ 开头
+        assertTrue(keyCaptor.getValue().startsWith("videos/"), "key 应以 videos/ 开头");
+        // generatePresignedUrl 被调用，有效期 7 天
+        verify(fileStorage).generatePresignedUrl(keyCaptor.getValue(), eq(7 * 24 * 60));
     }
 }

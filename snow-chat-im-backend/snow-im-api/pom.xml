@@ -98,6 +98,7 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
+            <optional>true</optional>
         </dependency>
 
         <!-- JWT：用于生成和校验登录令牌（版本由根 pom dependencyManagement 统一管理） -->

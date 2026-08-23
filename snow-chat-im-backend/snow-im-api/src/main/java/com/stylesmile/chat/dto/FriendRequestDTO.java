@@ -1,8 +1,12 @@
 package com.stylesmile.chat.dto;
 
-import lombok.Data;
+import lombok.*;
 
-@Data
+
+@Setter
+@Getter
+@NoArgsConstructor
+@AllArgsConstructor
 public  class FriendRequestDTO {
     private Long fromUserId;
     private Long toUserId;
