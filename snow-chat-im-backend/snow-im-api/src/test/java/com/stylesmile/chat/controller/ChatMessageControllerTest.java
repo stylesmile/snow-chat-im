@@ -16,6 +16,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -95,6 +100,49 @@ class ChatMessageControllerTest {
 
         // 验证：service.fetchAndPushUndelivered 被正确参数调用（通过 MQTT 推送而非返回列表）
         verify(chatMessageService).fetchAndPushUndelivered(1L, 2L, "friend");
+    }
+
+    /**
+     * 消息类型白名单校验：非法 type 应返回 fail，不委托 service
+     */
+    @Test
+    void sendRejectsInvalidMessageType() {
+        // 准备：type 设为未在白名单中的值
+        SendMessageDTO dto = new SendMessageDTO();
+        dto.setFromUserId(1L);
+        dto.setToUserId(2L);
+        dto.setType("unknown");  // 不在白名单
+        dto.setContent("x");
+
+        // 执行
+        Result<Void> result = controller.send(dto);
+
+        // 验证：失败返回（code="500"），且不委托 service
+        assertEquals("500", result.getCode());
+        assertNotNull(result.getMsg());
+        verify(chatMessageService, never()).sendMessage(any());
+    }
+
+    /**
+     * 消息类型白名单校验：合法 type（image/video/file/self/recall）应正常发送
+     */
+    @Test
+    void sendAcceptsAllowedMessageTypes() {
+        // 循环前统一设置 lenient stub：避免 strict stubbing 在循环中叠加冲突
+        org.mockito.Mockito.lenient().doNothing().when(chatMessageService).sendMessage(any());
+        for (String type : new String[]{"image", "video", "file", "self", "recall"}) {
+            // 准备
+            SendMessageDTO dto = new SendMessageDTO();
+            dto.setFromUserId(1L);
+            dto.setToUserId(2L);
+            dto.setType(type);
+            dto.setContent("content");
+            // 执行
+            Result<Void> result = controller.send(dto);
+            // 验证：成功且委托 service（至少 1 次，容忍历史 stub 残留）
+            assertSuccess(result);
+            org.mockito.Mockito.verify(chatMessageService, atLeast(1)).sendMessage(any());
+        }
     }
 
     private void assertSuccess(Result<?> result) {

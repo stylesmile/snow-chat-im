@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 消息控制器
@@ -21,6 +22,14 @@ import java.util.List;
 @RestController
 @RequestMapping("/chat/message")
 public class ChatMessageController {
+
+    /**
+     * 消息类型白名单：text / image / video / file / self / recall。
+     * 用于 {@link #send} 端点的 type 字段校验，防止任意字符串写入消息表。
+     */
+    private static final Set<String> ALLOWED_MESSAGE_TYPES = Set.of(
+            "text", "image", "video", "file", "self", "recall"
+    );
 
     @Resource
     private ChatMessageService chatMessageService;
@@ -95,11 +104,27 @@ public class ChatMessageController {
 
     /**
      * 发送消息（REST fallback）
+     *
+     * <p>白名单校验 type 字段，只允许以下值：
+     * <ul>
+     *   <li>{@code text}：纯文本；</li>
+     *   <li>{@code image}：图片消息（content 为图片 URL）；</li>
+     *   <li>{@code video}：视频消息（content 为视频 URL）；</li>
+     *   <li>{@code file}：文件消息（content 为文件 URL + 文件名元数据）；</li>
+     *   <li>{@code self}：文件传输助手（发送给自己，同步到其他登录端）；</li>
+     *   <li>{@code recall}：已撤回消息。</li>
+     * </ul>
+     * 非法 type 直接返回 400，避免写入无意义或潜在危险的类型。
      */
     @PostMapping("/send")
     public Result<Void> send(@RequestBody SendMessageDTO body) {
         if (body.getFromUserId() == null || (body.getToUserId() == null && body.getGroupId() == null)) {
             return Result.failMessage("发送人、接收人或群组ID不能为空");
+        }
+        // 安全校验：type 必须在白名单内，防止任意字符串写入数据库并触发未预期的渲染逻辑
+        if (!ALLOWED_MESSAGE_TYPES.contains(body.getType())) {
+            return Result.failMessage(
+                    "非法的消息类型 '" + body.getType() + "'，只允许 " + ALLOWED_MESSAGE_TYPES);
         }
         ChatMessage message = new ChatMessage();
         message.setFromUserId(body.getFromUserId());
