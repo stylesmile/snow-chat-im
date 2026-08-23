@@ -37,8 +37,8 @@ class MockApiClient implements ApiClient {
 
   @override
   Future<Map<String, dynamic>> request(String path,
-      {Map<String, dynamic>? data}) async {
-    final response = await _dio.post(path, data: data);
+      {Map<String, dynamic>? data, Map<String, dynamic>? query}) async {
+    final response = await _dio.post(path, data: data, queryParameters: query);
     return response.data as Map<String, dynamic>;
   }
 

@@ -53,14 +53,14 @@ class ProfileService {
     }
   }
 
-  /// 上传头像文件
+  /// 上传头像文件（独立接口）
   ///
-  /// 向 `POST /file/upload` 发送 multipart/form-data 请求：
-  /// - 字段名：`file`
-  /// - 内容：图片二进制
+  /// 调用 `POST /chat/user/avatar/upload`，一步完成：
+  /// - 上传文件到对象存储
+  /// - 持久化 key 到 DB
+  /// - 返回 {key, url}
   ///
-  /// 成功返回 [UploadResult]（包含对象 key 与 pre-signed URL），失败返回 null。
-  /// 前端流程：uploadAvatar → 拿到 result.key 调 updateProfile 存 DB → 用 result.url 立即展示。
+  /// [url] 为 pre-signed URL，前端立即用于展示。
   Future<UploadResult?> uploadAvatar(File imageFile) async {
     try {
       // 读取文件字节
@@ -70,17 +70,23 @@ class ProfileService {
       final formData = FormData.fromMap({
         'file': MultipartFile.fromBytes(bytes, filename: fileName),
       });
-      // 发送 POST 请求
-      final response = await apiClient.dio.post('/file/upload', data: formData);
+      // 发送 POST 请求，使用 authProvider 配置的 baseUrl + token
+      // 注意：必须显式设置 Options(contentType) 覆盖全局 application/json header，
+      // 否则 multipart 边界会被破坏导致上传失败
+      final response = await apiClient.dio.post(
+        '/chat/user/avatar/upload',
+        data: formData,
+        options: Options(contentType: Headers.multipartFormDataContentType),
+      );
       // 解析响应：{code: '200', data: {key, url}}
       final data = response.data['data'] as Map<String, dynamic>?;
       if (data == null) {
         return null;
       }
-      // 构造 UploadResult 返回
       return UploadResult.fromJson(data);
     } catch (e) {
-      // 网络异常或解析失败时返回 null
+      // 输出详细错误信息，便于排查上传失败原因
+      print('[ProfileService] uploadAvatar failed: $e');
       return null;
     }
   }

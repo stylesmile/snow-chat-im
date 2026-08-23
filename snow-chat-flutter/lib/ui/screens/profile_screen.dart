@@ -392,21 +392,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return;
       }
 
-      final userId = auth.userId;
-      if (userId == null) {
-        _showErrorSnackBar('用户未登录，无法更新头像');
-        return;
-      }
-
-      final updated = await profileService.updateProfile(
-        userId,
-        avatar: result.key,
-      );
-      if (!updated) {
-        _showErrorSnackBar('资料更新失败，请重试');
-        return;
-      }
-
+      // 后端独立接口已完成上传+存DB，直接更新本地头像 URL
       await auth.updateAvatar(result.url);
 
       if (mounted) {
