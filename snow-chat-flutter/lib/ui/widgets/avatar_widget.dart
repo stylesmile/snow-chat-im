@@ -1,6 +1,9 @@
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
+/// 头像 Widget，支持网络 URL 和 base64 data URL 两种模式
 class AvatarWidget extends StatelessWidget {
   final String? imageUrl;
   final String initials;
@@ -24,6 +27,29 @@ class AvatarWidget extends StatelessWidget {
     final textColor = foregroundColor ?? theme.colorScheme.onPrimaryContainer;
 
     if (imageUrl != null && imageUrl!.isNotEmpty) {
+      // 判断是否为 base64 data URL（以 data:image 开头）
+      if (imageUrl!.startsWith('data:image')) {
+        // data URL：解码为字节，用 Image.memory 直接渲染（支持 InMemoryFileStorage）
+        try {
+          // 提取 base64 部分（去掉 data:image/xxx;base64, 前缀）
+          final base64Part = imageUrl!.split(',').last;
+          final bytes = base64Decode(base64Part);
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(size / 2),
+            child: Image.memory(
+              bytes,
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => _buildPlaceholder(initials, color, textColor),
+            ),
+          );
+        } catch (e) {
+          // 解码失败则降级显示占位
+          return _buildPlaceholder(initials, color, textColor);
+        }
+      }
+      // 网络 URL：使用 CachedNetworkImage 加载
       return ClipRRect(
         borderRadius: BorderRadius.circular(size / 2),
         child: CachedNetworkImage(

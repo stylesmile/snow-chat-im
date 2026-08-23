@@ -206,6 +206,8 @@ class _ContactTabState extends State<ContactTab> {
         ListView(
           controller: _scrollController,
           children: [
+            // --- 文件传输助手（固定入口，直接发起单聊）---
+            _buildFileHelperItem(l10n),
             // --- 新的朋友 ---
             _buildFeatureItem(
               icon: Icons.person_add,

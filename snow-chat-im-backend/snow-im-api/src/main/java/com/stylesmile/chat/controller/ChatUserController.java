@@ -130,6 +130,12 @@ public class ChatUserController {
 
     /**
      * 获取当前用户信息（从 token 中解析 userId）
+     *
+     * <p>avatar 字段处理：
+     * <ul>
+     *   <li>若 avatar 以 {@code avatars/} 开头 → 视为 storage key，实时生成 pre-signed URL；</li>
+     *   <li>否则 → 直接返回原始值（兼容历史全 URL 数据）。</li>
+     * </ul>
      */
     @GetMapping("/info")
     public Result<ChatUser> info(HttpServletRequest request) {
@@ -138,7 +144,16 @@ public class ChatUserController {
             return Result.failMessage("未登录");
         }
         ChatUser user = chatUserService.getUserById(userId);
-        return user != null ? Result.success(user) : Result.failMessage("用户不存在");
+        if (user == null) {
+            return Result.failMessage("用户不存在");
+        }
+        // 若 avatar 是 storage key，实时生成有效 URL
+        String avatar = user.getAvatar();
+        if (avatar != null && avatar.startsWith("avatars/")) {
+            String url = fileStorageService.generateAvatarUrl(avatar);
+            user.setAvatar(url);
+        }
+        return Result.success(user);
     }
 
     /**

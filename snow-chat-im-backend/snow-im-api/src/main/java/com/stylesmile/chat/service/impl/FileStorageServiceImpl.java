@@ -6,8 +6,10 @@ import com.stylesmile.chat.storage.FileStorage;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Base64;
 import java.util.UUID;
 
 /**
@@ -83,6 +85,23 @@ public class FileStorageServiceImpl implements FileStorageService {
             // 输入流读取失败时抛出运行时异常，由 GlobalExceptionHandler 统一处理
             throw new RuntimeException("Failed to read multipart file input stream", e);
         }
+    }
+
+    /**
+     * 为已存储的头像 key 实时生成可访问 URL。
+     *
+     * <p>MinIO 模式：生成带签名的下载链接（7 天有效）。
+     * <p>InMemory 模式：读取内存字节，转为 base64 data URL，无需签名。
+     *
+     * @param avatarKey 存储 key（如 {@code avatars/uuid.jpg}）
+     * @return 可直接用于 img src 的 URL
+     */
+    @Override
+    public String generateAvatarUrl(String avatarKey) {
+        // 委托 FileStorage 实现生成对应模式的 URL
+        // MinioFileStorage 会生成带签名的 HTTPS URL
+        // InMemoryFileStorage 会生成 base64 data URL（内嵌图片数据，永久有效）
+        return fileStorage.generatePresignedUrl(avatarKey, PRESIGN_EXPIRATION_MINUTES);
     }
 
     /**

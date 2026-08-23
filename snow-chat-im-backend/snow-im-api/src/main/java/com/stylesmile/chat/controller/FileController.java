@@ -3,10 +3,7 @@ package com.stylesmile.chat.controller;
 import com.stylesmile.chat.dto.UploadResult;
 import com.stylesmile.chat.service.FileStorageService;
 import com.stylesmile.common.util.Result;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
@@ -14,11 +11,12 @@ import javax.annotation.Resource;
 /**
  * 文件上传控制器。
  *
- * <p>暴露 {@code POST /file/upload} multipart 接口，
- * 供前端上传头像等文件，返回 {@code {key, url}} 供前端使用。
- *
- * <p>典型场景：前端选择图片 → 上传到本接口 → 拿到 {@link UploadResult#key()} 与 {@link UploadResult#url()} →
- * 调用 {@code PUT /chat/user/profile} 把 key 存入用户头像字段 → 前端用 url 立即展示。
+ * <p>提供两类上传接口：
+ * <ul>
+ *   <li>{@code POST /file/upload}：通用文件上传，返回 {@code {key, url}}；</li>
+ *   <li>{@code POST /file/avatar}：头像专用上传，自动写入 {@code avatars/} 目录，
+ *       返回 {@code {key, url}} 供前端立即展示。</li>
+ * </ul>
  *
  * @author mmm
  * @see FileStorageService
@@ -36,7 +34,7 @@ public class FileController {
     private FileStorageService fileStorageService;
 
     /**
-     * 上传文件并返回 key 与 pre-signed URL。
+     * 通用文件上传（不绑定用户，返回 key 和预签名 URL）。
      *
      * @param file multipart 文件，表单字段名 {@code file}
      * @return 成功：{@code Result.success(UploadResult)}，code=200；
@@ -49,6 +47,30 @@ public class FileController {
             return Result.fail();
         }
         // 委托 service 完成上传与签名，包装成成功结果返回
+        UploadResult uploadResult = fileStorageService.uploadAndSign(file);
+        return Result.success(uploadResult);
+    }
+
+    /**
+     * 上传用户头像（独立接口，自动存入 avatars/ 目录）。
+     *
+     * <p>与 {@link #upload} 的区别：
+     * <ul>
+     *   <li>文件名自动替换为 {@code avatars/{uuid}.{ext}} 格式，确保头像统一存储路径；</li>
+     *   <li>前端可直接使用返回的 {@code url} 作为头像展示地址。</li>
+     * </ul>
+     *
+     * @param file multipart 头像文件，表单字段名 {@code file}
+     * @return 成功：{@code Result.success(UploadResult)}，code=200；
+     *         失败（空文件）：{@code Result.fail()}，code=500，data=null
+     */
+    @PostMapping("/avatar")
+    public Result<UploadResult> uploadAvatar(@RequestParam("file") MultipartFile file) {
+        // 校验：空文件直接返回失败
+        if (file == null || file.isEmpty()) {
+            return Result.fail();
+        }
+        // 复用通用上传逻辑（内部会按原始文件名生成 avatars/{uuid}.{ext}）
         UploadResult uploadResult = fileStorageService.uploadAndSign(file);
         return Result.success(uploadResult);
     }

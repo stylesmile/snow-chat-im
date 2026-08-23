@@ -30,4 +30,16 @@ public interface FileStorageService {
      * @return 包含 key 与 pre-signed URL 的结果对象
      */
     UploadResult uploadAndSign(MultipartFile file);
+
+    /**
+     * 为已存储的头像 key 实时生成可访问 URL。
+     *
+     * <p>用于 {@code GET /chat/user/info} 接口：将 DB 中存储的 avatar key（如 {@code avatars/uuid.jpg}）
+     * 动态转换为当前有效的访问地址。MinIO 模式下生成带签名的下载链接，InMemory 模式下
+     * 返回内嵌 base64 的 data URL（确保前端可直接展示）。
+     *
+     * @param avatarKey 存储 key（以 {@code avatars/} 开头）
+     * @return 可直接用于 img src 的 URL 字符串
+     */
+    String generateAvatarUrl(String avatarKey);
 }
