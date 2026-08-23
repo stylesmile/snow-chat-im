@@ -1,9 +1,11 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 import 'package:video_player/video_player.dart';
 import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -360,10 +362,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         ),
       );
       if (results == null || results.isEmpty) return;
-      // 获取本地路径并转为 File
-      final path = await results.first.path;
-      if (path == null) return;
-      onPicked(File(path));
+      // 获取本地文件：wechat_assets_picker 9.x 的 AssetEntity.file 返回 File?
+      final file = await results.first.file;
+      if (file == null) return;
+      onPicked(file);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
