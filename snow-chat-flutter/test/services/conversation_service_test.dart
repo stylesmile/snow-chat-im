@@ -1,7 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:snow_chat/services/conversation_service.dart';
 import 'package:snow_chat/core/database/tables.dart';
 
 void main() {
@@ -9,36 +7,35 @@ void main() {
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
 
-  late ConversationService conversationService;
+  const testUserId = 1;
+
   late Database db;
 
   setUp(() async {
     db = await openDatabase(
       inMemoryDatabasePath,
-      version: 3,
+      version: 1,
       onCreate: (db, version) async {
-        await db.execute(Tables.createSessionsTable);
+        // 创建带用户ID前缀的会话表（与生产环境一致）
+        await db.execute(Tables.createSessionsTable(testUserId));
       },
     );
-
-    // Mock DatabaseHelper 返回测试数据库
-    conversationService = ConversationService();
-    // 使用反射或直接操作来替换内部数据库
-    // 由于 ConversationService 内部使用 DatabaseHelper，这里需要手动设置
-    // 直接测试 ConversationService 的逻辑
   });
 
   tearDown(() async {
     await db.close();
   });
 
+  /// 辅助方法：用测试数据库执行操作，验证带前缀的表名正确工作
   group('ConversationService.saveSession', () {
-    test('should insert session into database', () async {
+    test('should insert session into user-scoped table', () async {
+      final table = Tables.sessionsTable(testUserId);
+
       // 直接使用 db 操作来验证表结构
       await db.insert(
-        'sessions',
+        table,
         {
-          'user_id': 1,
+          'user_id': testUserId,
           'target_id': 2,
           'target_type': 'friend',
           'last_msg': 'Hello',
@@ -49,18 +46,20 @@ void main() {
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
 
-      final rows = await db.query('sessions');
+      final rows = await db.query(table);
       expect(rows.length, equals(1));
       expect(rows[0]['last_msg'], equals('Hello'));
       expect(rows[0]['unread_count'], equals(1));
     });
 
-    test('should replace session on conflict', () async {
+    test('should replace session on conflict (upsert behavior)', () async {
+      final table = Tables.sessionsTable(testUserId);
+
       // 插入第一次
       await db.insert(
-        'sessions',
+        table,
         {
-          'user_id': 1,
+          'user_id': testUserId,
           'target_id': 2,
           'target_type': 'friend',
           'last_msg': 'Hello',
@@ -73,9 +72,9 @@ void main() {
 
       // 插入同一 user_id + target_id + target_type，应替换
       await db.insert(
-        'sessions',
+        table,
         {
-          'user_id': 1,
+          'user_id': testUserId,
           'target_id': 2,
           'target_type': 'friend',
           'last_msg': 'Updated',
@@ -86,7 +85,7 @@ void main() {
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
 
-      final rows = await db.query('sessions');
+      final rows = await db.query(table);
       expect(rows.length, equals(1));
       expect(rows[0]['last_msg'], equals('Updated'));
       expect(rows[0]['unread_count'], equals(3));
@@ -95,9 +94,11 @@ void main() {
 
   group('ConversationService.loadSessions', () {
     test('should load sessions ordered by last_msg_time DESC', () async {
+      final table = Tables.sessionsTable(testUserId);
+
       // 插入多条记录
-      await db.insert('sessions', {
-        'user_id': 1,
+      await db.insert(table, {
+        'user_id': testUserId,
         'target_id': 2,
         'target_type': 'friend',
         'last_msg': 'Old',
@@ -105,8 +106,8 @@ void main() {
         'unread_count': 0,
         'update_time': DateTime.now().millisecondsSinceEpoch,
       });
-      await db.insert('sessions', {
-        'user_id': 1,
+      await db.insert(table, {
+        'user_id': testUserId,
         'target_id': 3,
         'target_type': 'group',
         'last_msg': 'New',
@@ -114,7 +115,7 @@ void main() {
         'unread_count': 5,
         'update_time': DateTime.now().millisecondsSinceEpoch,
       });
-      await db.insert('sessions', {
+      await db.insert(table, {
         'user_id': 2, // 不同用户
         'target_id': 4,
         'target_type': 'friend',
@@ -124,11 +125,11 @@ void main() {
         'update_time': DateTime.now().millisecondsSinceEpoch,
       });
 
-      // 查询用户 1 的会话
+      // 查询用户 testUserId 的会话
       final rows = await db.query(
-        'sessions',
+        table,
         where: 'user_id = ?',
-        whereArgs: [1],
+        whereArgs: [testUserId],
         orderBy: 'last_msg_time DESC',
       );
 
@@ -138,10 +139,11 @@ void main() {
     });
 
     test('should return empty list when no sessions exist', () async {
+      final table = Tables.sessionsTable(testUserId);
       final rows = await db.query(
-        'sessions',
+        table,
         where: 'user_id = ?',
-        whereArgs: [999],
+        whereArgs: [testUserId],
       );
 
       expect(rows, isEmpty);
@@ -150,8 +152,9 @@ void main() {
 
   group('ConversationService.updateUnreadCount', () {
     test('should update unread count', () async {
-      await db.insert('sessions', {
-        'user_id': 1,
+      final table = Tables.sessionsTable(testUserId);
+      await db.insert(table, {
+        'user_id': testUserId,
         'target_id': 2,
         'target_type': 'friend',
         'last_msg': 'Hello',
@@ -161,21 +164,22 @@ void main() {
       });
 
       await db.update(
-        'sessions',
+        table,
         {'unread_count': 0},
-        where: 'user_id = ? AND target_id = ? AND target_type = ?',
-        whereArgs: [1, 2, 'friend'],
+        where: 'target_id = ? AND target_type = ?',
+        whereArgs: [2, 'friend'],
       );
 
-      final rows = await db.query('sessions');
+      final rows = await db.query(table);
       expect(rows[0]['unread_count'], equals(0));
     });
   });
 
   group('ConversationService.deleteSession', () {
     test('should delete session', () async {
-      await db.insert('sessions', {
-        'user_id': 1,
+      final table = Tables.sessionsTable(testUserId);
+      await db.insert(table, {
+        'user_id': testUserId,
         'target_id': 2,
         'target_type': 'friend',
         'last_msg': 'Hello',
@@ -185,18 +189,19 @@ void main() {
       });
 
       await db.delete(
-        'sessions',
-        where: 'user_id = ? AND target_id = ? AND target_type = ?',
-        whereArgs: [1, 2, 'friend'],
+        table,
+        where: 'target_id = ? AND target_type = ?',
+        whereArgs: [2, 'friend'],
       );
 
-      final rows = await db.query('sessions');
+      final rows = await db.query(table);
       expect(rows, isEmpty);
     });
 
     test('should not delete other sessions', () async {
-      await db.insert('sessions', {
-        'user_id': 1,
+      final table = Tables.sessionsTable(testUserId);
+      await db.insert(table, {
+        'user_id': testUserId,
         'target_id': 2,
         'target_type': 'friend',
         'last_msg': 'Keep me',
@@ -204,8 +209,8 @@ void main() {
         'unread_count': 0,
         'update_time': DateTime.now().millisecondsSinceEpoch,
       });
-      await db.insert('sessions', {
-        'user_id': 1,
+      await db.insert(table, {
+        'user_id': testUserId,
         'target_id': 3,
         'target_type': 'friend',
         'last_msg': 'Delete me',
@@ -215,12 +220,12 @@ void main() {
       });
 
       await db.delete(
-        'sessions',
-        where: 'user_id = ? AND target_id = ? AND target_type = ?',
-        whereArgs: [1, 3, 'friend'],
+        table,
+        where: 'target_id = ? AND target_type = ?',
+        whereArgs: [3, 'friend'],
       );
 
-      final rows = await db.query('sessions');
+      final rows = await db.query(table);
       expect(rows.length, equals(1));
       expect(rows[0]['last_msg'], equals('Keep me'));
     });
