@@ -1,50 +1,34 @@
 package com.stylesmile.chat.entity;
 
 import com.baomidou.mybatisplus.annotation.TableField;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 /**
- * @author chenye
- * @date 2018/12/10
+ * 好友请求实体类
  */
 @Data
+@Schema(description = "好友请求实体")
 public class ChatFriendRequest {
-    /**
-     * 主键
-     */
+    @Schema(description = "主键ID")
     private Long id;
-    /**
-     * 发起人ID
-     */
+    @Schema(description = "发起人ID")
     private Long fromUserId;
-    /**
-     * 接收人ID
-     */
+    @Schema(description = "接收人ID")
     private Long toUserId;
-    /**
-     * 状态 pending/accepted/rejected
-     */
+    @Schema(description = "状态：pending/accepted/rejected", example = "pending")
     private String status;
-    /**
-     * 备注
-     */
+    @Schema(description = "验证消息")
     private String remark;
-    /**
-     * 创建时间
-     */
+    @Schema(description = "创建时间")
     private java.util.Date createTime;
-    /**
-     * 发起人昵称（JOIN查询）
-     */
     @TableField(exist = false)
+    @Schema(description = "发起人昵称（JOIN查询）")
     private String fromNickname;
-    /**
-     * 发起人头像（JOIN查询）
-     */
     @TableField(exist = false)
+    @Schema(description = "发起人头像（JOIN查询）")
     private String fromAvatar;
 
     public ChatFriendRequest() {
     }
-
- }
+}

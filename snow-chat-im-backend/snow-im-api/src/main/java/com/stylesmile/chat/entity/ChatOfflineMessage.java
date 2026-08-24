@@ -1,31 +1,28 @@
 package com.stylesmile.chat.entity;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.util.Date;
 
 /**
- * 离线消息实体
- * <p>
- * 当用户离线时，系统将 MQTT 消息暂存到数据库，
- * 待用户重新上线后由 {@link com.stylesmile.chat.mqtt.MqttOfflineMessageDeliver} 投递。
- * </p>
+ * 离线消息实体类
  */
 @Setter
 @Getter
+@Schema(description = "离线消息实体")
 public class ChatOfflineMessage {
-    /** 主键 ID */
+    @Schema(description = "主键ID")
     private Long id;
-    /** 接收者用户 ID */
+    @Schema(description = "接收者用户ID")
     private Long toUserId;
-    /** MQTT 主题（如 chat/user/{userId}） */
+    @Schema(description = "MQTT主题", example = "chat/user/1001")
     private String topic;
-    /** 消息命令类型（参见 WsCmd） */
+    @Schema(description = "消息命令类型")
     private Integer cmd;
-    /** 消息体 JSON（包含 cmd、seq、data） */
+    @Schema(description = "消息体JSON")
     private String payload;
-    /** 消息创建时间 */
+    @Schema(description = "创建时间")
     private Date createTime;
-
 }

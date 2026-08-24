@@ -1,44 +1,29 @@
 package com.stylesmile.chat.entity;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 /**
- * @author chenye
- * @date 2018/12/10
+ * 群组实体类
  */
 @Data
+@Schema(description = "群组实体")
 public class ChatGroup {
-    /**
-     * 主键
-     */
+    @Schema(description = "主键ID")
     private Long id;
-    /**
-     * 群名称
-     */
+    @Schema(description = "群名称", example = "测试群组")
     private String name;
-    /**
-     * 头像
-     */
+    @Schema(description = "头像URL")
     private String avatar;
-    /**
-     * 群主ID
-     */
+    @Schema(description = "群主ID")
     private Long ownerId;
-    /**
-     * 最大成员数
-     */
+    @Schema(description = "最大成员数", example = "500")
     private Integer maxMembers;
-    /**
-     * 创建时间
-     */
+    @Schema(description = "创建时间")
     private java.util.Date createTime;
-    /**
-     * 更新时间
-     */
+    @Schema(description = "更新时间")
     private java.util.Date updateTime;
-    /**
-     * 删除标识 0.未删除，1.删除
-     */
+    @Schema(description = "删除标识：0=未删除, 1=已删除", example = "0")
     private Integer delFlag;
 
     public ChatGroup() {

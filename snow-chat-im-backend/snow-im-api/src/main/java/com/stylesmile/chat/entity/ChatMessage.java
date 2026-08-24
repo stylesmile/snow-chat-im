@@ -1,55 +1,35 @@
 package com.stylesmile.chat.entity;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 /**
- * @author chenye
- * @date 2026/07/10
+ * 消息实体类
  */
 @Data
+@Schema(description = "消息实体")
 public class ChatMessage {
-    /**
-     * 主键
-     */
+    @Schema(description = "主键ID")
     private Long id;
-    /**
-     * 发送人ID
-     */
+    @Schema(description = "发送人ID")
     private Long fromUserId;
-    /**
-     * 接收人ID
-     */
+    @Schema(description = "接收人ID")
     private Long toUserId;
-    /**
-     * 群组ID
-     */
+    @Schema(description = "群组ID（群聊时有效）")
     private Long groupId;
-    /**
-     * 消息类型 text/image/file/video；self 表示"文件传输助手"（发给自己的消息）
-     */
+    @Schema(description = "消息类型：text/image/file/video/voice/emoji/self/recall", example = "text")
     private String type;
-    /**
-     * 消息内容
-     */
+    @Schema(description = "消息内容")
     private String content;
-    /**
-     * 本地序列号
-     */
+    @Schema(description = "本地序列号，用于去重和排序")
     private Long localSeq;
-    /**
-     * 状态（0=未读, 1=已读）
-     */
+    @Schema(description = "消息状态：0=未读, 1=已读", example = "0")
     private Integer status;
-    /**
-     * 推送状态：pending=待推送, server_received=服务器已收到, client_ack=客户端已确认, delivered=已送达
-     */
+    @Schema(description = "推送状态：pending/server_received/client_ack/delivered", example = "server_received")
     private String pushStatus;
-    /**
-     * 创建时间
-     */
+    @Schema(description = "创建时间")
     private java.util.Date createTime;
 
     public ChatMessage() {
     }
-
 }

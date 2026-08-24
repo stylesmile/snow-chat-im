@@ -1,28 +1,26 @@
 package com.stylesmile.chat.entity;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.Date;
 
 /**
- * 验证码实体：邮箱注册验证 / 找回密码
- * Verify code entity: email registration verification / password reset
- *
- * @author chenye
- * @date 2026/08/19
+ * 验证码实体类
  */
+@Schema(description = "验证码实体")
 public class ChatVerifyCode {
-    /** 主键 */
+    @Schema(description = "主键ID")
     private Long id;
-    /** 邮箱地址 */
+    @Schema(description = "邮箱地址", example = "zhangsan@example.com")
     private String email;
-    /** 6位数字验证码 */
+    @Schema(description = "6位数字验证码", example = "123456")
     private String code;
-    /** 类型：register / reset_password */
+    @Schema(description = "类型：register/reset_password", example = "register")
     private String type;
-    /** 过期时间 */
+    @Schema(description = "过期时间")
     private Date expireTime;
-    /** 是否已使用：0=未使用 1=已使用 */
+    @Schema(description = "是否已使用：0=未使用, 1=已使用", example = "0")
     private Integer used;
-    /** 创建时间 */
+    @Schema(description = "创建时间")
     private Date createTime;
 
     public Long getId() { return id; }
