@@ -161,7 +161,27 @@ class _ContactTabState extends State<ContactTab> {
     );
   }
 
-  /// 文件传输助手入口：点击直接打开与 fileId=0 的聊天窗口
+  /// 文件传输助手入口：放在底部"用户"分组下，点击直接打开聊天窗口
+  Widget _buildFileHelperSection(AppLocalizations l10n) {
+    return Column(
+      children: [
+        // 分组标题
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          color: AppTheme.surface,
+          child: const Text(
+            '用户',
+            style: TextStyle(fontSize: 13, color: Colors.white54, fontWeight: FontWeight.w500),
+          ),
+        ),
+        // 文件传输助手条目
+        _buildFileHelperItem(l10n),
+      ],
+    );
+  }
+
+  /// 文件传输助手条目
   Widget _buildFileHelperItem(AppLocalizations l10n) {
     return ListTile(
       leading: Container(
@@ -235,8 +255,6 @@ class _ContactTabState extends State<ContactTab> {
         ListView(
           controller: _scrollController,
           children: [
-            // --- 文件传输助手（固定入口，直接发起单聊）---
-            _buildFileHelperItem(l10n),
             // --- 新的朋友 ---
             _buildFeatureItem(
               icon: Icons.person_add,
@@ -264,6 +282,8 @@ class _ContactTabState extends State<ContactTab> {
             ),
             // --- 按字母分组的好友列表 ---
             ..._buildAlphabeticalList(l10n, grouped, availableLetters),
+            // --- 文件传输助手（放在底部"用户"分组）---
+            _buildFileHelperSection(l10n),
             // 底部留白，避免被导航栏遮挡
             const SizedBox(height: 20),
           ],
