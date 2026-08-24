@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:video_player/video_player.dart';
 import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -384,29 +385,27 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   /// 使用 wechat_assets_picker 选择媒体（图片/视频/音频/文件）
   ///
-  /// [type] 决定 RequestType：image / video / audio / all（all 包含文件）
+  /// [type] 决定 RequestType：image / video / audio / file（file 由 file_picker 处理）。
+  /// 除 file 外的类型走相册选择器；file 类型走 [file_picker]（见 [_pickAnyFile]）。
   /// 选择完成后回调 [onPicked] 携带 File
   Future<void> _pickAsset({
     required MediaType type,
     required void Function(File) onPicked,
   }) async {
     try {
+      // file 类型：相册选择器只支持媒体，无法选任意文件，故改用 file_picker
+      if (type == MediaType.file) {
+        await _pickAnyFile(onPicked);
+        return;
+      }
+      // 媒体类型：映射到相册选择器的 RequestType
       final RequestType requestType;
-      switch (type) {
-        case MediaType.image:
-          requestType = RequestType.image;
-          break;
-        case MediaType.video:
-          requestType = RequestType.video;
-          break;
-        case MediaType.audio:
-          requestType = RequestType.audio;
-          break;
-        case MediaType.file:
-          // wechat_assets_picker 不支持通用文件，降级为 image 后由后端按 ext 判断
-          // 实际生产建议接入 file_picker 插件
-          requestType = RequestType.image;
-          break;
+      if (type == MediaType.image) {
+        requestType = RequestType.image;
+      } else if (type == MediaType.video) {
+        requestType = RequestType.video;
+      } else {
+        requestType = RequestType.audio;
       }
       final List<AssetEntity>? results = await AssetPicker.pickAssets(
         context,
@@ -424,6 +423,37 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       if (file == null) return;
       onPicked(file);
     } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${AppLocalizations.of(context)!.pickAssetFailed}: $e')),
+      );
+    }
+  }
+
+  /// 使用 file_picker 选择任意类型的本地文件（文档/压缩包/音视频等）
+  ///
+  /// 与相册选择器（wechat_assets_picker）互补：相册只能选媒体，
+  /// 本方法可以选通用文件。选择完成后通过 [onPicked] 回调把选中的
+  /// [File] 交给调用方，统一走已有的"上传→发送"链路（见 [_onMediaPicked]）。
+  ///
+  /// @param onPicked 选中文件后的回调，携带选中的 [File]
+  Future<void> _pickAnyFile(void Function(File) onPicked) async {
+    try {
+      // 打开系统文件选择器：允许所有文件类型，单选
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+      );
+      // 用户取消选择时 result 为 null，直接返回不报错
+      if (result == null || result.files.isEmpty) return;
+      // 取第一个（单选场景）文件的本机路径
+      final path = result.files.single.path;
+      // Web 平台下 path 为 null；本项目为移动端，此处做判空防御
+      if (path == null) return;
+      // 把选中的文件交给调用方统一处理（上传→发送）
+      onPicked(File(path));
+    } catch (e) {
+      // 选择失败时给出提示，不中断其它交互
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${AppLocalizations.of(context)!.pickAssetFailed}: $e')),
