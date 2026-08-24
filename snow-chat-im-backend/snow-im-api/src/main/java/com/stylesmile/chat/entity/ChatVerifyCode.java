@@ -11,7 +11,7 @@ import java.util.Date;
  */
 public class ChatVerifyCode {
     /** 主键 */
-    private Integer id;
+    private Long id;
     /** 邮箱地址 */
     private String email;
     /** 6位数字验证码 */
@@ -25,8 +25,8 @@ public class ChatVerifyCode {
     /** 创建时间 */
     private Date createTime;
 
-    public Integer getId() { return id; }
-    public void setId(Integer id) { this.id = id; }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
     public String getCode() { return code; }

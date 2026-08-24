@@ -28,5 +28,5 @@ public interface ChatVerifyCodeMapper extends BaseMapper<ChatVerifyCode> {
      *
      * @param id 验证码ID
      */
-    void markUsed(@Param("id") Integer id);
+    void markUsed(@Param("id") Long id);
 }

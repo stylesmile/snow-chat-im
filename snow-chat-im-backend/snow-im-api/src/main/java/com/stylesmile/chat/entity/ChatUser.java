@@ -8,7 +8,7 @@ public class ChatUser {
     /**
      * 主键
      */
-    private Integer id;
+    private Long id;
     /**
      * 用户名
      */
@@ -58,11 +58,11 @@ public class ChatUser {
         this.username = username;
     }
 
-    public Integer getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(Integer id) {
+    public void setId(Long id) {
         this.id = id;
     }
 

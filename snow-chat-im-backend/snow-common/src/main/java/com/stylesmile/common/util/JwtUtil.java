@@ -38,7 +38,7 @@ public class JwtUtil {
      * @param username 用户名
      * @return JWT 字符串
      */
-    public static String createToken(Integer userId, String username) {
+    public static String createToken(Long userId, String username) {
         return Jwts.builder()
                 .subject(String.valueOf(userId))          // subject：用户 ID
                 .claim("username", username)              // 附加字段：用户名

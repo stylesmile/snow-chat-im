@@ -1,5 +1,6 @@
 package com.stylesmile.chat.service.impl;
 
+import cn.hutool.core.util.IdUtil;
 import cn.hutool.crypto.SecureUtil;
 import com.stylesmile.common.service.BaseServiceImpl;
 import com.stylesmile.common.util.Result;
@@ -114,7 +115,7 @@ public class ChatUserServiceImpl extends BaseServiceImpl<ChatUserMapper, ChatUse
         newUser.setStatus("offline");
         newUser.setAvatar("");
         newUser.setSignature("");
-
+        newUser.setId(IdUtil.getSnowflakeNextId());
         save(newUser);
         return Result.success(newUser);
     }
