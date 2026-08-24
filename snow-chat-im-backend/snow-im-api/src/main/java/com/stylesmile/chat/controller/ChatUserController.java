@@ -7,6 +7,11 @@ import com.stylesmile.common.util.JwtUtil;
 import com.stylesmile.common.util.Result;
 import com.stylesmile.chat.dto.UploadResult;
 import com.stylesmile.chat.entity.ChatUser;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -17,13 +22,14 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 聊天用户控制器
+ * 聊天用户控制器 - 用户认证、资料管理、头像上传
  *
  * @author chenye
  * @date 2018/12/10
  */
 @RestController
 @RequestMapping("/chat/user")
+@Tag(name = "用户管理", description = "用户登录、注册、资料管理、头像上传接口")
 public class ChatUserController {
 
     @Resource
@@ -42,6 +48,9 @@ public class ChatUserController {
      * @param request  ServletRequest，用于后续获取 token
      * @return Result  data 中包含 user 信息和 token
      */
+    @Operation(summary = "用户登录", description = "验证用户名密码，成功返回用户信息 + JWT token")
+    @ApiResponse(responseCode = "200", description = "登录成功")
+    @ApiResponse(responseCode = "401", description = "用户名或密码错误")
     @PostMapping("/login")
     public Result<Map<String, Object>> login(@RequestBody CredentialsDTO body,
                                               HttpServletRequest request) {
@@ -65,6 +74,8 @@ public class ChatUserController {
      * 用户退出登录（纯客户端操作，服务端无需清理，直接返回成功）
      * 客户端收到成功后清除本地存储的 token 即可
      */
+    @Operation(summary = "用户退出登录", description = "客户端清除本地token即可，服务端无需清理")
+    @ApiResponse(responseCode = "200", description = "退出成功")
     @PostMapping("/logout")
     public Result<Void> logout() {
         return Result.success();
@@ -84,6 +95,9 @@ public class ChatUserController {
      * @param file multipart 头像文件，表单字段名 file
      * @return Result<Map> data 中包含 key（DB 存储值）和 url（前端展示地址）
      */
+    @Operation(summary = "上传用户头像", description = "上传头像到avatars/目录，持久化到DB，返回展示URL")
+    @ApiResponse(responseCode = "200", description = "上传成功")
+    @ApiResponse(responseCode = "401", description = "未登录")
     @PostMapping("/avatar/upload")
     public Result<Map<String, String>> uploadAvatar(@RequestParam("file") MultipartFile file,
                                                      HttpServletRequest request) {
@@ -119,6 +133,8 @@ public class ChatUserController {
      * @param keyword 搜索关键词
      * @return 匹配的用户列表
      */
+    @Operation(summary = "搜索用户", description = "模糊搜索用户，匹配username或nickname")
+    @ApiResponse(responseCode = "200", description = "搜索成功")
     @GetMapping("/search")
     public Result<List<ChatUser>> searchUsers(@RequestParam String keyword) {
         if (keyword == null || keyword.trim().isEmpty()) {
@@ -137,6 +153,9 @@ public class ChatUserController {
      *   <li>否则 → 直接返回原始值（兼容历史全 URL 数据）。</li>
      * </ul>
      */
+    @Operation(summary = "获取当前用户信息", description = "从JWT token中解析用户ID，返回用户详细信息")
+    @ApiResponse(responseCode = "200", description = "获取成功")
+    @ApiResponse(responseCode = "401", description = "未登录")
     @GetMapping("/info")
     public Result<ChatUser> info(HttpServletRequest request) {
         Integer userId = get_currentUserId(request);
@@ -159,6 +178,9 @@ public class ChatUserController {
     /**
      * 更新用户资料（昵称、头像、签名）
      */
+    @Operation(summary = "更新用户资料", description = "更新用户昵称、头像、签名")
+    @ApiResponse(responseCode = "200", description = "更新成功")
+    @ApiResponse(responseCode = "401", description = "未登录")
     @PutMapping("/update")
     public Result<Void> updateProfile(@RequestBody UpdateProfileDTO body,
                                        HttpServletRequest request) {
@@ -186,6 +208,9 @@ public class ChatUserController {
     /**
      * 用户注册（邮箱必填 + 验证码校验）
      */
+    @Operation(summary = "用户注册", description = "邮箱注册，需要验证码校验")
+    @ApiResponse(responseCode = "200", description = "注册成功")
+    @ApiResponse(responseCode = "400", description = "验证码无效或邮箱已注册")
     @PostMapping("/register")
     public Result<Map<String, Object>> register(@RequestBody RegisterDTO body) {
         Result<ChatUser> result = chatUserService.register(
@@ -210,6 +235,8 @@ public class ChatUserController {
     /**
      * 仅校验验证码是否有效（不消耗，用于注册步骤1预览）
      */
+    @Operation(summary = "校验验证码", description = "仅校验验证码有效性，不消耗验证码")
+    @ApiResponse(responseCode = "200", description = "校验完成")
     @PostMapping("/verify/code")
     public Result<Boolean> verifyCodeOnly(@RequestBody VerifyCodeDTO body) {
         if (body.getEmail() == null || body.getEmail().trim().isEmpty()
@@ -225,6 +252,9 @@ public class ChatUserController {
      * 发送邮箱验证码
      * type: register（注册验证） / reset_password（找回密码验证）
      */
+    @Operation(summary = "发送邮箱验证码", description = "发送邮箱验证码，type: register/reset_password")
+    @ApiResponse(responseCode = "200", description = "发送成功")
+    @ApiResponse(responseCode = "400", description = "邮箱格式错误")
     @PostMapping("/send/email/code")
     public Result<Void> sendEmailCode(@RequestParam String email, @RequestParam String type) {
         if (email == null || email.trim().isEmpty()) {
@@ -240,6 +270,9 @@ public class ChatUserController {
     /**
      * 通过邮箱+验证码重置密码
      */
+    @Operation(summary = "重置密码", description = "通过邮箱+验证码重置密码")
+    @ApiResponse(responseCode = "200", description = "重置成功")
+    @ApiResponse(responseCode = "400", description = "验证码无效或已过期")
     @PostMapping("/reset/password")
     public Result<Void> resetPassword(@RequestBody ResetPasswordDTO body) {
         return chatUserService.resetPasswordByEmail(body.getEmail(), body.getCode(), body.getNewPassword());
@@ -263,8 +296,11 @@ public class ChatUserController {
     // -------------------------------------------------------------------------
 
     /** 登录请求体 */
+    @Schema(description = "登录请求体")
     public static class CredentialsDTO {
+        @Schema(description = "用户名", example = "zhangsan")
         private String username;
+        @Schema(description = "密码", example = "123456")
         private String password;
         public String getUsername() { return username; }
         public void setUsername(String username) { this.username = username; }
@@ -273,9 +309,13 @@ public class ChatUserController {
     }
 
     /** 注册请求体（含验证码） */
+    @Schema(description = "注册请求体")
     public static class RegisterDTO extends CredentialsDTO {
+        @Schema(description = "昵称", example = "张三")
         private String nickname;
+        @Schema(description = "邮箱", example = "zhangsan@example.com")
         private String email;
+        @Schema(description = "验证码", example = "123456")
         private String code;
         public String getNickname() { return nickname; }
         public void setNickname(String nickname) { this.nickname = nickname; }
@@ -286,9 +326,13 @@ public class ChatUserController {
     }
 
     /** 更新资料请求体 */
+    @Schema(description = "更新资料请求体")
     public static class UpdateProfileDTO {
+        @Schema(description = "昵称", example = "张三")
         private String nickname;
+        @Schema(description = "头像URL", example = "https://example.com/avatar.jpg")
         private String avatar;
+        @Schema(description = "个性签名", example = "Hello World")
         private String signature;
         public String getNickname() { return nickname; }
         public void setNickname(String nickname) { this.nickname = nickname; }
@@ -299,9 +343,13 @@ public class ChatUserController {
     }
 
     /** 重置密码请求体 */
+    @Schema(description = "重置密码请求体")
     public static class ResetPasswordDTO {
+        @Schema(description = "邮箱", example = "zhangsan@example.com")
         private String email;
+        @Schema(description = "验证码", example = "123456")
         private String code;
+        @Schema(description = "新密码", example = "newpassword123")
         private String newPassword;
         public String getEmail() { return email; }
         public void setEmail(String email) { this.email = email; }
@@ -312,9 +360,13 @@ public class ChatUserController {
     }
 
     /** 仅校验验证码请求体（不消耗） */
+    @Schema(description = "验证码校验请求体")
     public static class VerifyCodeDTO {
+        @Schema(description = "邮箱", example = "zhangsan@example.com")
         private String email;
+        @Schema(description = "验证码", example = "123456")
         private String code;
+        @Schema(description = "验证码类型: register/reset_password", example = "register")
         private String type;
         public String getEmail() { return email; }
         public void setEmail(String email) { this.email = email; }
