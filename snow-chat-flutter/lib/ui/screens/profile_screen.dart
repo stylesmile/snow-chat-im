@@ -1,6 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -39,7 +39,7 @@ class ProfileMenuItem {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _isUploading = false;
-  final ImagePicker _imagePicker = ImagePicker();
+  // wechat_assets_picker 选图用；不再依赖 image_picker
 
   static const Color _bgColor = Color(0xFF111111);
   static const Color _cardColor = Color(0xFF1E1E1E);
@@ -342,20 +342,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.camera_alt),
-                title: const Text('拍照'),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _pickAndUpload(ImageSource.camera);
-                },
-              ),
-              const Divider(height: 1),
-              ListTile(
                 leading: const Icon(Icons.photo_library),
                 title: const Text('从相册选择'),
                 onTap: () {
                   Navigator.pop(sheetContext);
-                  _pickAndUpload(ImageSource.gallery);
+                  _pickAndUploadAvatar();
                 },
               ),
               const Divider(height: 1),
@@ -371,15 +362,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Future<void> _pickAndUpload(ImageSource source) async {
-    final XFile? picked = await _imagePicker.pickImage(
-      source: source,
-      maxWidth: 512,
-      imageQuality: 80,
+  /// 使用 wechat_assets_picker 选择图片并上传头像
+  Future<void> _pickAndUploadAvatar() async {
+    final results = await AssetPicker.pickAssets(
+      context,
+      pickerConfig: AssetPickerConfig(
+        requestType: RequestType.image,
+        maxAssets: 1,
+        themeColor: Theme.of(context).colorScheme.primary,
+        textDelegate: AssetPickerTextDelegate(),
+      ),
     );
-    if (picked == null) return;
+    if (results == null || results.isEmpty) return;
+    final file = await results.first.file;
+    if (file == null) return;
+    _doUploadAvatar(file);
+  }
 
-    final File imageFile = File(picked.path);
+  /// 执行头像上传：上传 → 更新本地状态
+  Future<void> _doUploadAvatar(File imageFile) async {
     setState(() => _isUploading = true);
 
     try {
