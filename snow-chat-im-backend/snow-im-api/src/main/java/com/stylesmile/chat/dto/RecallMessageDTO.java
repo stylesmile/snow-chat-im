@@ -1,3 +1,7 @@
+package com.stylesmile.chat.dto;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Data;
 /**
  * 消息召回DTO（Data Transfer Object）- 用于封装消息召回（撤回）的请求数据
  *
@@ -18,55 +22,11 @@
  * @author Snow Chat Team
  * @version 1.0.0
  * @since 2024-01-01
- */
-package com.stylesmile.chat.dto;
-
-/**
- * Lombok注解库 - 自动生成getter、setter、toString、equals和hashCode方法
- *
- * @Data: 综合注解，包含以下功能：
- * - @Getter: 生成所有字段的getter方法
- * - @Setter: 生成所有字段的setter方法
- * - @ToString: 生成toString方法，便于调试
- * - @EqualsAndHashCode: 生成equals和hashCode方法，便于集合操作
- */
-import lombok.Data;
-
-/**
- * 消息召回DTO类
- *
- * 这个类封装了召回消息所需的信息。
- * 消息召回的处理流程：
- *
- * 1. 客户端发送召回请求
- * 2. 服务器验证用户身份和权限
- * 3. 服务器检查召回时间限制
- * 4. 服务器更新消息状态为已召回
- * 5. 服务器通知所有接收者消息已被召回
- * 6. 服务器从缓存和搜索索引中删除消息
- *
- * 召回时间限制：
- * - 私聊消息：发送后2分钟内可以召回
- * - 群聊消息：发送后2分钟内可以召回
- * - 超过时间限制后，召回请求会被拒绝
- *
- * 权限规则：
- * - 只能召回自己发送的消息
- * - 群主或管理员可以召回任何人的消息（可配置）
- * - 系统消息不能被召回
- *
- * 设计考虑：
- * - 使用软删除，保留召回记录用于审计
- * - 通知所有接收者消息已被召回
- * - 保留消息的元数据（发送时间、发送者等）
- *
- * @author Snow Chat Team
- * @version 1.0.0
- * @since 2024-01-01
+ * 消息撤回DTO - 用于封装消息撤回的请求数据
  */
 @Data
+@Schema(description = "消息撤回请求DTO")
 public class RecallMessageDTO {
-
     /**
      * 用户ID - 发起召回操作的用户
      *
@@ -99,8 +59,8 @@ public class RecallMessageDTO {
      * dto.setMessageId(5001L);
      * ```
      */
+    @Schema(description = "操作人用户ID", example = "1001")
     private Long userId;
-
     /**
      * 消息ID - 被召回的消息
      *
@@ -141,5 +101,6 @@ public class RecallMessageDTO {
      * dto.setMessageId(5001L); // 召回ID为5001的消息
      * ```
      */
+    @Schema(description = "要撤回的消息ID", example = "5001")
     private Long messageId;
 }

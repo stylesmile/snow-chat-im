@@ -1,31 +1,7 @@
-/**
- * Message传输对象（DTO）- 用于封装发送消息的请求数据
- *
- * 这个类定义了客户端发送消息时需要提供的所有字段。
- * DTO（Data Transfer Object）模式用于在不同层之间传输数据，
- * 避免直接暴露实体类，提高安全性和灵活性。
- *
- * 使用场景：
- * - 客户端通过REST API发送消息时使用
- * - MQTT消息发布前的数据封装
- * - WebSocket消息推送前的数据准备
- *
- * @author Snow Chat Team
- * @version 1.0.0
- * @since 2024-01-01
- */
 package com.stylesmile.chat.dto;
 
-/**
- * Jackson注解库 - 用于JSON序列化和反序列化
- * 提供了灵活的字段映射和别名支持
- */
 import com.fasterxml.jackson.annotation.JsonAlias;
-
-/**
- * Lombok注解库 - 自动生成getter和setter方法
- * 减少样板代码，提高开发效率
- */
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -52,11 +28,12 @@ import lombok.Setter;
  * dto.setType("text");
  * dto.setContent("Hello, World!");
  * ```
+ * 消息发送DTO - 用于封装发送消息的请求数据
  */
 @Getter
 @Setter
+@Schema(description = "消息发送请求DTO")
 public class SendMessageDTO {
-
     /**
      * 发送者用户ID
      *
@@ -75,9 +52,9 @@ public class SendMessageDTO {
      *
      * 这种设计允许不同编程语言的客户端使用各自的命名风格
      */
+    @Schema(description = "发送者用户ID", example = "1001", requiredMode = Schema.RequiredMode.REQUIRED)
     @JsonAlias({"fromUserId", "from_user_id"})
     private Long fromUserId;
-
     /**
      * 接收者用户ID（一对一消息）
      *
@@ -93,27 +70,13 @@ public class SendMessageDTO {
      * - 如果两者都为null，抛出IllegalArgumentException
      * - 接收者必须是发送者的好友（如果启用了好友验证）
      */
+    @Schema(description = "接收者用户ID（一对一消息）", example = "1002")
     @JsonAlias({"toUserId", "to_user_id"})
     private Long toUserId;
 
-    /**
-     * 群组ID（群聊消息）
-     *
-     * 这个字段用于群聊消息，标识消息的目标群组。
-     * 当发送群聊消息时，必须提供这个字段。
-     * 当发送私聊消息时，这个字段应该为null。
-     *
-     * 数据库映射：对应chat_message表的group_id字段
-     * 约束：与toUserId互斥，至少要提供其中一个
-     *
-     * 业务规则：
-     * - 发送者必须是该群组的成员
-     * - 如果群组不存在或发送者不是成员，抛出PermissionDeniedException
-     * - 群组消息会广播给所有在线成员
-     */
+    @Schema(description = "群组ID（群聊消息）", example = "2001")
     @JsonAlias({"groupId", "group_id"})
     private Long groupId;
-
     /**
      * 消息类型
      *
@@ -136,6 +99,7 @@ public class SendMessageDTO {
      * - 根据类型决定是否需要额外的元数据
      * - 根据类型选择不同的存储策略
      */
+    @Schema(description = "消息类型：text/image/file/video/voice/emoji/self/recall", example = "text")
     @JsonAlias({"type", "msgType"})
     private String type;
 
@@ -165,6 +129,8 @@ public class SendMessageDTO {
      * - 对文件类型进行白名单验证
      * - 限制内容长度，防止DoS攻击
      */
+
+    @Schema(description = "消息内容", example = "Hello World")
     @JsonAlias({"content"})
     private String content;
 
@@ -194,6 +160,7 @@ public class SendMessageDTO {
      * - 服务器不验证序列号的格式，只验证唯一性
      * - 如果序列号重复，返回409 Conflict错误
      */
+    @Schema(description = "本地序列号，用于消息去重和排序", example = "1700000000000")
     @JsonAlias({"localSeq", "local_seq"})
     private Long localSeq;
 }

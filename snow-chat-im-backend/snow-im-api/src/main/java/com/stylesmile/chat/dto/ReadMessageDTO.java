@@ -1,61 +1,19 @@
-/**
- * 消息已读DTO（Data Transfer Object）- 用于封装消息已读回执的请求数据
- *
- * 这个类定义了客户端标记消息为已读时需要提供的所有字段。
- * 已读回执是即时通讯系统的核心功能之一，用于：
- *
- * 1. 实时通知发送者消息已被阅读
- * 2. 更新消息的已读状态
- * 3. 计算未读消息数量
- * 4. 显示最后阅读时间
- *
- * 使用场景：
- * - 用户打开聊天界面时，标记所有消息为已读
- * - 用户滚动到消息底部时，标记可见消息为已读
- * - 用户点击"标记全部为已读"按钮时
- *
- * @author Snow Chat Team
- * @version 1.0.0
- * @since 2024-01-01
- */
 package com.stylesmile.chat.dto;
 
-/**
- * Lombok注解库 - 自动生成构造函数、getter和setter方法
- *
- * @NoArgsConstructor: 生成无参构造函数（JSON反序列化需要）
- * @AllArgsConstructor: 生成全参构造函数（方便测试和初始化）
- */
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * 消息已读DTO类
- *
- * 这个类封装了标记消息为已读所需的信息。
- * 已读回执的处理流程：
- *
- * 1. 客户端发送已读回执请求
- * 2. 服务器验证用户权限（只能标记自己收到的消息为已读）
- * 3. 服务器更新消息的已读状态
- * 4. 服务器通知发送者消息已被阅读
- * 5. 服务器更新未读消息计数
- *
- * 设计考虑：
- * - 支持私聊和群聊两种场景
- * - 使用targetType区分消息类型
- * - 优化数据库查询，支持批量更新
- *
- * @author Snow Chat Team
- * @version 1.0.0
- * @since 2024-01-01
+ * 消息已读DTO - 用于封装标记消息已读的请求数据
  */
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Schema(description = "消息已读请求DTO")
 public class ReadMessageDTO {
 
     /**
@@ -77,8 +35,8 @@ public class ReadMessageDTO {
      * 2. 检查用户是否有权限标记该消息为已读
      * 3. 检查消息是否已经被标记为已读（避免重复处理）
      */
+    @Schema(description = "用户ID", example = "1001")
     private Long userId;
-
     /**
      * 目标ID - 被标记为已读的消息或会话
      *
@@ -104,8 +62,8 @@ public class ReadMessageDTO {
      * - 优先使用会话级别的已读标记（批量更新）
      * - 只在必要时使用单条消息的已读标记
      */
+    @Schema(description = "目标ID（消息ID或会话ID）", example = "5001")
     private Long targetId;
-
     /**
      * 目标类型 - 指示targetId的类型
      *
@@ -140,5 +98,6 @@ public class ReadMessageDTO {
      * dto.setTargetType("conversation"); // 标记整个会话为已读
      * ```
      */
+    @Schema(description = "目标类型：message=单条消息, conversation=整个会话", example = "conversation")
     private String targetType;
 }
