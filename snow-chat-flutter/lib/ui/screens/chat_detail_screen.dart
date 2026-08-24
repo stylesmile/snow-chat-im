@@ -197,6 +197,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   void _initMqtt() async {
+    if (!AppConfig.enableMqtt) {
+      debugPrint('[ChatDetail] MQTT disabled by config, skipping connection');
+      return;
+    }
     final auth = context.read<AuthProvider>();
     final userId = auth.userId ?? 0;
     final chatClientId = 'user_${userId}_chat_${widget.targetId}_${widget.targetType}';

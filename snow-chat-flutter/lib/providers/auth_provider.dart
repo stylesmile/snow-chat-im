@@ -61,6 +61,10 @@ class AuthProvider extends ChangeNotifier {
         // 保存用户信息（可能嵌套在 user 字段中）
         final userData = data['user'] as Map<String, dynamic>? ?? data;
         _userId = _parseInt(userData['id']);
+        if (_userId == null || _userId! <= 0) {
+          _lastError = '注册响应数据异常：用户ID无效';
+          return false;
+        }
         _username = userData['username'] as String?;
         _nickname = userData['nickname'] as String?;
         _avatar = userData['avatar'] as String?;
@@ -244,7 +248,14 @@ class AuthProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
     if (isLoggedIn) {
-      _userId = prefs.getInt('userId');
+      // 校验 userId 有效性：负值说明 SharedPreferences 数据损坏，清除后重新登录
+      final rawUserId = prefs.getInt('userId');
+      if (rawUserId != null && rawUserId <= 0) {
+        await _clearAuthState();
+        notifyListeners();
+        return;
+      }
+      _userId = rawUserId;
       _username = prefs.getString('username');
       _nickname = prefs.getString('nickname');
       _avatar = prefs.getString('avatar');
@@ -254,7 +265,7 @@ class AuthProvider extends ChangeNotifier {
       }
       _isLoggedIn = true;
       // 确保已登录用户的数据库表已创建
-      if (_userId != null) {
+      if (_userId != null && _userId! > 0) {
         await DatabaseHelper().ensureUserTables(_userId!);
         // 同步设置消息缓存管理器用户ID，否则聊天页初始化时会抛出 StateError 导致 spinner 永不停止
         MessageCacheManager().setUserId(_userId!);
@@ -274,11 +285,18 @@ class AuthProvider extends ChangeNotifier {
   }
 
   /// 安全解析 int，支持 int/double/String 类型
+  /// 额外校验：确保返回正值，负值说明数据异常（如 SharedPreferences 损坏或后端返回异常）
   static int? _parseInt(dynamic value) {
     if (value == null) return null;
-    if (value is int) return value;
-    if (value is double) return value.toInt();
-    if (value is String) return int.tryParse(value);
+    if (value is int) return value > 0 ? value : null;
+    if (value is double) {
+      final intResult = value.toInt();
+      return intResult > 0 ? intResult : null;
+    }
+    if (value is String) {
+      final parsed = int.tryParse(value);
+      return (parsed != null && parsed > 0) ? parsed : null;
+    }
     return null;
   }
 }

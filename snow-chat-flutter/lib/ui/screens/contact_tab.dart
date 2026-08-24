@@ -286,10 +286,10 @@ class _ContactTabState extends State<ContactTab> {
                 );
               },
             ),
+            // --- 文件传输助手（固定在好友列表上方）---
+            _buildFileHelperSection(l10n),
             // --- 按字母分组的好友列表 ---
             ..._buildAlphabeticalList(l10n, grouped, availableLetters),
-            // --- 文件传输助手（放在底部"用户"分组）---
-            _buildFileHelperSection(l10n),
             // 底部留白，避免被导航栏遮挡
             const SizedBox(height: 20),
           ],
