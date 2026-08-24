@@ -41,6 +41,7 @@ dependencies:
   path_provider: ^2.1.0
   permission_handler: ^11.2.0
   shared_preferences: ^2.2.2
+  package_info_plus: ^8.0.2
   
   # UI
   flutter_slidable: ^3.0.1

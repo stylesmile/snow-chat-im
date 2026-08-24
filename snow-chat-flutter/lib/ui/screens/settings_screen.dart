@@ -1,0 +1,197 @@
+import 'package:flutter/material.dart';
+import '../../l10n/app_localizations.dart';
+import 'package:provider/provider.dart';
+import '../../providers/settings_provider.dart';
+import '../../providers/auth_provider.dart';
+import 'login_screen.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+
+/// 设置页面（从个人中心"设置"入口进入）
+///
+/// 包含：语言切换、隐私、关于、退出登录
+class SettingsScreen extends StatefulWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  static const Color _cardColor = Color(0xFF1E1E1E);
+  // 版本号从 PackageInfo 动态获取，避免硬编码
+  String _version = '';
+
+  @override
+  void initState() {
+    super.initState();
+    // 异步加载版本号，不阻塞首帧渲染
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) setState(() => _version = info.version);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final settings = context.watch<SettingsProvider>();
+    final auth = context.watch<AuthProvider>();
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF111111),
+      appBar: AppBar(
+        backgroundColor: _cardColor,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: Text(l10n.settingsMenu),
+        leading: const BackButton(color: Colors.white),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        children: [
+          // === 语言切换 ===
+          _buildLanguageTile(settings, l10n),
+          const Divider(height: 1, indent: 56, color: Color(0x0FFFFFFF)),
+
+          // === 隐私 ===
+          _buildSimpleTile(
+            iconColor: const Color(0xFF6B7280),
+            label: l10n.privacy,
+            onTap: () {},
+          ),
+          const Divider(height: 1, indent: 56, color: Color(0x0FFFFFFF)),
+
+          // === 关于 ===
+          _buildSimpleTile(
+            iconColor: const Color(0xFF6B7280),
+            label: l10n.about,
+            subtitle: 'v1.0.0',
+            onTap: () {},
+          ),
+          const Divider(height: 1, indent: 56, color: Color(0x0FFFFFFF)),
+
+          // === 退出登录 ===
+          const SizedBox(height: 8),
+          _buildLogoutTile(auth, l10n),
+        ],
+      ),
+    );
+  }
+
+  /// 构建语言切换 ExpansionTile
+  Widget _buildLanguageTile(SettingsProvider settings, AppLocalizations l10n) {
+    return Column(
+      children: [
+        ExpansionTile(
+          leading: const Icon(Icons.language, color: Colors.grey, size: 24),
+          title: Text(
+            l10n.language,
+            style: const TextStyle(color: Colors.white, fontSize: 16),
+          ),
+          children: settings.availableLocales.map((localeInfo) {
+            // 判断当前是否选中该项
+            final isSelected = settings.locale.languageCode == localeInfo.locale.languageCode &&
+                settings.locale.countryCode == localeInfo.locale.countryCode;
+            return RadioListTile<String>(
+              title: Text(
+                '${localeInfo.flag} ${settings.getLocaleName(localeInfo.locale)}',
+                style: const TextStyle(color: Colors.white70),
+              ),
+              value: localeInfo.locale.languageCode,
+              groupValue: isSelected ? settings.locale.languageCode : null,
+              activeColor: Theme.of(context).colorScheme.primary,
+              onChanged: (value) {
+                if (value != null) {
+                  settings.setLocale(localeInfo.locale);
+                }
+              },
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  /// 构建普通 ListTile（带彩色图标和 chevron）
+  Widget _buildSimpleTile({
+    required Color iconColor,
+    required String label,
+    String? subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Column(
+      children: [
+        ListTile(
+          leading: _buildColoredIcon(iconColor),
+          title: Text(label, style: const TextStyle(color: Colors.white, fontSize: 16)),
+          trailing: subtitle != null
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(subtitle, style: TextStyle(color: Colors.grey.shade500, fontSize: 13)),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
+                  ],
+                )
+              : const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
+          onTap: onTap,
+        ),
+      ],
+    );
+  }
+
+  /// 纯色背景圆角方块图标
+  Widget _buildColoredIcon(Color color) {
+    return Container(
+      width: 24,
+      height: 24,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: const Icon(Icons.apps, color: Colors.white, size: 14),
+    );
+  }
+
+  /// 构建退出登录 ListTile（红色）
+  Widget _buildLogoutTile(AuthProvider auth, AppLocalizations l10n) {
+    return Column(
+      children: [
+        ListTile(
+          leading: const Icon(Icons.logout, color: Colors.red, size: 24),
+          title: Text(
+            l10n.logout,
+            style: const TextStyle(color: Colors.red, fontSize: 16),
+          ),
+          onTap: () {
+            showDialog(
+              context: context,
+              builder: (dialogContext) => AlertDialog(
+                backgroundColor: _cardColor,
+                title: Text(l10n.logout, style: const TextStyle(color: Colors.white)),
+                content: Text(l10n.logout, style: const TextStyle(color: Colors.white70)),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    child: Text(l10n.cancel, style: const TextStyle(color: Colors.grey)),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(dialogContext);
+                      auth.logout();
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                        (route) => false,
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                    child: Text(l10n.confirm),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
