@@ -20,22 +20,27 @@ subprojects {
     afterEvaluate {
         if (project.plugins.hasPlugin("com.android.library") ||
             project.plugins.hasPlugin("com.android.application")) {
-            val ns = project.android.namespace
-                ?: project.android.defaultConfig.applicationId
-                ?: runCatching {
-                    project.android.sourceSets
-                        .getByName("main")
-                        .manifest
-                        .srcFile
-                        .readText()
-                        .toRegex("""package="([^"]+)""")
-                        .findAll()
-                        .firstOrNull()
-                        ?.groupValues
-                        ?.get(1)
-                }.getOrNull()
-                ?: project.group.toString()
-            project.android.namespace = ns
+            // 通过 extensions 访问 Android DSL（project.android 在 Kotlin DSL 中不可直接用）
+            val androidExt = extensions.findByType(com.android.build.gradle.LibraryExtension::class.java)
+                ?: extensions.findByType(com.android.build.gradle.AppExtension::class.java)
+            if (androidExt != null) {
+                val ns = androidExt.namespace
+                    ?: androidExt.defaultConfig.applicationId
+                    ?: runCatching {
+                        androidExt.sourceSets
+                            .getByName("main")
+                            .manifest
+                            .srcFile
+                            .readText()
+                            .toRegex("""package="([^"]+)""")
+                            .findAll()
+                            .firstOrNull()
+                            ?.groupValues
+                            ?.get(1)
+                    }.getOrNull()
+                    ?: project.group.toString()
+                androidExt.namespace = ns
+            }
         }
     }
 }
