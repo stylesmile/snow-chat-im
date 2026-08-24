@@ -330,6 +330,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get about => 'About';
 
   @override
+  String get sqliteBrowser => 'SQLite Browser';
+
+  @override
+  String get total => 'Total';
+
+  @override
+  String get page => 'Page';
+
+  @override
+  String get noData => 'No data';
+
+  @override
   String get version => 'Version';
 
   @override

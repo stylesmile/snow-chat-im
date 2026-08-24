@@ -330,6 +330,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get about => '关于';
 
   @override
+  String get sqliteBrowser => 'SQLite 浏览器';
+
+  @override
+  String get total => '共';
+
+  @override
+  String get page => '页';
+
+  @override
+  String get noData => '暂无数据';
+
+  @override
   String get version => '版本';
 
   @override

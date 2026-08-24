@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
@@ -5,6 +6,7 @@ import '../../providers/settings_provider.dart';
 import '../../providers/auth_provider.dart';
 import 'login_screen.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'sqlite_browser_screen.dart';
 
 /// 设置页面（从个人中心"设置"入口进入）
 ///
@@ -20,6 +22,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   static const Color _cardColor = Color(0xFF1E1E1E);
   // 版本号从 PackageInfo 动态获取，避免硬编码
   String _version = '';
+  // 关于快速点击检测：10秒内点击 5 次触发 SQLite 浏览器（调试入口）
+  int _aboutTapCount = 0;
+  Timer? _aboutTapTimer;
 
   @override
   void initState() {
@@ -65,7 +70,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             iconColor: const Color(0xFF6B7280),
             label: l10n.about,
             subtitle: _version.isEmpty ? '' : 'v$_version',
-            onTap: () {},
+            onTap: () => _handleAboutTap(),
           ),
           const Divider(height: 1, indent: 56, color: Color(0x0FFFFFFF)),
 
@@ -193,5 +198,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ],
     );
+  }
+
+  /// 处理"关于"点击：10秒内连续点击 5 次触发 SQLite 浏览器（调试入口）
+  void _handleAboutTap() {
+    // 重置计时器，开启 10 秒窗口
+    _aboutTapTimer?.cancel();
+    _aboutTapTimer = Timer(const Duration(seconds: 10), () {
+      _aboutTapCount = 0;
+    });
+    _aboutTapCount++;
+    if (_aboutTapCount >= 5) {
+      _aboutTapCount = 0;
+      _aboutTapTimer?.cancel();
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const SqliteBrowserScreen()),
+      );
+    }
   }
 }

@@ -742,6 +742,30 @@ abstract class AppLocalizations {
   /// **'About'**
   String get about;
 
+  /// SQLite browser title
+  ///
+  /// In en, this message translates to:
+  /// **'SQLite Browser'**
+  String get sqliteBrowser;
+
+  /// Total row count
+  ///
+  /// In en, this message translates to:
+  /// **'Total'**
+  String get total;
+
+  /// Pagination label
+  ///
+  /// In en, this message translates to:
+  /// **'Page'**
+  String get page;
+
+  /// No data placeholder
+  ///
+  /// In en, this message translates to:
+  /// **'No data'**
+  String get noData;
+
   /// Version number
   ///
   /// In en, this message translates to:
