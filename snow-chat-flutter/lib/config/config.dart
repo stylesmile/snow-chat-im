@@ -25,4 +25,13 @@ class AppConfig {
     'MQTT_PASSWORD',
     defaultValue: '123456',
   );
+
+  // 是否启用 MQTT 实时消息推送
+  // 关闭后仍可通过 REST API 完成消息发送，仅无法接收实时推送
+  // Enable MQTT real-time message push; when false, REST API still works but no real-time push
+  static final bool enableMqtt = String.fromEnvironment(
+    'ENABLE_MQTT',
+    defaultValue: 'true',
+  ).toLowerCase() == 'true';
 }
+
