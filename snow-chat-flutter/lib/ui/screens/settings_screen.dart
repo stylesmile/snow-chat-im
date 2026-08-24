@@ -64,7 +64,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildSimpleTile(
             iconColor: const Color(0xFF6B7280),
             label: l10n.about,
-            subtitle: 'v1.0.0',
+            subtitle: _version.isEmpty ? '' : 'v$_version',
             onTap: () {},
           ),
           const Divider(height: 1, indent: 56, color: Color(0x0FFFFFFF)),
