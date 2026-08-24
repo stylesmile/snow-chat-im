@@ -32,7 +32,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
       return;
     }
 
-    final conversations = await ConversationService().loadSessions(auth.userId!);
+    final conversations = await ConversationService().loadSessions(context);
     if (!mounted) return;
 
     context.read<ChatProvider>().setConversations(conversations);

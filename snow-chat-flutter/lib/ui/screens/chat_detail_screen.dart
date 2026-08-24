@@ -114,7 +114,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     if (auth.userId == null) return;
     final now = DateTime.now().millisecondsSinceEpoch;
     await ConversationService().saveSession(
-      userId: auth.userId!,
+      context: context,
       targetId: widget.targetId,
       targetType: widget.targetType,
       lastMsg: widget.targetName ?? '',
@@ -522,7 +522,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           ),
         );
         await ConversationService().saveSession(
-          userId: auth.userId!,
+          context: context,
           targetId: widget.targetId,
           targetType: widget.targetType,
           lastMsg: text,
@@ -584,7 +584,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           ),
         );
         await ConversationService().saveSession(
-          userId: auth.userId!,
+          context: context,
           targetId: widget.targetId,
           targetType: widget.targetType,
           lastMsg: summary,
@@ -643,7 +643,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           ),
         );
         await ConversationService().saveSession(
-          userId: auth.userId!,
+          context: context,
           targetId: widget.targetId,
           targetType: widget.targetType,
           lastMsg: emoji,

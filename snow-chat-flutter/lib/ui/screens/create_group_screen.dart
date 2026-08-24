@@ -32,7 +32,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
     final auth = context.read<AuthProvider>();
     if (auth.userId == null) return;
     final service = ContactService(auth.apiClient);
-    final friends = await service.getLocalFriends();
+    final friends = await service.getLocalFriends(context);
     if (!mounted) return;
     setState(() {
       _friends = friends;

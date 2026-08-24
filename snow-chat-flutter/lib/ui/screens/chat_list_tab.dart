@@ -34,11 +34,11 @@ class _ChatListTabState extends State<ChatListTab> {
       return;
     }
 
-    final conversations = await ConversationService().loadSessions(auth.userId!);
+    final conversations = await ConversationService().loadSessions(context);
 
     // 从本地好友缓存查询昵称，用于展示会话标题
     final contactService = ContactService(auth.apiClient);
-    final friends = await contactService.getLocalFriends();
+    final friends = await contactService.getLocalFriends(context);
     _friendNames
       ..clear()
       ..addAll({for (final f in friends) f.userId: f.nickname});
@@ -202,7 +202,7 @@ class _ChatListTabState extends State<ChatListTab> {
                   final auth = context.read<AuthProvider>();
                   if (auth.userId != null) {
                     await ConversationService().deleteSession(
-                      userId: auth.userId!,
+                      context: context,
                       targetId: conv.targetId,
                       targetType: conv.targetType,
                     );

@@ -42,7 +42,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     // 获取群成员列表（带昵称）
     final memberIds = await service.getGroupMembers(widget.groupId);
     final contactService = ContactService(auth.apiClient);
-    final friends = await contactService.getLocalFriends();
+    final friends = await contactService.getLocalFriends(context);
     final friendMap = {for (final f in friends) f.userId: f};
 
     final members = memberIds.map((id) {
@@ -71,7 +71,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
     // 获取好友列表，排除已是群成员的
     final contactService = ContactService(auth.apiClient);
-    final friends = await contactService.getLocalFriends();
+    final friends = await contactService.getLocalFriends(context);
     final memberIds = _members.map((m) => m.userId).toSet();
     final availableFriends = friends.where((f) => !memberIds.contains(f.userId)).toList();
 

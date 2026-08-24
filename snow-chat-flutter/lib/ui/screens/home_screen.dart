@@ -112,7 +112,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             );
             // 持久化到数据库
             ConversationService().saveSession(
-              userId: userId,
+              context: context,
               targetId: friendId,
               targetType: 'friend',
               lastMsg: '',
@@ -197,7 +197,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _chatProvider?.updateConversation(updated);
 
     ConversationService().saveSession(
-      userId: userId,
+      context: context,
       targetId: targetId,
       targetType: targetType,
       lastMsg: content,
