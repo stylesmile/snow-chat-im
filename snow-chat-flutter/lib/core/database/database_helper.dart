@@ -143,6 +143,16 @@ class DatabaseHelper {
     return result.isNotEmpty;
   }
 
+  /// 确保指定用户的表已创建（登录成功后调用）
+  Future<void> ensureUserTables(int userId) async {
+    final db = await database;
+    // 检查消息表是否存在，不存在则创建
+    final hasMessages = await _tableExists(db, Tables.messagesTable(userId));
+    if (!hasMessages) {
+      await _createUserTables(db, userId);
+    }
+  }
+
   Future<void> close() async {
     final db = _database;
     if (db != null) {

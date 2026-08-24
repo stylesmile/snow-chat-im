@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/network/api_client.dart';
+import '../core/database/database_helper.dart';
 
 /// 认证状态提供者
 ///
@@ -64,6 +65,10 @@ class AuthProvider extends ChangeNotifier {
         _avatar = userData['avatar'] as String?;
         _isLoggedIn = true;
         await _saveAuthState();
+        // 确保当前用户的数据库表已创建
+        if (_userId != null) {
+          await DatabaseHelper().ensureUserTables(_userId!);
+        }
         notifyListeners();
         return true;
       }
@@ -115,6 +120,10 @@ class AuthProvider extends ChangeNotifier {
         _avatar = userData['avatar'] as String?;
         _isLoggedIn = true;
         await _saveAuthState();
+        // 确保当前用户的数据库表已创建
+        if (_userId != null) {
+          await DatabaseHelper().ensureUserTables(_userId!);
+        }
         notifyListeners();
         return true;
       }
@@ -237,6 +246,10 @@ class AuthProvider extends ChangeNotifier {
         _apiClient.token = _token;
       }
       _isLoggedIn = true;
+      // 确保已登录用户的数据库表已创建
+      if (_userId != null) {
+        await DatabaseHelper().ensureUserTables(_userId!);
+      }
       notifyListeners();
     }
   }
