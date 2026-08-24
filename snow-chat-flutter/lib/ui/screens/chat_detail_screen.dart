@@ -72,8 +72,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   // 音频播放器（全局单例，同一时刻只播一条语音）
   final AudioPlayer _audioPlayer = AudioPlayer();
 
-  // 录音状态
-  final AudioRecorder _recorder = AudioRecorder();
+  // 录音状态（record 4.4.4 使用 Record 类，非 AudioRecorder）
+  final Record _recorder = Record();
   String? _recordingPath;
   bool _isRecording = false;
   Duration? _recordDuration;
@@ -394,7 +394,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         return;
       }
       final path = '${(await getTemporaryDirectory()).path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
-      await _recorder.start(const RecordConfig(), path: path);
+      await _recorder.start(path: path);
       setState(() {
         _isRecording = true;
         _recordingPath = path;

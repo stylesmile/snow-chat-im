@@ -14,32 +14,37 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(":app")
-    // AGP 8+ 强制要求所有 Android 库模块声明 namespace。
-    // record 4.4.4 等第三方库未配置，此处自动从 AndroidManifest.xml 的 package 属性注入，
-    // 避免 "Namespace not specified" 构建失败。
-    afterEvaluate {
-        if (project.plugins.hasPlugin("com.android.library") ||
-            project.plugins.hasPlugin("com.android.application")) {
-            // 通过 extensions 访问 Android DSL（project.android 在 Kotlin DSL 中不可直接用）
-            val androidExt = extensions.findByType(com.android.build.gradle.LibraryExtension::class.java)
-                ?: extensions.findByType(com.android.build.gradle.AppExtension::class.java)
-            if (androidExt != null) {
-                val ns = androidExt.namespace
-                    ?: androidExt.defaultConfig.applicationId
-                    ?: runCatching {
-                        androidExt.sourceSets
-                            .getByName("main")
-                            .manifest
-                            .srcFile
-                            .readText()
-                            .toRegex("""package="([^"]+)""")
-                            .findAll()
-                            .firstOrNull()
-                            ?.groupValues
-                            ?.get(1)
-                    }.getOrNull()
-                    ?: project.group.toString()
-                androidExt.namespace = ns
+}
+
+// AGP 8+ 强制要求所有 Android 库模块声明 namespace。
+// record 4.4.4 等第三方库未配置 namespace，在 projectsLoaded 阶段统一注入，
+// 确保所有子项目已被 gradle 发现但尚未 evaluation，可以安全修改。
+gradle.projectsLoaded {
+    allprojects.forEach { proj ->
+        if (proj.plugins.hasPlugin("com.android.library") ||
+            proj.plugins.hasPlugin("com.android.application")) {
+            // 通过 extensions 访问 Android DSL（Kotlin DSL 中不能用 project.android）
+            val androidExt = proj.extensions.findByType(
+                com.android.build.gradle.LibraryExtension::class.java
+            ) ?: proj.extensions.findByType(
+                com.android.build.gradle.AppExtension::class.java
+            )
+            if (androidExt != null && androidExt.namespace == null) {
+                // 优先使用已有 namespace；其次用 applicationId；最后从 AndroidManifest.xml 提取 package
+                val manifestFile = androidExt.sourceSets
+                    .getByName("main")
+                    .manifest
+                    .srcFile
+                if (manifestFile.exists()) {
+                    val manifestText = manifestFile.readText()
+                    val pkgMatch = Regex("""package="([^"]+)""", setOf(RegexOption.MULTILINE))
+                        .find(manifestText)
+                    val ns: String = androidExt.namespace
+                        ?: androidExt.defaultConfig.applicationId
+                        ?: pkgMatch?.groups?.get(1)?.value
+                        ?: proj.group.toString()
+                    androidExt.namespace = ns
+                }
             }
         }
     }
