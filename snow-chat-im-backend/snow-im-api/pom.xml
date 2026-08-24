@@ -18,6 +18,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.build.timestamp.format>yyyy-MMdd-HHmm</maven.build.timestamp.format>
+        <knife4j.version>4.5.0</knife4j.version>
     </properties>
 
 
@@ -115,6 +116,13 @@
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-jackson</artifactId>
             <scope>runtime</scope>
+        </dependency>
+
+        <!-- Knife4j API 文档 -->
+        <dependency>
+            <groupId>com.github.xiaoymin</groupId>
+            <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
+            <version>${knife4j.version}</version>
         </dependency>
 
         <!-- gRPC Dependencies -->

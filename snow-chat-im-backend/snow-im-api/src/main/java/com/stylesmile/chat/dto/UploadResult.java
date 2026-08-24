@@ -1,7 +1,9 @@
 package com.stylesmile.chat.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 /**
- * 文件上传结果 DTO。
+ * 文件上传结果DTO
  *
  * <p>采用"私有 + Pre-signed URL"策略：
  * <ul>
@@ -13,9 +15,10 @@ package com.stylesmile.chat.dto;
  *
  * @author mmm
  */
-public record UploadResult(String key, String url) {
-    // record 自动提供：
-    // - 全参构造器 UploadResult(String key, String url)
-    // - 访问器方法 key() / url()
-    // - equals / hashCode / toString
-}
+@Schema(description = "文件上传结果")
+public record UploadResult(
+        @Schema(description = "对象存储key", example = "avatars/abc123.jpg")
+        String key,
+        @Schema(description = "访问URL（pre-signed或永久）", example = "https://cdn.example.com/avatars/abc123.jpg")
+        String url
+) {}
