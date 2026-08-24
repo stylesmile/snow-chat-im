@@ -45,6 +45,8 @@ class ChatDetailScreen extends StatefulWidget {
 
 class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final _controller = TextEditingController();
+  // 输入框 FocusNode，用于表情面板关闭后重新获取焦点
+  final _inputFocusNode = FocusNode();
   final _scrollController = ScrollController();
   final List<_DisplayMessage> _messages = [];
   bool _isLoading = true;
@@ -60,10 +62,49 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   // 表情面板状态
   bool _showEmojiPanel = false;
+  // 丰富的表情列表（参考微信表情）
   static const List<String> _emojiList = [
-    '😀','😂','🥰','😍','🤩','😘','😊','🥳',
-    '😎','🤔','😅','😭','😱','🤗','🫡','😇',
-    '👍','👏','🙏','💪','❤️','🔥','💯','🎉',
+    '😀','😃','😄','😁','😆','😅','🤣','😂',
+    '🙂','😊','😇','🥰','😍','🤩','😘','😗',
+    '😚','😙','🥲','😋','😛','😜','🤪','😝',
+    '🤑','🤗','🤭','🫢','🤫','🤔','🫡','🤐',
+    '🤨','😐','😑','😶','🫥','😏','😒','🙄',
+    '😬','🤥','😌','😔','😪','🤤','😴','😷',
+    '🤒','🤕','🤢','🤮','🥵','🥶','🥴','😵',
+    '🤯','🤠','🥳','🥸','😎','🤓','🧐','😕',
+    '🫤','😟','🙁','☹️','😮','😯','😲','😳',
+    '🥺','🥹','😦','😧','😨','😰','😥','😢',
+    '😭','😱','😖','😣','😞','😓','😩','😫',
+    '🥱','😤','😡','😠','🤬','😈','👿','💀',
+    '☠️','💩','🤡','👹','👺','👻','👽','👾',
+    '🤖','😺','😸','😹','😻','😼','😽','🙀',
+    '😿','😾','🙈','🙉','🙊','💋','👋','🤚',
+    '🖐','✋','🖖','🫱','🫲','🫳','🫴','👌',
+    '🤌','🤏','✌️','🤞','🫰','🤟','🤘','🤙',
+    '👈','👉','👆','🖕','👇','☝️','�指','👍',
+    '👎','✊','👊','🤛','🤜','👏','🙌','🫰',
+    '👐','🤲','🤝','🙏','✍️','💅','🤳','💪',
+    '🦾','🦿','🦵','🦶','👂','🦻','👃','🧠',
+    '🫀','🫁','🦷','🦴','👀','👁','👅','👄',
+    '👶','🧒','👦','👧','🧑','👱','👨','🧔',
+    '👩','🧓','👴','👵','🙍','🙎','🙅','🙆',
+    '💁','🙋','🧏','🙇','🤦','🤷','👮','🕵️',
+    '💂','🥷','👷','🤴','👸','👳','👲','🧕',
+    '🤵','👰','🤰','🤱','👼','🎅','🤶','🦸',
+    '🦹','🧙','🧚','🧛','🧜','🧝','🧞','🧟',
+    '💆','💇','🚶','🧍','🧎','🏃','💃','🕺',
+    '👯','🧖','🧗','🤸','⛹️','🏋️','🚴','🚵',
+    '🤼','🤽','🤾','🤺','⛷','🏂','🏄','🏊',
+    '🤺','⛹️','🏋️','🚴','🚵','🤸','⛷','🏂',
+    '🏄','🏊','🤽','🤾','🤺','🏇','🧘','🛀',
+    '🛌','👭','👫','👬','💏','💑','🔥','⭐',
+    '🌟','✨','💫','💥','🔆','🔅','☀️','🌤',
+    '⛅','🌥','☁️','🌦','🌈','☔','⚡','❄️',
+    '🔥','💧','🌊','🎉','🎊','🎈','🎁','🏆',
+    '🥇','🥈','🥉','⚽','🏀','🏈','⚾','🥎',
+    '🎾','🏐','🏉','🥏','🎱','🪀','🏓','🏸',
+    '🏒','🥍','🏏','🪃','🥅','⛳','🏹','🎣',
+    '🤿','🎽','🛹','🛼','🥾','👑','💎',
   ];
 
   // 视频播放器控制器（每个视频消息独立持有）
@@ -92,6 +133,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   @override
   void dispose() {
     _controller.dispose();
+    _inputFocusNode.dispose();
     _scrollController.dispose();
     _mqttClient?.disconnect();
     // 释放所有视频播放器
@@ -285,7 +327,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   Future<void> _loadHistory() async {
     final auth = context.read<AuthProvider>();
     if (auth.userId == null) return;
-    if (mounted) setState(() => _isLoading = true);
+    if (!mounted) return;
+    setState(() => _isLoading = true);
     final service = ChatService(auth.apiClient);
     final messages = await service.getHistory(
       userId: auth.userId!,
@@ -297,6 +340,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     for (final m in messages) {
       await MessageCacheManager().appendMessage(_sessionId, m);
     }
+    // 页面可能已关闭，检查后才会更新 UI
     if (!mounted) return;
     final cached = await MessageCacheManager().recentMessages(_sessionId, limit: 30);
     if (!mounted) return;
@@ -1168,7 +1212,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // 表情面板
+        // 微信风格：表情面板从底部滑入，覆盖在输入栏上方
         if (_showEmojiPanel) _buildEmojiPanel(theme),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -1214,6 +1258,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               Expanded(
                 child: TextField(
                   controller: _controller,
+                  focusNode: _inputFocusNode,
                   decoration: InputDecoration(
                     hintText: l10n.inputMessage,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
@@ -1252,41 +1297,99 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 
+  /// 构建微信风格的底部表情面板，从底部向上滑入
   Widget _buildEmojiPanel(ThemeData theme) {
-    return Container(
-      color: theme.cardColor,
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: GridView.count(
-        crossAxisCount: 8,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        childAspectRatio: 1.2,
-        children: _emojiList.map((emoji) {
-          return GestureDetector(
-            onTap: () {
-              final auth = context.read<AuthProvider>();
-              final l10n = AppLocalizations.of(context)!;
-              final now = DateTime.now().millisecondsSinceEpoch;
-              setState(() => _messages.add(_DisplayMessage(
-                id: now,
-                fromUserId: auth.userId ?? 0,
-                toUserId: widget.targetType == 'file_helper' ? (auth.userId ?? 0) : widget.targetId,
-                groupId: widget.targetType == 'group' ? widget.targetId : null,
-                type: widget.targetType == 'file_helper' ? 'self' : 'emoji',
-                content: emoji,
-                createTime: now,
-                status: 'sending',
-              )));
-              _scrollToBottom();
-              _doSendEmoji(emoji, now, auth, ScaffoldMessenger.of(context), l10n).whenComplete(() {
-                if (mounted) setState(() => _showEmojiPanel = false);
-              });
-            },
-            child: Center(child: Text(emoji, style: const TextStyle(fontSize: 28))),
-          );
-        }).toList(),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOutCubic,
+      // 面板高度约为屏幕的 60%
+      height: MediaQuery.of(context).size.height * 0.6,
+      color: Colors.grey[900] ?? const Color(0xFF1A1A1A),
+      child: Column(
+        children: [
+          // 顶部工具栏：关闭按钮 + 提示文字
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  '表情',
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+                // 右下角删除按钮（微信风格）
+                GestureDetector(
+                  onTap: () {
+                    // 删除输入框最后一个字符
+                    if (_controller.text.isNotEmpty) {
+                      final text = _controller.text;
+                      // 处理 UTF-16 surrogate pair（某些 emoji 占两个 char）
+                      final lastCharLen = _getCharLength(text);
+                      setState(() {
+                        _controller.text = text.substring(0, text.length - lastCharLen);
+                      });
+                    }
+                  },
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[700],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.backspace, color: Colors.white70, size: 22),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(color: Colors.grey, height: 1),
+          // 表情 Grid
+          Expanded(
+            child: GridView.count(
+              crossAxisCount: 8,
+              padding: const EdgeInsets.all(8),
+              childAspectRatio: 1.3,
+              mainAxisSpacing: 4,
+              crossAxisSpacing: 4,
+              physics: const BouncingScrollPhysics(),
+              children: _emojiList.map((emoji) {
+                return _buildEmojiCell(emoji);
+              }).toList(),
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  /// 单个表情格子
+  Widget _buildEmojiCell(String emoji) {
+    return GestureDetector(
+      onTap: () => _sendEmoji(emoji),
+      child: Center(
+        child: Text(emoji, style: const TextStyle(fontSize: 30)),
+      ),
+    );
+  }
+
+  /// 发送表情并关闭面板
+  void _sendEmoji(String emoji) {
+    // 直接在输入框追加 emoji，用户确认后再发送（更贴近微信行为）
+    _controller.text += emoji;
+    setState(() => _showEmojiPanel = false);
+    // 将焦点还给输入框
+    Future.microtask(() {
+      if (mounted) _inputFocusNode.requestFocus();
+    });
+  }
+
+  /// 计算字符串末尾字符的实际长度（处理 surrogate pair）
+  int _getCharLength(String text) {
+    if (text.isEmpty) return 0;
+    final rune = text.codeUnitAt(text.length - 1);
+    // UTF-16 surrogate pair：高位 surrogate (D800-DFFF) 占用 2 个 char
+    return (rune >= 0xD800 && rune <= 0xDBFF) ? 2 : 1;
   }
 }
 

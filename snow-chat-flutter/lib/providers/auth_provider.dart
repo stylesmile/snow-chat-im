@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/network/api_client.dart';
 import '../core/database/database_helper.dart';
+import '../core/cache/message_cache_manager.dart';
 
 /// 认证状态提供者
 ///
@@ -68,6 +69,8 @@ class AuthProvider extends ChangeNotifier {
         // 确保当前用户的数据库表已创建
         if (_userId != null) {
           await DatabaseHelper().ensureUserTables(_userId!);
+          // 同步设置消息缓存管理器用户ID，否则聊天页初始化时会抛出 StateError 导致 spinner 永不停止
+          MessageCacheManager().setUserId(_userId!);
         }
         notifyListeners();
         return true;
@@ -123,6 +126,8 @@ class AuthProvider extends ChangeNotifier {
         // 确保当前用户的数据库表已创建
         if (_userId != null) {
           await DatabaseHelper().ensureUserTables(_userId!);
+          // 同步设置消息缓存管理器用户ID，否则聊天页初始化时会抛出 StateError 导致 spinner 永不停止
+          MessageCacheManager().setUserId(_userId!);
         }
         notifyListeners();
         return true;
@@ -202,6 +207,8 @@ class AuthProvider extends ChangeNotifier {
     _isLoggedIn = false;
     _lastError = null;
     await _clearAuthState();
+    // 清空消息缓存用户ID，避免下一个用户读取上一个用户的数据
+    MessageCacheManager().setUserId(0);
     notifyListeners();
   }
 
@@ -249,6 +256,8 @@ class AuthProvider extends ChangeNotifier {
       // 确保已登录用户的数据库表已创建
       if (_userId != null) {
         await DatabaseHelper().ensureUserTables(_userId!);
+        // 同步设置消息缓存管理器用户ID，否则聊天页初始化时会抛出 StateError 导致 spinner 永不停止
+        MessageCacheManager().setUserId(_userId!);
       }
       notifyListeners();
     }

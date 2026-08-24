@@ -191,7 +191,13 @@ class _ContactTabState extends State<ContactTab> {
           color: Color(0xFF07C160),
           borderRadius: BorderRadius.all(Radius.circular(6)),
         ),
-        child: const Icon(Icons.cloud_upload, color: Colors.white, size: 22),
+        // 使用文件传输助手自定义图标替代系统图标
+        child: Image.asset(
+          'assets/images/file_transfer.png',
+          width: 22,
+          height: 22,
+          color: Colors.white,
+        ),
       ),
       title: Text(l10n.fileHelper, style: const TextStyle(fontSize: 16)),
       trailing: const Icon(Icons.chevron_right, color: Colors.white54, size: 20),
