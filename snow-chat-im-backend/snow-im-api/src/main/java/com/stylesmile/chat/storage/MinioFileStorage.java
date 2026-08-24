@@ -23,11 +23,10 @@ import java.time.Duration;
  * MinIO 文件存储实现（基于 AWS S3 SDK v2）。
  * 当 minio.enabled=true 时启用。
  *
- * <p>采用"私有 + Pre-signed URL"策略：
+ * <p>支持两种访问策略：
  * <ul>
- *   <li>bucket 不设置公共读策略，文件不可匿名访问；</li>
- *   <li>upload 返回对象 key，URL 由 generatePresignedUrl 动态生成；</li>
- *   <li>构造时自动检查并创建 bucket。</li>
+ *   <li>公共读（publicReadPolicy=true）：上传返回对象 key，generateUrl 直接拼接 endpoint/fileName 返回完整可访问 URL；</li>
+ *   <li>私有读（publicReadPolicy=false，默认）：upload 返回对象 key，generateUrl 生成带签名的临时 URL（7天有效）。</li>
  * </ul>
  *
  * @author mmm
@@ -41,9 +40,14 @@ public class MinioFileStorage implements FileStorage {
 
     private static final Logger log = LoggerFactory.getLogger(MinioFileStorage.class); // 日志器
 
+    /** pre-signed URL 有效期（分钟），私有读模式使用 */
+    private static final int PRESIGN_EXPIRATION_MINUTES_DEFAULT = 7 * 24 * 60; // 7天
+
     private final S3Client s3Client;       // S3 客户端
     private final S3Presigner s3Presigner; // 预签名 URL 生成器
     private final String bucketName;       // bucket 名称
+    private final String publicBaseUrl;    // 外部访问基础 URL（公共读模式下使用，来自 minio.public-url）
+    private final boolean publicReadPolicy; // 是否公共读策略（来自 minio.public-read-policy）
 
     /**
      * 构造器：注入 S3Client / S3Presigner / MinioProperties，并确保 bucket 存在。
@@ -52,6 +56,8 @@ public class MinioFileStorage implements FileStorage {
         this.s3Client = s3Client;                                 // 保存 S3 客户端
         this.s3Presigner = s3Presigner;                           // 保存签名器
         this.bucketName = minioProperties.bucket();               // 保存 bucket 名
+        this.publicBaseUrl = minioProperties.publicUrl();         // 保存外部访问基础 URL
+        this.publicReadPolicy = minioProperties.publicReadPolicy(); // 保存公共读策略标志
         // 构造时确保 bucket 存在（失败不阻断启动）
         try {
             ensureBucketExists();
@@ -78,7 +84,7 @@ public class MinioFileStorage implements FileStorage {
     }
 
     /**
-     * 上传文件到 MinIO，返回对象 key（私有策略契约）。
+     * 上传文件到 MinIO，返回对象 key（无论公共读/私有读均返回 key，由 generateUrl 决定如何获取访问地址）。
      */
     @Override
     public String upload(InputStream inputStream, String fileName, String contentType, long fileSize) {
@@ -92,7 +98,7 @@ public class MinioFileStorage implements FileStorage {
         // 执行上传，使用输入流构造请求体
         s3Client.putObject(putRequest, RequestBody.fromInputStream(inputStream, fileSize));
         log.info("File uploaded successfully: {}", fileName);
-        // 返回对象 key（不是 URL）
+        // 返回对象 key（不是 URL，由 generateUrl 决定访问方式）
         return fileName;
     }
 
@@ -132,7 +138,7 @@ public class MinioFileStorage implements FileStorage {
     }
 
     /**
-     * 生成下载用的 pre-signed URL。
+     * 生成预签名下载 URL（私有读模式使用，带签名与有效期）。
      *
      * @param fileName          对象 key
      * @param expirationMinutes URL 有效期（分钟）
@@ -147,5 +153,31 @@ public class MinioFileStorage implements FileStorage {
                 .build();
         // 调用签名器生成 URL，返回字符串形式
         return s3Presigner.presignGetObject(presignRequest).url().toString();
+    }
+
+    /**
+     * 生成可直接访问的完整 URL。
+     *
+     * <p>公共读策略（publicReadPolicy=true）时，返回 {@code publicBaseUrl/fileName} 直接可访问；
+     * 私有策略时回退到带签名的 pre-signed URL（7天有效）。
+     *
+     * @param fileName 对象 key（如 avatars/uuid.jpg）或已是完整 URL
+     * @return 完整可访问 URL 或带签名 URL
+     */
+    @Override
+    public String generateUrl(String fileName) {
+        // 若 fileName 本身已是完整 URL（如历史数据），直接返回
+        if (fileName.startsWith("http://") || fileName.startsWith("https://")) {
+            return fileName;
+        }
+        // 公共读模式：直接拼接 endpoint/fileName，无需签名
+        if (publicReadPolicy) {
+            String base = publicBaseUrl != null && !publicBaseUrl.isBlank()
+                    ? publicBaseUrl.replaceAll("/+$", "")
+                    : s3Client.getClass().toString(); // fallback（理论上不会触发，因为 publicBaseUrl 已配置）
+            return base + "/" + fileName.replaceAll("^/+", "");
+        }
+        // 私有模式：返回带签名的临时 URL（7天有效）
+        return generatePresignedUrl(fileName, PRESIGN_EXPIRATION_MINUTES_DEFAULT);
     }
 }

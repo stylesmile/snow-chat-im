@@ -16,7 +16,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -24,13 +23,16 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * FileStorageServiceImpl 单元测试
+ * FileStorageServiceImpl 单元测试。
  *
- * 验证 uploadAndSign 两个重载方法：
+ * <p>验证 uploadAndSign 两个重载方法：
  * <ol>
  *   <li>{@code uploadAndSign(MultipartFile)}：默认 avatars/ 前缀；</li>
  *   <li>{@code uploadAndSign(MultipartFile, String)}：按 mediaType 动态前缀。</li>
  * </ol>
+ *
+ * <p>mock 策略：使用 {@code generateUrl} 替代已废弃的 {@code generatePresignedUrl} 调用链，
+ * 与新实现保持一致（公共读存储直接返回完整 URL，私有读存储由实现类内部生成签名 URL）。
  *
  * @author mmm
  */
@@ -59,9 +61,8 @@ class FileStorageServiceImplTest {
         // mock upload 返回固定的 key（UUID 随机，无法预测具体值）
         when(fileStorage.upload(any(), any(), eq("image/jpeg"), anyLong()))
                 .thenReturn("avatars/uuid.jpg");
-        // mock generatePresignedUrl 返回一个 URL
-        when(fileStorage.generatePresignedUrl(eq("avatars/uuid.jpg"), anyInt()))
-                .thenReturn("https://presigned.example.com/avatar.jpg");
+        // mock generateUrl 返回一个完整可访问 URL
+        when(fileStorage.generateUrl(eq("avatars/uuid.jpg"))).thenReturn("https://cdn.example.com/avatars/uuid.jpg");
 
         // 执行
         UploadResult result = service.uploadAndSign(file);
@@ -69,7 +70,7 @@ class FileStorageServiceImplTest {
         // 验证：key 和 url 均非空，且与 mock 返回值一致
         assertNotNull(result);
         assertEquals("avatars/uuid.jpg", result.key());
-        assertEquals("https://presigned.example.com/avatar.jpg", result.url());
+        assertEquals("https://cdn.example.com/avatars/uuid.jpg", result.url());
     }
 
     @Test
@@ -80,7 +81,7 @@ class FileStorageServiceImplTest {
         // mock upload 时用 ArgumentCaptor 捕获 key 参数
         when(fileStorage.upload(any(), any(), eq("image/png"), anyLong()))
                 .thenAnswer(invocation -> invocation.getArgument(1)); // 返回传入的 key
-        when(fileStorage.generatePresignedUrl(any(), anyInt())).thenReturn("https://presigned/url");
+        when(fileStorage.generateUrl(anyString())).thenReturn("https://cdn.example.com/presigned/url");
 
         // 执行
         UploadResult result = service.uploadAndSign(file);
@@ -92,22 +93,21 @@ class FileStorageServiceImplTest {
     }
 
     @Test
-    void uploadAndSignCallsUploadThenGeneratePresignedUrl() {
+    void uploadAndSignCallsUploadThenGenerateUrl() {
         // 准备
         byte[] content = "data".getBytes();
         MultipartFile file = new MockMultipartFile("file", "a.jpg", "image/jpeg", content);
         when(fileStorage.upload(any(), any(), any(), anyLong()))
                 .thenReturn("avatars/uuid.jpg");
-        when(fileStorage.generatePresignedUrl(eq("avatars/uuid.jpg"), anyInt()))
-                .thenReturn("https://presigned");
+        when(fileStorage.generateUrl(eq("avatars/uuid.jpg"))).thenReturn("https://cdn.example.com/presigned");
 
         // 执行
         service.uploadAndSign(file);
 
         // 验证：upload 被调用，contentType 正确传递
         verify(fileStorage).upload(any(), any(), eq("image/jpeg"), eq((long) content.length));
-        // generatePresignedUrl 被调用，有效期 7 天 = 7*24*60 分钟
-        verify(fileStorage).generatePresignedUrl(eq("avatars/uuid.jpg"), eq(7 * 24 * 60));
+        // generateUrl 被调用（与旧实现中 generatePresignedUrl + 7天有效期的行为等价）
+        verify(fileStorage).generateUrl(eq("avatars/uuid.jpg"));
     }
 
     @Test
@@ -117,7 +117,7 @@ class FileStorageServiceImplTest {
         MultipartFile file = new MockMultipartFile("file", "noext", "application/octet-stream", content);
         when(fileStorage.upload(any(), any(), any(), anyLong()))
                 .thenAnswer(invocation -> invocation.getArgument(1));
-        when(fileStorage.generatePresignedUrl(any(), anyInt())).thenReturn("https://presigned");
+        when(fileStorage.generateUrl(anyString())).thenReturn("https://cdn.example.com/presigned");
 
         // 执行
         UploadResult result = service.uploadAndSign(file);
@@ -136,7 +136,7 @@ class FileStorageServiceImplTest {
         MultipartFile file = new MockMultipartFile("file", "pic.jpg", "image/jpeg", content);
         when(fileStorage.upload(any(), any(), eq("image/jpeg"), anyLong()))
                 .thenAnswer(invocation -> invocation.getArgument(1)); // 返回传入的 key
-        when(fileStorage.generatePresignedUrl(any(), anyInt())).thenReturn("https://presigned/image");
+        when(fileStorage.generateUrl(anyString())).thenReturn("https://cdn.example.com/images/pic.jpg");
 
         // 执行
         UploadResult result = service.uploadAndSign(file, "images");
@@ -154,7 +154,7 @@ class FileStorageServiceImplTest {
         MultipartFile file = new MockMultipartFile("file", "clip.mp4", "video/mp4", content);
         when(fileStorage.upload(any(), any(), eq("video/mp4"), anyLong()))
                 .thenAnswer(invocation -> invocation.getArgument(1));
-        when(fileStorage.generatePresignedUrl(any(), anyInt())).thenReturn("https://presigned/video");
+        when(fileStorage.generateUrl(anyString())).thenReturn("https://cdn.example.com/videos/clip.mp4");
 
         // 执行
         UploadResult result = service.uploadAndSign(file, "videos");
@@ -171,7 +171,7 @@ class FileStorageServiceImplTest {
         MultipartFile file = new MockMultipartFile("file", "doc.pdf", "application/pdf", content);
         when(fileStorage.upload(any(), any(), eq("application/pdf"), anyLong()))
                 .thenAnswer(invocation -> invocation.getArgument(1));
-        when(fileStorage.generatePresignedUrl(any(), anyInt())).thenReturn("https://presigned/file");
+        when(fileStorage.generateUrl(anyString())).thenReturn("https://cdn.example.com/files/doc.pdf");
 
         // 执行
         UploadResult result = service.uploadAndSign(file, "files");
@@ -188,7 +188,7 @@ class FileStorageServiceImplTest {
         MultipartFile file = new MockMultipartFile("file", "voice.ogg", "audio/ogg", content);
         when(fileStorage.upload(any(), any(), eq("audio/ogg"), anyLong()))
                 .thenAnswer(invocation -> invocation.getArgument(1));
-        when(fileStorage.generatePresignedUrl(any(), anyInt())).thenReturn("https://presigned/voice");
+        when(fileStorage.generateUrl(anyString())).thenReturn("https://cdn.example.com/voices/voice.ogg");
 
         // 执行
         UploadResult result = service.uploadAndSign(file, "voices");
@@ -221,7 +221,7 @@ class FileStorageServiceImplTest {
         // 用 anyString() 捕获任意 key 参数，避免 strict stubbing 对引用相等的约束
         when(fileStorage.upload(any(), anyString(), any(), anyLong()))
                 .thenAnswer(invocation -> invocation.getArgument(1));
-        when(fileStorage.generatePresignedUrl(anyString(), anyInt())).thenReturn("https://presigned");
+        when(fileStorage.generateUrl(anyString())).thenReturn("https://cdn.example.com/presigned");
 
         // 执行
         service.uploadAndSign(file, "videos");
@@ -231,8 +231,7 @@ class FileStorageServiceImplTest {
         verify(fileStorage).upload(any(), keyCaptor.capture(), eq("video/mp4"), eq((long) content.length));
         // key 必须以 videos/ 开头
         assertTrue(keyCaptor.getValue().startsWith("videos/"), "key 应以 videos/ 开头");
-        // generatePresignedUrl 被调用，有效期 7 天
-        // verify 中所有参数必须都是 matcher：keyCaptor.getValue() 是原始 String，需用 eq() 包装
-        verify(fileStorage).generatePresignedUrl(eq(keyCaptor.getValue()), eq(7 * 24 * 60));
+        // generateUrl 被调用
+        verify(fileStorage).generateUrl(keyCaptor.getValue());
     }
 }

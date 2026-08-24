@@ -52,4 +52,18 @@ public interface FileStorage {
      * @return 带签名的 URL 字符串
      */
     String generatePresignedUrl(String fileName, int expirationMinutes);
+
+    /**
+     * 生成可直接访问的完整 URL（公共读存储模式专用）。
+     *
+     * <p>对于公共读存储（如 SeaweedFS publicRead=true、MinIO publicRead=true），
+     * 返回无需签名即可直接访问的 HTTP/HTTPS URL，数据库可直接存储此值。
+     * 对于私有读存储（MinIO 私有策略、InMemory），默认回退到 generatePresignedUrl。
+     *
+     * @param fileName 对象 key（如 avatars/uuid.jpg）或已是完整 URL
+     * @return 完整可访问的 URL 字符串
+     */
+    default String generateUrl(String fileName) {
+        return generatePresignedUrl(fileName, Integer.MAX_VALUE);
+    }
 }

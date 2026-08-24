@@ -157,6 +157,13 @@
             <version>2.30.0</version>
         </dependency>
 
+        <!-- OkHttp：用于 SeaweedFS REST API 调用 -->
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+            <version>4.12.0</version>
+        </dependency>
+
         <!-- Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

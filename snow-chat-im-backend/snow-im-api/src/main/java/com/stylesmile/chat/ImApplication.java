@@ -2,6 +2,7 @@ package com.stylesmile.chat;
 
 import com.stylesmile.chat.filter.AuthFilter;
 import com.stylesmile.chat.storage.MinioProperties;
+import com.stylesmile.chat.storage.SeaweedfsProperties;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

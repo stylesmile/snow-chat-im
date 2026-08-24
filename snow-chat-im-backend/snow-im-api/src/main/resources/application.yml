@@ -1,6 +1,6 @@
 spring:
   profiles:
-    active: prod
+    active: test
   application:
     name: snow-im-api
   main:
