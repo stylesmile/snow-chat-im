@@ -1,5 +1,6 @@
 import 'package:sqflite/sqflite.dart';
 import '../../core/database/database_helper.dart';
+import '../../core/database/tables.dart';
 import '../../models/message_model.dart';
 
 /// 消息本地缓存管理器：SQLite 持久化 + 内存热缓存。
@@ -7,6 +8,7 @@ import '../../models/message_model.dart';
 /// - 发送/收到消息时写入 DB，同时保留在内存。
 /// - 进入聊天页先读内存，秒开；内存不足时从 DB 补满最近 N 条。
 /// - 上翻页时从 DB 查询更早的消息。
+/// - 表名按用户ID隔离：local_messages_{userId}
 class MessageCacheManager {
   static final MessageCacheManager _instance = MessageCacheManager._internal();
 
@@ -19,11 +21,17 @@ class MessageCacheManager {
 
   Database? _db;
   bool _initialized = false;
+  int? _userId; // 当前登录用户ID，用于生成表名
 
   /// 按会话分桶的内存缓存，内部按 createTime 降序排列（最新在最前）。
   final Map<String, List<MessageModel>> _memory = {};
 
   static const int _defaultMemoryLimit = 100;
+
+  /// 设置当前用户ID（登录时调用）
+  void setUserId(int userId) {
+    _userId = userId;
+  }
 
   Future<void> init() async {
     if (_initialized) return;
@@ -34,6 +42,12 @@ class MessageCacheManager {
   Future<void> dispose() async {
     _memory.clear();
     _initialized = false;
+  }
+
+  /// 获取当前用户的消息表名
+  String _messagesTable() {
+    if (_userId == null) throw StateError('User ID not set. Call setUserId() first.');
+    return Tables.messagesTable(_userId!);
   }
 
   /// 生成单聊会话 ID。
@@ -50,7 +64,7 @@ class MessageCacheManager {
   Future<void> appendMessage(String sessionId, MessageModel message) async {
     final db = _requireDb();
     await db.insert(
-      'local_messages',
+      _messagesTable(),
       _toMap(sessionId, message),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
@@ -61,7 +75,7 @@ class MessageCacheManager {
   Future<void> updatePushStatus(String sessionId, int msgId, String pushStatus) async {
     final db = _requireDb();
     await db.update(
-      'local_messages',
+      _messagesTable(),
       {'push_status': pushStatus},
       where: 'msg_id = ? AND session_id = ?',
       whereArgs: [msgId, sessionId],
@@ -109,7 +123,7 @@ class MessageCacheManager {
   }) async {
     final db = _requireDb();
     final rows = await db.query(
-      'local_messages',
+      _messagesTable(),
       where: 'session_id = ? AND create_time < ?',
       whereArgs: [sessionId, beforeTime],
       orderBy: 'create_time ASC',
@@ -138,7 +152,7 @@ class MessageCacheManager {
   Future<void> _preloadFromDb(String sessionId, int limit) async {
     final db = _requireDb();
     final rows = await db.query(
-      'local_messages',
+      _messagesTable(),
       where: 'session_id = ?',
       whereArgs: [sessionId],
       orderBy: 'create_time DESC',

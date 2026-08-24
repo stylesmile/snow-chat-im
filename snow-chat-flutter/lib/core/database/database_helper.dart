@@ -21,31 +21,126 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 3,
+      version: 4, // 升级到v4，支持按用户分表
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
   }
 
+  /// 建表时按用户ID生成独立的表名
   Future<void> _onCreate(Database db, int version) async {
-    await db.execute(Tables.createMessagesTable);
-    await db.execute(Tables.createMessagesSessionIndex);
-    await db.execute(Tables.createConversationsTable);
-    await db.execute(Tables.createFriendsTable);
-    await db.execute(Tables.createGroupsTable);
-    await db.execute(Tables.createGroupMembersTable);
-    await db.execute(Tables.createSessionsTable);
+    // 注意：新建数据库时还没有用户ID，先创建默认表（userId=0）
+    // 实际使用时会在登录成功后重新初始化
+    await _createUserTables(db, 0);
   }
 
+  /// 为指定用户创建所有表
+  Future<void> _createUserTables(Database db, int userId) async {
+    await db.execute(Tables.createMessagesTable(userId));
+    await db.execute(Tables.createMessagesSessionIndex(userId));
+    await db.execute(Tables.createConversationsTable(userId));
+    await db.execute(Tables.createFriendsTable(userId));
+    await db.execute(Tables.createGroupsTable(userId));
+    await db.execute(Tables.createGroupMembersTable(userId));
+    await db.execute(Tables.createSessionsTable(userId));
+  }
+
+  /// 数据库升级逻辑
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
+      // v2: 消息表增加 session_id 字段（兼容旧表）
       await db.execute('ALTER TABLE local_messages ADD COLUMN session_id TEXT DEFAULT ""');
-      await db.execute(Tables.createMessagesSessionIndex);
+      await db.execute(Tables.createMessagesSessionIndex(0));
     }
     if (oldVersion < 3) {
-      // v3: 消息表增加推送状态字段，记录接收方是否收到消息
+      // v3: 消息表增加推送状态字段
       await db.execute("ALTER TABLE local_messages ADD COLUMN push_status TEXT DEFAULT 'pending'");
     }
+    if (oldVersion < 4) {
+      // v4: 迁移到按用户分表
+      // 将旧表数据迁移到新表（userId=0 的表迁移为当前用户的表）
+      await _migrateToUserTables(db, 0);
+    }
+  }
+
+  /// 将旧表数据迁移到按用户分表的格式
+  Future<void> _migrateToUserTables(Database db, int userId) async {
+    final messagesTable = Tables.messagesTable(userId);
+    final conversationsTable = Tables.conversationsTable(userId);
+    final friendsTable = Tables.friendsTable(userId);
+    final groupsTable = Tables.groupsTable(userId);
+    final groupMembersTable = Tables.groupMembersTable(userId);
+    final sessionsTable = Tables.sessionsTable(userId);
+
+    // 迁移消息表
+    final hasMessages = await _tableExists(db, 'local_messages');
+    if (hasMessages) {
+      await db.execute(Tables.createMessagesTable(userId));
+      await db.execute(Tables.createMessagesSessionIndex(userId));
+      await db.execute(
+        'INSERT OR REPLACE INTO $messagesTable SELECT * FROM local_messages',
+      );
+      await db.execute('DROP TABLE local_messages');
+    }
+
+    // 迁移会话表
+    final hasConversations = await _tableExists(db, 'conversations');
+    if (hasConversations) {
+      await db.execute(Tables.createConversationsTable(userId));
+      await db.execute(
+        'INSERT OR REPLACE INTO $conversationsTable SELECT * FROM conversations',
+      );
+      await db.execute('DROP TABLE conversations');
+    }
+
+    // 迁移好友表
+    final hasFriends = await _tableExists(db, 'local_friends');
+    if (hasFriends) {
+      await db.execute(Tables.createFriendsTable(userId));
+      await db.execute(
+        'INSERT OR REPLACE INTO $friendsTable SELECT * FROM local_friends',
+      );
+      await db.execute('DROP TABLE local_friends');
+    }
+
+    // 迁移群组表
+    final hasGroups = await _tableExists(db, 'local_groups');
+    if (hasGroups) {
+      await db.execute(Tables.createGroupsTable(userId));
+      await db.execute(
+        'INSERT OR REPLACE INTO $groupsTable SELECT * FROM local_groups',
+      );
+      await db.execute('DROP TABLE local_groups');
+    }
+
+    // 迁移群成员表
+    final hasGroupMembers = await _tableExists(db, 'group_members');
+    if (hasGroupMembers) {
+      await db.execute(Tables.createGroupMembersTable(userId));
+      await db.execute(
+        'INSERT OR REPLACE INTO $groupMembersTable SELECT * FROM group_members',
+      );
+      await db.execute('DROP TABLE group_members');
+    }
+
+    // 迁移会话记录表
+    final hasSessions = await _tableExists(db, 'sessions');
+    if (hasSessions) {
+      await db.execute(Tables.createSessionsTable(userId));
+      await db.execute(
+        'INSERT OR REPLACE INTO $sessionsTable SELECT * FROM sessions',
+      );
+      await db.execute('DROP TABLE sessions');
+    }
+  }
+
+  /// 检查表是否存在
+  Future<bool> _tableExists(Database db, String tableName) async {
+    final result = await db.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+      [tableName],
+    );
+    return result.isNotEmpty;
   }
 
   Future<void> close() async {
