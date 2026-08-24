@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:snow_chat/models/message_model.dart';
@@ -369,6 +370,59 @@ void main() {
 
       // 验证：无 /chat/message/sync 请求发出（通过验证无异常完成间接确认）
       // 空列表场景下不应有任何网络请求
+    });
+  });
+
+  // ====================================================================
+  // 小需求：文件消息——doc/file 类型上传
+  // 验证 uploadMedia 对 "file" 媒体类型命中 POST /file/media/file 端点，
+  // 这是文件消息"选择→上传→发送"链路的上传环节，由 file_picker 选中后触发。
+  // ====================================================================
+  group('ChatService.uploadMedia', () {
+    test('should upload arbitrary file to /file/media/file and return url', () async {
+      // 准备：mock 后端返回上传结果（key + pre-signed url）
+      mockApiClient.adapter.onPost(
+        '/file/media/file',
+        (server) => server.reply(200, {
+          'code': '200',
+          'data': {
+            'key': 'files/report.pdf',
+            'url': 'https://cdn.example.com/files/report.pdf',
+          },
+        }),
+      );
+      // 构造一个临时文件模仿用户选中的任意文档
+      final file = File('${Directory.systemTemp.path}/upload_test_doc.pdf');
+      file.writeAsBytesSync([1, 2, 3, 4, 5]);
+
+      // 执行：上传文件类型媒体
+      final result = await chatService.uploadMedia(file, 'file');
+
+      // 验证：返回非空结果且 url 正确
+      expect(result, isNotNull);
+      expect(result!.key, equals('files/report.pdf'));
+      expect(result.url, equals('https://cdn.example.com/files/report.pdf'));
+
+      // 清理临时文件
+      file.deleteSync();
+    });
+
+    test('should return null when upload response data is missing', () async {
+      // 准备：mock 后端返回无 data 的响应
+      mockApiClient.adapter.onPost(
+        '/file/media/file',
+        (server) => server.reply(200, {'code': '200', 'data': null}),
+      );
+      final file = File('${Directory.systemTemp.path}/upload_test_nodata.pdf');
+      file.writeAsBytesSync([9, 9, 9]);
+
+      // 执行：data 缺失时返回 null
+      final result = await chatService.uploadMedia(file, 'file');
+
+      // 验证：返回 null（调用方应做空判断并提示失败）
+      expect(result, isNull);
+
+      file.deleteSync();
     });
   });
 }
