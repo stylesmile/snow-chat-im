@@ -804,6 +804,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        // 使用略浅于页面的背景色 + 轻微阴影，让 AppBar 在视觉上有明确边界
+        backgroundColor: const Color(0xFF1E1E1E),
+        elevation: 1,
         title: Text(displayName),
         actions: widget.targetType == 'group'
             ? [

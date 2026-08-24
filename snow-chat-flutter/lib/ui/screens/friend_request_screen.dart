@@ -46,15 +46,16 @@ class _FriendRequestScreenState extends State<FriendRequestScreen> {
     final l10n = AppLocalizations.of(context)!;
     final service = ContactService(auth.apiClient);
 
-    final success = await service.handleFriendRequest(request.fromUserId, auth.userId!, accept);
-    if (success && mounted) {
-      setState(() {
-        _requests.remove(request);
-      });
+    final result = await service.handleFriendRequest(request.fromUserId, auth.userId!, accept);
+    if (!mounted) return;
+    if (result['success'] == true) {
+      setState(() => _requests.remove(request));
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(accept ? l10n.friendAdded : l10n.reject),
-        ),
+        SnackBar(content: Text(accept ? l10n.friendAdded : l10n.reject)),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result['message'] as String? ?? '操作失败')),
       );
     }
   }

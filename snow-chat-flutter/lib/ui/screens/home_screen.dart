@@ -4,9 +4,9 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/friend_request_provider.dart';
+import '../../services/chat_service.dart';
 import '../../services/conversation_service.dart';
 import '../../services/group_service.dart';
-import '../../services/chat_service.dart';
 import '../../config/config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/constants/ws_cmd.dart';
@@ -15,6 +15,7 @@ import '../../core/utils/message_utils.dart';
 import 'chat_list_tab.dart';
 import 'contact_tab.dart';
 import 'profile_tab.dart';
+import 'add_friend_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -29,14 +30,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   FriendRequestProvider? _friendRequestProvider;
   ChatProvider? _chatProvider;
   bool _pollingStarted = false;
-  MqttChatClient? _mqttClient; // 登录后全局 MQTT 连接，用于推送聊天列表新消息和好友请求
+  // 登录后全局 MQTT 连接，用于推送聊天列表新消息、好友请求通知
+  MqttChatClient? _mqttClient;
   final ValueNotifier<int> _friendAcceptedNotifier = ValueNotifier<int>(0);
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    // 监听 TabController 变化，同步 BottomNavigationBar 高亮
     _tabController.addListener(_onTabChanged);
   }
 
@@ -56,9 +57,138 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       _pollingStarted = true;
       final auth = context.read<AuthProvider>();
       if (auth.userId != null) {
-        // 启动好友请求轮询（REST 方式，无需 MQTT）
+        // 启动好友请求轮询（REST 备用，MQTT 实时优先）
         _friendRequestProvider?.startPolling(auth.userId!);
+        // 登录后连接全局 MQTT，接收新消息推送和好友请求通知
+        // 已在登录时连接过则跳过（_mqttClient 已有实例）
+        if (AppConfig.enableMqtt && _mqttClient == null) {
+          _initMqtt(auth.userId!);
+        } else if (!AppConfig.enableMqtt) {
+          debugPrint('[Home] MQTT disabled by config, relying on REST polling');
+        }
       }
+    }
+  }
+
+  /// 初始化并连接全局 MQTT（登录时调用一次）
+  void _initMqtt(int userId) {
+    _mqttClient = MqttChatClient(
+      host: AppConfig.mqttHost,
+      port: AppConfig.mqttPort,
+      onConnected: () => _subscribeAllGroups(userId),
+      // 自动重连成功后补拉未送达消息
+      onReconnected: () {
+        if (!mounted) return;
+        final conversations = _chatProvider?.conversations ?? [];
+        if (conversations.isEmpty) return;
+        final records = conversations
+            .map((c) => (targetId: c.targetId, targetType: c.targetType))
+            .toList();
+        ChatService(context.read<AuthProvider>().apiClient)
+            .syncAllConversations(userId, records);
+      },
+      onMessage: (cmd, data) {
+        if (!mounted) return;
+        if (cmd == WsCmd.friendAccepted) {
+          // 好友请求被接受：刷新好友列表 + 创建新对话 + 提示
+          _friendRequestProvider?.refresh();
+          _friendAcceptedNotifier.value++;
+          final fromUserId = MessageUtils.toNullableInt(data['fromUserId']);
+          final toUserId = MessageUtils.toNullableInt(data['toUserId']);
+          if (fromUserId != null && toUserId != null) {
+            final friendId = fromUserId == userId ? toUserId : fromUserId;
+            _chatProvider?.updateConversation(
+              Conversation(targetId: friendId, targetType: 'friend'),
+            );
+            ConversationService().saveSession(
+              context: context,
+              targetId: friendId,
+              targetType: 'friend',
+              lastMsg: '',
+              lastMsgTime: DateTime.now().millisecondsSinceEpoch,
+              unreadCount: 0,
+            );
+          }
+          final l10n = AppLocalizations.of(context);
+          if (l10n != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(l10n.friendRequestAccepted),
+                backgroundColor: AppTheme.primary,
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
+        } else if (cmd == WsCmd.friendReqNotify) {
+          // 收到好友请求通知：刷新未读数量
+          _friendRequestProvider?.refresh();
+          debugPrint('[Home] friendReqNotify received, refreshing friend request count');
+        } else if (cmd == WsCmd.msgPush) {
+          // 收到新消息：更新聊天列表会话
+          _handleIncomingMessage(data as Map<String, dynamic>? ?? {}, userId);
+        } else if (cmd == WsCmd.msgReceiptAck) {
+          debugPrint('[Home] msgReceiptAck: data=$data');
+        } else if (cmd == WsCmd.fetchUndeliveredAck) {
+          final messages = (data as Map<String, dynamic>?)?['messages'] as List<dynamic>? ?? [];
+          debugPrint('[Home] fetchUndeliveredAck: ${messages.length} messages');
+        }
+      },
+    );
+    _mqttClient!.connect(
+      userId: userId,
+      username: AppConfig.mqttUsername,
+      password: AppConfig.mqttPassword,
+    );
+  }
+
+  /// 处理收到的新消息，更新聊天列表会话
+  void _handleIncomingMessage(Map<String, dynamic> data, int userId) {
+    final fromUserId = MessageUtils.toNullableInt(data['fromUserId']);
+    final toUserId = MessageUtils.toNullableInt(data['toUserId']);
+    final groupId = MessageUtils.toNullableInt(data['groupId']);
+    final content = data['content'] as String? ?? '';
+    final createTime = MessageUtils.toInt(data['createTime'], DateTime.now().millisecondsSinceEpoch);
+    final int? groupIdValue = groupId;
+    final bool isGroup = groupIdValue != null;
+    final int targetId = isGroup
+        ? groupIdValue!
+        : (fromUserId == userId ? (toUserId ?? 0) : (fromUserId ?? 0));
+    final String targetType = isGroup ? 'group' : 'friend';
+    final existingIndex = _chatProvider?.conversations.indexWhere(
+      (c) => c.targetId == targetId && c.targetType == targetType,
+    );
+    final existing = (existingIndex != null && existingIndex >= 0)
+        ? _chatProvider!.conversations[existingIndex]
+        : Conversation(targetId: targetId, targetType: targetType);
+    final updated = Conversation(
+      targetId: targetId,
+      targetType: targetType,
+      lastMsg: content,
+      lastMsgTime: createTime,
+      unreadCount: existing.unreadCount + 1,
+    );
+    _chatProvider?.updateConversation(updated);
+    ConversationService().saveSession(
+      context: context,
+      targetId: targetId,
+      targetType: targetType,
+      lastMsg: content,
+      lastMsgTime: createTime,
+      unreadCount: updated.unreadCount,
+    );
+  }
+
+  /// 订阅用户所在的所有群主题
+  Future<void> _subscribeAllGroups(int userId) async {
+    if (_mqttClient == null || !_mqttClient!.isConnected) return;
+    try {
+      final service = GroupService(context.read<AuthProvider>().apiClient);
+      final groups = await service.getGroups(userId);
+      for (final group in groups) {
+        _mqttClient?.subscribeGroup(group.id);
+      }
+    } catch (e) {
+      debugPrint('[Home] failed to subscribe groups: $e');
     }
   }
 
@@ -106,6 +236,34 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final totalUnread = chatProvider.totalUnreadCount;
 
     return Scaffold(
+      // 顶部 TabBar 导航：会话 / 通讯录 / 个人中心
+      appBar: AppBar(
+        // 背景色与页面一致，保持深色主题连贯性
+        backgroundColor: AppTheme.background,
+        // 无阴影，扁平风格
+        elevation: 0,
+        title: Text(l10n.chat),
+        centerTitle: false,
+        actions: [
+          // 添加联系人按钮
+          IconButton(
+            icon: const Icon(Icons.person_add),
+            tooltip: '添加联系人',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AddFriendScreen()),
+              );
+            },
+          ),
+          // 更多操作按钮
+          IconButton(
+            icon: const Icon(Icons.more_vert),
+            tooltip: '更多',
+            onPressed: () {},
+          ),
+        ],
+      ),
       body: TabBarView(
         controller: _tabController,
         children: [

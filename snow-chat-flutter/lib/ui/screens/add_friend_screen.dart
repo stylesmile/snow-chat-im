@@ -63,32 +63,21 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
     if (_sendingUsers.contains(user.id)) return;
     setState(() => _sendingUsers.add(user.id));
 
-    try {
-      final success = await service.sendFriendRequest(auth.userId!, user.id, '');
-      setState(() => _sendingUsers.remove(user.id));
+    final result = await service.sendFriendRequest(auth.userId!, user.id, '');
+    setState(() => _sendingUsers.remove(user.id));
 
-      if (success) {
-        setState(() => _addedUsers.add(user.id));
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(l10n.friendRequestSent)),
-          );
-        }
-      } else {
-        // 后端返回失败
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('发送失败，请稍后重试')),
-          );
-        }
-      }
-    } catch (e) {
-      setState(() => _sendingUsers.remove(user.id));
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('网络错误: $e')),
-        );
-      }
+    if (!mounted) return;
+    if (result['success'] == true) {
+      setState(() => _addedUsers.add(user.id));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.friendRequestSent)),
+      );
+    } else {
+      // 显示后端返回的具体错误原因
+      final msg = result['message'] as String? ?? '发送失败，请稍后重试';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg)),
+      );
     }
   }
 

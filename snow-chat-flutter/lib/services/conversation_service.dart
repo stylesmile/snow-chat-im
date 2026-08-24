@@ -44,17 +44,19 @@ class ConversationService {
     );
   }
 
-  /// 加载当前用户的所有会话，按最后消息时间倒序
+  /// 加载当前用户的所有会话，按最后消息时间倒序，去重（防止重复记录）
   Future<List<Conversation>> loadSessions(BuildContext context) async {
     final userId = _getUserId(context);
     final db = await _dbHelper.database;
     final table = Tables.sessionsTable(userId);
-    final rows = await db.query(
-      table,
-      where: 'user_id = ?',
-      whereArgs: [userId],
-      orderBy: 'last_msg_time DESC',
-    );
+    // 使用 DISTINCT 防止同一 target_id+target_type 出现重复行
+    final rows = await db.rawQuery('''
+      SELECT target_id, target_type, last_msg, last_msg_time, unread_count
+      FROM $table
+      WHERE user_id = ?
+      GROUP BY target_id, target_type
+      ORDER BY last_msg_time DESC
+    ''', [userId]);
     return rows.map((row) {
       return Conversation(
         targetId: row['target_id'] as int,

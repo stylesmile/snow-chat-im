@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
@@ -86,25 +87,46 @@ class ContactService {
     }
   }
 
-  /// 发送好友请求
-  Future<bool> sendFriendRequest(int fromUserId, int toUserId, String remark) async {
-    final response = await apiClient.dio.post(
-      '/chat/friend/request',
-      data: {'fromUserId': fromUserId, 'toUserId': toUserId, 'remark': remark},
-    );
-    // 检查响应码
-    final code = response.data['code'] as String?;
-    return code == '200';
+  /// 发送好友请求，返回 {success, message}
+  /// success=false 时 message 包含后端返回的具体原因（如"已发送过好友请求"）
+  Future<Map<String, dynamic>> sendFriendRequest(int fromUserId, int toUserId, String remark) async {
+    try {
+      final response = await apiClient.dio.post(
+        '/chat/friend/request',
+        data: {'fromUserId': fromUserId, 'toUserId': toUserId, 'remark': remark},
+      );
+      final data = response.data as Map<String, dynamic>;
+      final code = data['code'] as String?;
+      if (code == '200') {
+        return {'success': true, 'message': ''};
+      }
+      // 业务失败：返回后端 msg 字段作为错误信息
+      return {'success': false, 'message': data['msg'] as String? ?? '发送失败'};
+    } on DioException catch (e) {
+      return {'success': false, 'message': '网络错误: ${e.message}'};
+    } catch (e) {
+      return {'success': false, 'message': '发送失败: $e'};
+    }
   }
 
-  /// 处理好友请求（接受/拒绝）
-  Future<bool> handleFriendRequest(int fromUserId, int toUserId, bool accept) async {
-    final response = await apiClient.dio.post(
-      '/chat/friend/handle',
-      data: {'fromUserId': fromUserId, 'toUserId': toUserId, 'accept': accept},
-    );
-    final code = response.data['code'] as String?;
-    return code == '200';
+  /// 处理好友请求（接受/拒绝），返回 {success, message}
+  Future<Map<String, dynamic>> handleFriendRequest(int fromUserId, int toUserId, bool accept) async {
+    try {
+      final response = await apiClient.dio.post(
+        '/chat/friend/handle',
+        data: {'fromUserId': fromUserId, 'toUserId': toUserId, 'accept': accept},
+      );
+      final data = response.data as Map<String, dynamic>;
+      final code = data['code'] as String?;
+      if (code == '200') {
+        return {'success': true, 'message': ''};
+      }
+      return {'success': false, 'message': data['msg'] as String? ?? '操作失败'};
+    } on DioException catch (e) {
+      return {'success': false, 'message': '网络错误: ${e.message}'};
+    } catch (e) {
+      return {'success': false, 'message': '操作失败: $e'};
+    }
   }
 
   /// 获取收到的待处理好友请求

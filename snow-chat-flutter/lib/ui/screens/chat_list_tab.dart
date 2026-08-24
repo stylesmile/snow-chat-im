@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
@@ -18,7 +19,7 @@ class ChatListTab extends StatefulWidget {
 
 class _ChatListTabState extends State<ChatListTab> {
   bool _isLoading = true;
-  /// 好友 userId -> 昵称 映射，用于聊天列表显示对方名称
+  /// 好友 userId -> 昵称 映射，优先从后端 API 获取（含 nickname 字段）
   final Map<int, String> _friendNames = {};
 
   @override
@@ -34,14 +35,35 @@ class _ChatListTabState extends State<ChatListTab> {
       return;
     }
 
-    final conversations = await ConversationService().loadSessions(context);
-
-    // 从本地好友缓存查询昵称，用于展示会话标题
     final contactService = ContactService(auth.apiClient);
-    final friends = await contactService.getLocalFriends(context);
+
+    // 优先从后端 API 拉取好友列表（含 nickname），这是唯一可信的数据源
+    final friends = await contactService.getFriends(auth.userId!);
+    if (kDebugMode) {
+      print('[ChatList] getFriends returned ${friends.length} friends: ${friends.map((f) => '${f.userId}(${f.nickname})').join(', ')}');
+    }
+
     _friendNames
       ..clear()
       ..addAll({for (final f in friends) f.userId: f.nickname});
+
+    // API 为空时，回退到本地 SQLite 缓存
+    if (_friendNames.isEmpty) {
+      final localFriends = await contactService.getLocalFriends(context);
+      if (kDebugMode) {
+        print('[ChatList] API returned empty, fallback to local friends: ${localFriends.length}');
+      }
+      _friendNames
+        ..clear()
+        ..addAll({for (final f in localFriends) f.userId: f.nickname});
+    }
+
+    // 同时更新本地 SQLite 缓存
+    if (friends.isNotEmpty) {
+      await contactService.saveLocalFriends(context, friends);
+    }
+
+    final conversations = await ConversationService().loadSessions(context);
 
     if (!mounted) return;
 
@@ -49,12 +71,13 @@ class _ChatListTabState extends State<ChatListTab> {
     setState(() => _isLoading = false);
   }
 
-  /// 显示会话标题：好友显示昵称，群组暂用占位
+  /// 显示会话标题：从后端好友列表查昵称，查不到才显示用户ID
   String _displayName(Conversation conv) {
     if (conv.targetType == 'group') {
       return '群组 ${conv.targetId}';
     }
-    return _friendNames[conv.targetId] ?? '用户 ${conv.targetId}';
+    final name = _friendNames[conv.targetId];
+    return name != null && name.isNotEmpty ? name : '用户 ${conv.targetId}';
   }
 
   /// 构建带未读数角标的头像（类似微信）
@@ -63,7 +86,7 @@ class _ChatListTabState extends State<ChatListTab> {
       clipBehavior: Clip.none,
       children: [
         CircleAvatar(
-          // 头像底色使用设计令牌：群组=品牌蓝，好友=辅助绿（替换 Material 默认色）
+          // 头像底色使用设计令牌：群组=品牌蓝，好友=辅助绿
           backgroundColor: conv.targetType == 'group' ? AppTheme.primary : AppTheme.secondary,
           child: Text(conv.targetType == 'group' ? '群' : '友'),
         ),
@@ -115,129 +138,64 @@ class _ChatListTabState extends State<ChatListTab> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final chatProvider = context.watch<ChatProvider>();
+    final conversations = chatProvider.conversations;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(l10n.chatList),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.person_add),
-            tooltip: l10n.addFriend,
-            onPressed: () {},
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (conversations.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(l10n.noMessages, style: TextStyle(color: Colors.grey.shade500, fontSize: 16)),
+          ],
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.only(top: 8),
+      itemCount: conversations.length,
+      separatorBuilder: (_, __) => const Divider(height: 1, indent: 72),
+      itemBuilder: (context, index) {
+        final conv = conversations[index];
+        return ListTile(
+          leading: _buildAvatar(conv),
+          title: Text(
+            _displayName(conv),
+            style: const TextStyle(fontSize: 16),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          PopupMenuButton<String>(
-            itemBuilder: (_) => [
-              PopupMenuItem(
-                value: 'logout',
-                child: Row(children: [const Icon(Icons.logout), const SizedBox(width: 12), Text(l10n.logout)]),
-              ),
-            ],
-            onSelected: (value) {
-              if (value == 'logout') {
-                context.read<AuthProvider>().logout();
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  (route) => false,
-                );
-              }
-            },
+          subtitle: Text(
+            conv.lastMsg.isNotEmpty ? conv.lastMsg : l10n.noMessages,
+            style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-        ],
-      ),
-      body: Consumer<ChatProvider>(
-        builder: (_, chatProvider, __) {
-          final conversations = chatProvider.conversations;
-
-          if (_isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (conversations.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // 空状态图标：深色背景下使用低透明度白，柔和且可见
-                  const Icon(Icons.chat_bubble_outline, size: 64, color: Colors.white24),
-                  const SizedBox(height: 16),
-                  // 空状态文字：半透明白，保证深色背景上可读
-                  Text(l10n.noMessages, style: const TextStyle(color: Colors.white54)),
-                ],
+          trailing: Text(
+            _formatTime(conv.lastMsgTime),
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+          ),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ChatDetailScreen(
+                  targetId: conv.targetId,
+                  targetType: conv.targetType,
+                  targetName: _displayName(conv),
+                ),
               ),
             );
-          }
-
-          return ListView.separated(
-            itemCount: conversations.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final conv = conversations[index];
-              return Dismissible(
-                key: ValueKey('${conv.targetType}_${conv.targetId}'),
-                direction: DismissDirection.endToStart,
-                background: Container(
-                  color: Colors.red,
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: const Icon(Icons.delete, color: Colors.white),
-                ),
-                confirmDismiss: (_) async {
-                  return await showDialog<bool>(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: Text(l10n.delete),
-                      content: Text('${l10n.delete}?'),
-                      actions: [
-                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.cancel)),
-                        ElevatedButton(
-                          onPressed: () => Navigator.pop(ctx, true),
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                          child: Text(l10n.confirm),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-                onDismissed: (_) async {
-                  final auth = context.read<AuthProvider>();
-                  if (auth.userId != null) {
-                    await ConversationService().deleteSession(
-                      context: context,
-                      targetId: conv.targetId,
-                      targetType: conv.targetType,
-                    );
-                  }
-                  chatProvider.removeConversation(conv.targetId, conv.targetType);
-                },
-                child: ListTile(
-                  leading: _buildAvatar(conv),
-                  title: Text(_displayName(conv)),
-                  subtitle: Text(conv.lastMsg.isNotEmpty ? conv.lastMsg : l10n.noMessages),
-                  trailing: conv.lastMsgTime > 0
-                      ? Text(
-                          _formatTime(conv.lastMsgTime),
-                          // 时间文字：半透明白，深色背景上保持弱化但可读
-                          style: const TextStyle(fontSize: 12, color: Colors.white54),
-                        )
-                      : null,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ChatDetailScreen(
-                          targetId: conv.targetId,
-                          targetType: conv.targetType,
-                          targetName: _displayName(conv),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              );
-            },
-          );
-        },
-      ),
+          },
+        );
+      },
     );
   }
 }

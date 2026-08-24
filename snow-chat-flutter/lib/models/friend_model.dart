@@ -15,7 +15,16 @@ class FriendModel {
 
   factory FriendModel.fromJson(Map<String, dynamic> json) {
     // 后端 ChatFriend 使用 friend_id/friendId 表示好友用户ID，id 是关系记录ID。
-    final friendId = json['friendId'] as int? ?? json['friend_id'] as int? ?? json['id'] as int? ?? 0;
+    // 注意：后端 Long 类型可能解析为 int 或 double，需兼容两种类型
+    final rawFriendId = json['friendId'] ?? json['friend_id'] ?? json['id'];
+    final int friendId;
+    if (rawFriendId is int) {
+      friendId = rawFriendId;
+    } else if (rawFriendId is double) {
+      friendId = rawFriendId.toInt();
+    } else {
+      friendId = 0;
+    }
     return FriendModel(
       userId: friendId,
       nickname: json['nickname'] as String? ?? '',

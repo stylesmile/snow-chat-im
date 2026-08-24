@@ -94,3 +94,18 @@ mqtt:
         password: mica
       mcp:                      # 大模型 mcp
         enable: true
+# Knife4j 配置
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
+    swagger-model-name: 实体类
+  production: false
+  group-configs:
+    - group: 'default'
+      paths-to-match: '/**'
+      packages-to-scan: com.stylesmile.chat
+  basic:
+    enable: false
+    username: admin
+    password: admin123
