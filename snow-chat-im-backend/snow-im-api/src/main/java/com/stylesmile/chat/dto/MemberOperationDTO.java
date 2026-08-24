@@ -1,41 +1,8 @@
-/**
- * 群组成员操作DTO（Data Transfer Object）- 用于封装群组成员管理的请求数据
- *
- * 这个类定义了群组成员管理操作（添加、删除、禁言等）需要提供的所有字段。
- * 群组成员管理是即时通讯系统的核心功能之一，用于：
- *
- * 1. 添加新成员到群组
- * 2. 从群组中移除成员
- * 3. 批量禁言/解禁成员
- * 4. 设置管理员权限
- * 5. 转让群主
- *
- * 使用场景：
- * - 群主或管理员邀请用户加入群组
- * - 群主或管理员移除违规成员
- * - 批量管理群组成员
- *
- * @author Snow Chat Team
- * @version 1.0.0
- * @since 2024-01-01
- */
 package com.stylesmile.chat.dto;
 
-/**
- * Lombok注解库 - 自动生成getter、setter、toString、equals和hashCode方法
- *
- * @Data: 综合注解，包含以下功能：
- * - @Getter: 生成所有字段的getter方法
- * - @Setter: 生成所有字段的setter方法
- * - @ToString: 生成toString方法，便于调试
- * - @EqualsAndHashCode: 生成equals和hashCode方法，便于集合操作
- *
- * 为什么使用@Data而不是@Getter和@Setter：
- * - 简化代码，减少注解数量
- * - DTO类通常需要toString和equalsAndHashCode
- * - 便于调试和日志记录
- */
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+
 
 /**
  * 群组成员操作DTO类
@@ -71,11 +38,11 @@ import lombok.Data;
  *
  * @author Snow Chat Team
  * @version 1.0.0
- * @since 2024-01-01
+ * @since 2026-01-01
  */
 @Data
+@Schema(description = "群组成员操作DTO")
 public class MemberOperationDTO {
-
     /**
      * 群组ID - 被操作的群组
      *
@@ -104,8 +71,8 @@ public class MemberOperationDTO {
      * - 如果操作者不是群组成员，抛出PermissionDeniedException
      * - 如果操作者权限不足，抛出InsufficientPermissionException
      */
+    @Schema(description = "群组ID", example = "1001", requiredMode = Schema.RequiredMode.REQUIRED)
     private Long groupId;
-
     /**
      * 用户ID数组 - 被操作的用户列表
      *
@@ -151,5 +118,6 @@ public class MemberOperationDTO {
      * dto.setUserIds(new Long[]{2001L, 2002L, 2003L}); // 添加3个新成员
      * ```
      */
+    @Schema(description = "用户ID数组", example = "[2001, 2002, 2003]")
     private Long[] userIds;
 }
