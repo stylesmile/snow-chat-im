@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:snow_chat/core/cache/message_cache_manager.dart';
 import 'package:snow_chat/core/database/tables.dart';
@@ -10,13 +9,16 @@ void main() {
   sqfliteFfiInit();
   databaseFactory = databaseFactoryFfi;
 
-  Future<Database> _createTestDb() async {
+  const testUserId = 1;
+
+  Future<Database> createTestDb() async {
     return openDatabase(
       inMemoryDatabasePath,
-      version: 2,
+      version: 1,
       onCreate: (db, version) async {
-        await db.execute(Tables.createMessagesTable);
-        await db.execute(Tables.createMessagesSessionIndex);
+        // 创建带用户ID前缀的表（与生产环境一致）
+        await db.execute(Tables.createMessagesTable(testUserId));
+        await db.execute(Tables.createMessagesSessionIndex(testUserId));
       },
     );
   }
@@ -26,8 +28,10 @@ void main() {
     late Database db;
 
     setUp(() async {
-      db = await _createTestDb();
+      db = await createTestDb();
+      // 注入测试数据库，并设置用户ID使表名正确
       manager = MessageCacheManager.forTest(db);
+      manager.setUserId(testUserId);
       await manager.init();
     });
 
@@ -40,7 +44,8 @@ void main() {
       final msg = _message(id: 1, fromUserId: 10, toUserId: 42, createTime: 1000);
       await manager.appendMessage('u_10_42', msg);
 
-      final rows = await db.query('local_messages');
+      final table = Tables.messagesTable(testUserId);
+      final rows = await db.query(table);
       expect(rows.length, 1);
       expect(rows.first['msg_id'], 1);
       expect(rows.first['session_id'], 'u_10_42');
@@ -58,7 +63,7 @@ void main() {
     });
 
     test('recentMessages loads from database when memory is empty', () async {
-      await _seedDb(db, 'u_10_42', [
+      await seedDb(db, 'u_10_42', [
         _message(id: 1, fromUserId: 10, toUserId: 42, createTime: 1000),
         _message(id: 2, fromUserId: 42, toUserId: 10, createTime: 2000),
       ]);
@@ -107,10 +112,11 @@ void main() {
   });
 }
 
-Future<void> _seedDb(Database db, String sessionId, List<MessageModel> messages) async {
+Future<void> seedDb(Database db, String sessionId, List<MessageModel> messages) async {
+  final table = Tables.messagesTable(1);
   final batch = db.batch();
   for (final msg in messages) {
-    batch.insert('local_messages', {
+    batch.insert(table, {
       'msg_id': msg.id,
       'session_id': sessionId,
       'from_user_id': msg.fromUserId,
