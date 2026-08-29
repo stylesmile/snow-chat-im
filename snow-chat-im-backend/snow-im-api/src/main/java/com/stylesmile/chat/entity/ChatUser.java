@@ -23,6 +23,8 @@ public class ChatUser {
     private String signature;
     @Schema(description = "在线状态：online/offline/busy", example = "online")
     private String status;
+    @Schema(description = "性别：0=未设置,1=男,2=女")
+    private Integer gender;
     @Schema(description = "创建时间")
     private java.util.Date createTime;
     @Schema(description = "更新时间")
@@ -56,6 +58,8 @@ public class ChatUser {
     public void setSignature(String signature) { this.signature = signature; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+    public Integer getGender() { return gender; }
+    public void setGender(Integer gender) { this.gender = gender; }
     public java.util.Date getCreateTime() { return createTime; }
     public void setCreateTime(java.util.Date createTime) { this.createTime = createTime; }
     public java.util.Date getUpdateTime() { return updateTime; }

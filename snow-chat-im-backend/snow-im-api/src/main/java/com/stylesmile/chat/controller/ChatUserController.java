@@ -176,9 +176,9 @@ public class ChatUserController {
     }
 
     /**
-     * 更新用户资料（昵称、头像、签名）
+     * 更新用户资料（昵称、头像、签名、性别）
      */
-    @Operation(summary = "更新用户资料", description = "更新用户昵称、头像、签名")
+    @Operation(summary = "更新用户资料", description = "更新用户昵称、头像、签名、性别")
     @ApiResponse(responseCode = "200", description = "更新成功")
     @ApiResponse(responseCode = "401", description = "未登录")
     @PutMapping("/update")
@@ -200,6 +200,10 @@ public class ChatUserController {
         }
         if (body.getSignature() != null) {
             user.setSignature(body.getSignature());
+        }
+        // 性别：仅当 DTO 中非 null 时才更新，保持与其他字段一致的处理方式
+        if (body.getGender() != null) {
+            user.setGender(body.getGender());
         }
         chatUserService.updateById(user);
         return Result.success();
@@ -334,12 +338,16 @@ public class ChatUserController {
         private String avatar;
         @Schema(description = "个性签名", example = "Hello World")
         private String signature;
+        @Schema(description = "性别：0=未设置,1=男,2=女", example = "1")
+        private Integer gender;
         public String getNickname() { return nickname; }
         public void setNickname(String nickname) { this.nickname = nickname; }
         public String getAvatar() { return avatar; }
         public void setAvatar(String avatar) { this.avatar = avatar; }
         public String getSignature() { return signature; }
         public void setSignature(String signature) { this.signature = signature; }
+        public Integer getGender() { return gender; }
+        public void setGender(Integer gender) { this.gender = gender; }
     }
 
     /** 重置密码请求体 */
