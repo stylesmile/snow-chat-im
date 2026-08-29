@@ -7,6 +7,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/profile_service.dart';
 import '../widgets/avatar_widget.dart';
 import 'settings_screen.dart';
+import 'gender_select_screen.dart';
 
 /// 个人中心 Tab（参考 WINCHAT 设计稿）
 ///
@@ -80,6 +81,10 @@ class _ProfileTabState extends State<ProfileTab> {
                 subtitle: l10n.usdtExchange,
               ),
             ]),
+            const SizedBox(height: 12),
+
+            // === 性别入口（点击跳转到性别选择页面）===
+            _buildGenderEntry(context, auth, l10n),
             const SizedBox(height: 12),
 
             // === 收藏 & 朋友圈 ===
@@ -192,6 +197,79 @@ class _ProfileTabState extends State<ProfileTab> {
             const Icon(Icons.qr_code_2, color: Colors.grey, size: 24),
             const SizedBox(width: 4),
             const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 构建性别入口卡片，点击跳转到性别选择页面
+  ///
+  /// 显示当前已选性别（男/女/未设置），与现有卡片风格保持一致。
+  Widget _buildGenderEntry(
+    BuildContext context,
+    AuthProvider auth,
+    AppLocalizations l10n,
+  ) {
+    // 将 gender 值转换为显示文案：null 或 0 显示"未设置"，1=男, 2=女
+    final String displayText;
+    if (auth.gender == 1) {
+      displayText = l10n.genderMale;
+    } else if (auth.gender == 2) {
+      displayText = l10n.genderFemale;
+    } else {
+      displayText = l10n.unknown;
+    }
+    return InkWell(
+      onTap: () {
+        // 跳转到性别选择页面，传入当前性别值以便回显选中状态
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => GenderSelectScreen(
+              currentGender: auth.gender ?? 0,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: _cardColor,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            // 性别图标：根据选中状态显示不同颜色
+            Icon(
+              auth.gender == 1
+                  ? Icons.male
+                  : auth.gender == 2
+                      ? Icons.female
+                      : Icons.person_outline,
+              color: auth.gender == 1
+                  ? const Color(0xFF3B82F6)
+                  : auth.gender == 2
+                      ? const Color(0xFFEC4899)
+                      : Colors.grey,
+              size: 24,
+            ),
+            const SizedBox(width: 14),
+            // 性别标签文字
+            Expanded(
+              child: Text(
+                l10n.gender,
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            ),
+            // 右侧显示当前值 + 箭头
+            Text(
+              displayText,
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
           ],
         ),
       ),

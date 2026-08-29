@@ -15,6 +15,7 @@ class AuthProvider extends ChangeNotifier {
   String? _username;
   String? _nickname;
   String? _avatar;
+  int? _gender; // 0=未设置, 1=男, 2=女
   bool _isLoggedIn = false;
   String? _token; // JWT token
   String? _lastError;
@@ -32,6 +33,8 @@ class AuthProvider extends ChangeNotifier {
   String? get username => _username;
   String? get nickname => _nickname;
   String? get avatar => _avatar;
+  /// 返回性别值：0=未设置, 1=男, 2=女；null 表示数据尚未加载
+  int? get gender => _gender;
   bool get isLoggedIn => _isLoggedIn;
   String? get token => _token;
   String? get lastError => _lastError;
@@ -68,6 +71,8 @@ class AuthProvider extends ChangeNotifier {
         _username = userData['username'] as String?;
         _nickname = userData['nickname'] as String?;
         _avatar = userData['avatar'] as String?;
+        // 从后端响应中解析性别字段（可能为 int 或 String 类型）
+        _gender = _parseGender(userData['gender']);
         _isLoggedIn = true;
         await _saveAuthState();
         // 确保当前用户的数据库表已创建
@@ -125,6 +130,8 @@ class AuthProvider extends ChangeNotifier {
         _username = userData['username'] as String?;
         _nickname = userData['nickname'] as String?;
         _avatar = userData['avatar'] as String?;
+        // 从后端响应中解析性别字段（可能为 int 或 String 类型）
+        _gender = _parseGender(userData['gender']);
         _isLoggedIn = true;
         await _saveAuthState();
         // 确保当前用户的数据库表已创建
@@ -230,6 +237,40 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 更新性别并提交到后端
+  ///
+  /// [genderValue]：0=未设置, 1=男, 2=女
+  /// 调用 PUT /chat/user/profile 接口，将性别保存到后端数据库。
+  Future<void> setGender(int genderValue) async {
+    _gender = genderValue;
+    await _saveAuthState();
+    notifyListeners();
+    // 同步提交到后端，避免离线时丢失性别变更
+    try {
+      await _apiClient.request('/chat/user/update', data: {
+        'gender': genderValue,
+      });
+    } catch (e) {
+      if (kDebugMode) print('[AuthProvider] setGender failed: $e');
+    }
+  }
+
+  /// 安全解析性别值，支持 int/double/String/null 类型
+  /// 返回 0=未设置, 1=男, 2=女；非法值返回 null（保持原有性别状态）
+  static int? _parseGender(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value >= 0 && value <= 2 ? value : null;
+    if (value is double) {
+      final intResult = value.toInt();
+      return intResult >= 0 && intResult <= 2 ? intResult : null;
+    }
+    if (value is String) {
+      final parsed = int.tryParse(value);
+      return (parsed != null && parsed >= 0 && parsed <= 2) ? parsed : null;
+    }
+    return null;
+  }
+
   // -------------------------------------------------------------------------
   // 持久化方法
   // -------------------------------------------------------------------------
@@ -240,6 +281,9 @@ class AuthProvider extends ChangeNotifier {
     await prefs.setString('username', _username ?? '');
     await prefs.setString('nickname', _nickname ?? '');
     await prefs.setString('avatar', _avatar ?? '');
+    // 性别以字符串形式存储（"0"/"1"/"2"/""）
+    // 非 null 且 >= 0 时写入，否则写空字符串表示未设置
+    await prefs.setString('gender', (_gender != null && _gender! >= 0) ? '$_gender' : '');
     await prefs.setString('token', _token ?? '');
     await prefs.setBool('isLoggedIn', _isLoggedIn);
   }
@@ -259,6 +303,9 @@ class AuthProvider extends ChangeNotifier {
       _username = prefs.getString('username');
       _nickname = prefs.getString('nickname');
       _avatar = prefs.getString('avatar');
+      // 从本地缓存恢复性别（空字符串表示未设置，对应值 0）
+      final genderStr = prefs.getString('gender') ?? '';
+      _gender = genderStr.isEmpty ? null : int.tryParse(genderStr);
       _token = prefs.getString('token');
       if (_token != null && _token!.isNotEmpty) {
         _apiClient.token = _token;
@@ -280,6 +327,7 @@ class AuthProvider extends ChangeNotifier {
     await prefs.remove('username');
     await prefs.remove('nickname');
     await prefs.remove('avatar');
+    await prefs.remove('gender');
     await prefs.remove('token');
     await prefs.remove('isLoggedIn');
   }

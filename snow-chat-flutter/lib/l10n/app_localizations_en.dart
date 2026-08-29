@@ -523,4 +523,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get pickAssetFailed => 'Failed to pick media';
+
+  @override
+  String get gender => 'Gender';
+
+  @override
+  String get genderMale => 'Male';
+
+  @override
+  String get genderFemale => 'Female';
+
+  @override
+  String get genderSelect => 'Select Gender';
 }

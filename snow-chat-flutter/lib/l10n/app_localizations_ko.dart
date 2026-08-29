@@ -523,4 +523,16 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get pickAssetFailed => 'Failed to pick media';
+
+  @override
+  String get gender => '성별';
+
+  @override
+  String get genderMale => '남성';
+
+  @override
+  String get genderFemale => '여성';
+
+  @override
+  String get genderSelect => '성별 선택';
 }

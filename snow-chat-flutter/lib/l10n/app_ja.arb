@@ -293,5 +293,13 @@
   "moments": "モーメンツ",
   "@moments": {"description": "プロフィール-モーメンツメニュー"},
   "settingsMenu": "設定",
-  "@settingsMenu": {"description": "プロフィール-設定メニュー"}
+  "@settingsMenu": {"description": "プロフィール-設定メニュー"},
+  "gender": "性別",
+  "@gender": {"description": "性別フィールドラベル"},
+  "genderMale": "男性",
+  "@genderMale": {"description": "性別オプション：男性"},
+  "genderFemale": "女性",
+  "@genderFemale": {"description": "性別オプション：女性"},
+  "genderSelect": "性別を選択",
+  "@genderSelect": {"description": "性別選択ページタイトル"}
 }

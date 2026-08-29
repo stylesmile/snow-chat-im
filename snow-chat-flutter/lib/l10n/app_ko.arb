@@ -293,5 +293,13 @@
   "moments": "모멘츠",
   "@moments": {"description": "프로필-모멘츠 메뉴"},
   "settingsMenu": "설정",
-  "@settingsMenu": {"description": "프로필-설정 메뉴"}
+  "@settingsMenu": {"description": "프로필-설정 메뉴"},
+  "gender": "성별",
+  "@gender": {"description": "성별 필드 라벨"},
+  "genderMale": "남성",
+  "@genderMale": {"description": "성별 옵션: 남성"},
+  "genderFemale": "여성",
+  "@genderFemale": {"description": "성별 옵션: 여성"},
+  "genderSelect": "성별 선택",
+  "@genderSelect": {"description": "성별 선택 페이지 제목"}
 }

@@ -1131,6 +1131,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Failed to pick media'**
   String get pickAssetFailed;
+
+  /// Gender field label
+  ///
+  /// In en, this message translates to:
+  /// **'Gender'**
+  String get gender;
+
+  /// Male gender option
+  ///
+  /// In en, this message translates to:
+  /// **'Male'**
+  String get genderMale;
+
+  /// Female gender option
+  ///
+  /// In en, this message translates to:
+  /// **'Female'**
+  String get genderFemale;
+
+  /// Title for the gender selection page
+  ///
+  /// In en, this message translates to:
+  /// **'Select Gender'**
+  String get genderSelect;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

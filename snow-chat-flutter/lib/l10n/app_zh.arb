@@ -341,5 +341,13 @@
   "voiceStopFailed": "停止录音失败",
   "@voiceStopFailed": {"description": "停止录音失败提示"},
   "pickAssetFailed": "选择媒体失败",
-  "@pickAssetFailed": {"description": "wechat_assets_picker 选择失败提示"}
+  "@pickAssetFailed": {"description": "wechat_assets_picker 选择失败提示"},
+  "gender": "性别",
+  "@gender": {"description": "性别字段标签"},
+  "genderMale": "男",
+  "@genderMale": {"description": "性别选项：男"},
+  "genderFemale": "女",
+  "@genderFemale": {"description": "性别选项：女"},
+  "genderSelect": "选择性别",
+  "@genderSelect": {"description": "性别选择页面标题"}
 }

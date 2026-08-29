@@ -293,5 +293,13 @@
   "moments": "朋友圈",
   "@moments": {"description": "個人中心-朋友圈選單"},
   "settingsMenu": "設定",
-  "@settingsMenu": {"description": "個人中心-設定選單"}
+  "@settingsMenu": {"description": "個人中心-設定選單"},
+  "gender": "性別",
+  "@gender": {"description": "性別欄位標籤"},
+  "genderMale": "男",
+  "@genderMale": {"description": "性別選項：男"},
+  "genderFemale": "女",
+  "@genderFemale": {"description": "性別選項：女"},
+  "genderSelect": "選擇性別",
+  "@genderSelect": {"description": "性別選擇頁面標題"}
 }

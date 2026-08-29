@@ -343,5 +343,13 @@
   "voiceStopFailed": "Stop recording failed",
   "@voiceStopFailed": {"description": "Stop recording failure hint"},
   "pickAssetFailed": "Failed to pick media",
-  "@pickAssetFailed": {"description": "wechat_assets_picker failure hint"}
+  "@pickAssetFailed": {"description": "wechat_assets_picker pick failure prompt"},
+  "gender": "Gender",
+  "@gender": {"description": "Gender field label"},
+  "genderMale": "Male",
+  "@genderMale": {"description": "Gender option: male"},
+  "genderFemale": "Female",
+  "@genderFemale": {"description": "Gender option: female"},
+  "genderSelect": "Select Gender",
+  "@genderSelect": {"description": "Gender selection page title"}
 }

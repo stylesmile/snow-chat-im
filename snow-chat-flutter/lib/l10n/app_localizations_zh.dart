@@ -523,6 +523,18 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get pickAssetFailed => '选择媒体失败';
+
+  @override
+  String get gender => '性别';
+
+  @override
+  String get genderMale => '男';
+
+  @override
+  String get genderFemale => '女';
+
+  @override
+  String get genderSelect => '选择性别';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -969,4 +981,16 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get settingsMenu => '設定';
+
+  @override
+  String get gender => '性別';
+
+  @override
+  String get genderMale => '男';
+
+  @override
+  String get genderFemale => '女';
+
+  @override
+  String get genderSelect => '選擇性別';
 }
