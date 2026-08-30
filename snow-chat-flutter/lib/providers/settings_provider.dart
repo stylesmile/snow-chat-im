@@ -3,10 +3,26 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class SettingsProvider extends ChangeNotifier {
   static const String _languageKey = 'app_language';
+  static const String _notifyKey = 'notifications_enabled';
+  static const String _soundKey = 'notifications_sound';
+  static const String _vibrateKey = 'notifications_vibrate';
 
   Locale _locale = const Locale('zh');
 
+  /// 是否允许接收新消息通知（总开关）
+  bool _notificationEnabled = true;
+
+  /// 新消息是否播放提示音
+  bool _soundEnabled = true;
+
+  /// 新消息是否震动提醒
+  bool _vibrateEnabled = true;
+
   Locale get locale => _locale;
+
+  bool get notificationEnabled => _notificationEnabled;
+  bool get soundEnabled => _soundEnabled;
+  bool get vibrateEnabled => _vibrateEnabled;
 
   List<LocaleInfo> get availableLocales => const [
         LocaleInfo(Locale('zh'), '简体中文', '\ud83c\udde8\ud83c\uddf3'),
@@ -18,11 +34,16 @@ class SettingsProvider extends ChangeNotifier {
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
+    // 恢复语言设置
     final lang = prefs.getString(_languageKey);
     if (lang != null) {
       _locale = Locale(lang);
-      notifyListeners();
     }
+    // 恢复新消息通知三项开关（不存在则保持默认开启）
+    _notificationEnabled = prefs.getBool(_notifyKey) ?? true;
+    _soundEnabled = prefs.getBool(_soundKey) ?? true;
+    _vibrateEnabled = prefs.getBool(_vibrateKey) ?? true;
+    notifyListeners();
   }
 
   Future<void> setLocale(Locale locale) async {
@@ -32,6 +53,27 @@ class SettingsProvider extends ChangeNotifier {
     if (locale.countryCode != null) {
       await prefs.setString('locale_country', locale.countryCode!);
     }
+    notifyListeners();
+  }
+
+  /// 切换新消息通知总开关，并持久化
+  Future<void> setNotificationEnabled(bool enabled) async {
+    _notificationEnabled = enabled;
+    await (await SharedPreferences.getInstance()).setBool(_notifyKey, enabled);
+    notifyListeners();
+  }
+
+  /// 切换新消息提示音开关，并持久化
+  Future<void> setSoundEnabled(bool enabled) async {
+    _soundEnabled = enabled;
+    await (await SharedPreferences.getInstance()).setBool(_soundKey, enabled);
+    notifyListeners();
+  }
+
+  /// 切换新消息震动开关，并持久化
+  Future<void> setVibrateEnabled(bool enabled) async {
+    _vibrateEnabled = enabled;
+    await (await SharedPreferences.getInstance()).setBool(_vibrateKey, enabled);
     notifyListeners();
   }
 

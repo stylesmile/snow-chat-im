@@ -57,6 +57,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildLanguageTile(settings, l10n),
           const Divider(height: 1, indent: 56, color: Color(0x0FFFFFFF)),
 
+          // === 新消息通知设置 ===
+          _buildNotificationSection(settings),
+          const Divider(height: 1, indent: 56, color: Color(0x0FFFFFFF)),
+
           // === 隐私 ===
           _buildSimpleTile(
             iconColor: const Color(0xFF6B7280),
@@ -79,6 +83,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildLogoutTile(auth, l10n),
         ],
       ),
+    );
+  }
+
+  /// 新消息通知设置区：总开关 + 提示音 + 震动
+  Widget _buildNotificationSection(SettingsProvider settings) {
+    // 通知总开关关闭时，提示音/震动子项禁用（置灰）
+    final masterOn = settings.notificationEnabled;
+    return Column(
+      children: [
+        // 新消息通知总开关
+        SwitchListTile(
+          secondary: const Icon(Icons.notifications_active_outlined, color: Colors.grey, size: 24),
+          title: const Text('新消息通知', style: TextStyle(color: Colors.white, fontSize: 16)),
+          value: masterOn,
+          activeThumbColor: Theme.of(context).colorScheme.primary,
+          onChanged: (value) => settings.setNotificationEnabled(value),
+        ),
+        const Divider(height: 1, indent: 56, color: Color(0x0FFFFFFF)),
+        // 提示音开关
+        SwitchListTile(
+          secondary: const Icon(Icons.volume_up_outlined, color: Colors.grey, size: 24),
+          title: Text(
+            '通知提示音',
+            style: TextStyle(color: masterOn ? Colors.white : Colors.white30, fontSize: 16),
+          ),
+          value: masterOn && settings.soundEnabled,
+          activeThumbColor: Theme.of(context).colorScheme.primary,
+          onChanged: masterOn
+              ? (value) => settings.setSoundEnabled(value)
+              : null, // 总开关关闭时禁用
+        ),
+        const Divider(height: 1, indent: 56, color: Color(0x0FFFFFFF)),
+        // 震动开关
+        SwitchListTile(
+          secondary: const Icon(Icons.vibration, color: Colors.grey, size: 24),
+          title: Text(
+            '通知震动',
+            style: TextStyle(color: masterOn ? Colors.white : Colors.white30, fontSize: 16),
+          ),
+          value: masterOn && settings.vibrateEnabled,
+          activeThumbColor: Theme.of(context).colorScheme.primary,
+          onChanged: masterOn
+              ? (value) => settings.setVibrateEnabled(value)
+              : null, // 总开关关闭时禁用
+        ),
+      ],
     );
   }
 
