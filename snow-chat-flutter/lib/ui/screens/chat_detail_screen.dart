@@ -17,6 +17,7 @@ import '../../core/network/mqtt_client.dart';
 import '../../core/constants/ws_cmd.dart';
 import '../../config/config.dart';
 import '../../core/utils/message_status_parser.dart';
+import '../../core/utils/message_delivery_state.dart';
 import '../../core/utils/message_utils.dart';
 import '../../models/message_model.dart';
 import '../../core/cache/message_cache_manager.dart';
@@ -25,6 +26,7 @@ import '../../models/favorite_model.dart';
 import '../../services/conversation_service.dart';
 import '../../providers/chat_provider.dart';
 import '../widgets/chat_bubble.dart';
+import '../widgets/message_delivery_status.dart';
 import '../widgets/message_action_sheet.dart';
 import '../widgets/forward_picker_sheet.dart';
 import '../../services/contact_service.dart';
@@ -1182,12 +1184,15 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       app_date.DateUtils.formatTime(msg.createTime),
                       style: TextStyle(fontSize: 10, color: textColor.withOpacity(0.6)),
                     ),
-                    if (msg.status != null) ...[
+                    // 仅本人发送的消息展示送达/已读状态图标
+                    // （由 status 与 pushStatus 推导：发送中/失败/已发送/已送达）
+                    if (isMe) ...[
                       const SizedBox(width: 4),
-                      Icon(
-                        msg.status == 'read' ? Icons.done_all : Icons.done,
-                        size: 12,
-                        color: msg.status == 'read' ? Colors.blueAccent : textColor.withOpacity(0.6),
+                      MessageDeliveryStatus(
+                        state: resolveDeliveryState(
+                          status: msg.status,
+                          pushStatus: msg.pushStatus,
+                        ),
                       ),
                     ],
                   ],
