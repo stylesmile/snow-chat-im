@@ -109,6 +109,39 @@ void main() {
       expect(recent.length, 1);
       expect(recent.first.id, 1);
     });
+
+    group('clearSessionMessages', () {
+      test('deletes all messages of the target session and keeps other sessions', () async {
+        // 准备：目标会话两条 + 其它会话一条，用于验证定向删除
+        await manager.appendMessage('u_10_42', _message(id: 1, fromUserId: 10, toUserId: 42, createTime: 1000));
+        await manager.appendMessage('u_10_42', _message(id: 2, fromUserId: 42, toUserId: 10, createTime: 2000));
+        await manager.appendMessage('u_10_55', _message(id: 3, fromUserId: 10, toUserId: 55, createTime: 3000));
+
+        // 执行：清空目标会话
+        await manager.clearSessionMessages('u_10_42');
+
+        // 验证：目标会话记录清空
+        final table = Tables.messagesTable(testUserId);
+        final targetRows = await db.query(table, where: 'session_id = ?', whereArgs: ['u_10_42']);
+        expect(targetRows, isEmpty);
+
+        // 验证：其它会话的记录不受影响
+        final otherRows = await db.query(table, where: 'session_id = ?', whereArgs: ['u_10_55']);
+        expect(otherRows.length, 1);
+      });
+
+      test('clears the in-memory cache for the session', () async {
+        // 准备：先写入使内存缓存中存在该会话
+        await manager.appendMessage('u_10_42', _message(id: 1, fromUserId: 10, toUserId: 42, createTime: 1000));
+        expect(manager.recentMessagesSync('u_10_42'), isNotEmpty);
+
+        // 执行：清空会话
+        await manager.clearSessionMessages('u_10_42');
+
+        // 验证：内存缓存同步移除，读不到任何该会话消息
+        expect(manager.recentMessagesSync('u_10_42'), isEmpty);
+      });
+    });
   });
 }
 

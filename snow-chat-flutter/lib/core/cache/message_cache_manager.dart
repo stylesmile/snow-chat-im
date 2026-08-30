@@ -169,6 +169,22 @@ class MessageCacheManager {
     return rows.map(_fromMap).toList();
   }
 
+  /// 清空指定会话的所有本地消息（DB + 内存）。
+  ///
+  /// 用于"清空聊天记录"：按 [sessionId] 定向删除该会话的消息记录，
+  /// 同时移除对应的内存缓存，其它会话不受影响。
+  Future<void> clearSessionMessages(String sessionId) async {
+    final db = _requireDb();
+    // 从数据库删除该会话的全部消息记录
+    await db.delete(
+      _messagesTable(),
+      where: 'session_id = ?',
+      whereArgs: [sessionId],
+    );
+    // 同步移除内存缓存，避免后续读到已删除的数据
+    _memory.remove(sessionId);
+  }
+
   /// 清空内存缓存（例如切换账号时调用）。
   void clearMemory() => _memory.clear();
 
