@@ -8,6 +8,7 @@ import '../../services/profile_service.dart';
 import '../widgets/avatar_widget.dart';
 import 'settings_screen.dart';
 import 'gender_select_screen.dart';
+import 'favorites_screen.dart';
 
 /// 个人中心 Tab（参考 WINCHAT 设计稿）
 ///
@@ -32,11 +33,13 @@ class ProfileMenuItem {
   final Color iconColor;
   final String label;
   final String subtitle;
+  final VoidCallback? onTap;
 
   const ProfileMenuItem({
     required this.iconColor,
     required this.label,
     this.subtitle = '',
+    this.onTap,
   });
 }
 
@@ -92,6 +95,13 @@ class _ProfileTabState extends State<ProfileTab> {
               ProfileMenuItem(
                 iconColor: const Color(0xFFFFB800),
                 label: l10n.favorites,
+                // 点击"收藏"跳转到"我的收藏"页面
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const FavoritesScreen()),
+                  );
+                },
               ),
               ProfileMenuItem(
                 iconColor: const Color(0xFFEA580C),
@@ -325,7 +335,7 @@ class _ProfileTabState extends State<ProfileTab> {
               ],
             )
           : const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
-      onTap: () {}, // 占位，后续接入具体功能
+      onTap: item.onTap ?? () {}, // 保留占位：未配 onTap 的菜单项暂不响应
     );
   }
 

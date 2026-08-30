@@ -98,5 +98,42 @@ void main() {
       await tester.tap(find.text('转发'));
       expect(result, MessageAction.forward);
     });
+
+    testWidgets('可收藏消息：展示"收藏"操作', (tester) async {
+      await tester.pumpWidget(wrap(
+        const MessageActionSheet(
+          canRecall: true,
+          canForward: true,
+          canFavorite: true,
+        ),
+      ));
+
+      // "收藏"项应出现在菜单中
+      expect(find.text('收藏'), findsOneWidget);
+    });
+
+    testWidgets('不可收藏消息：不展示"收藏"操作', (tester) async {
+      await tester.pumpWidget(wrap(
+        const MessageActionSheet(canRecall: true, canForward: true),
+      ));
+
+      // 未开启收藏能力时，"收藏"项不应展示
+      expect(find.text('收藏'), findsNothing);
+    });
+
+    testWidgets('点击"收藏"通过 onAction 回调返回 favorite', (tester) async {
+      MessageAction? result;
+      await tester.pumpWidget(wrap(
+        MessageActionSheet(
+          canRecall: true,
+          canForward: true,
+          canFavorite: true,
+          onAction: (action) => result = action,
+        ),
+      ));
+
+      await tester.tap(find.text('收藏'));
+      expect(result, MessageAction.favorite);
+    });
   });
 }

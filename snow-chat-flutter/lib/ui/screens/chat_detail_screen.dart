@@ -20,6 +20,8 @@ import '../../core/utils/message_status_parser.dart';
 import '../../core/utils/message_utils.dart';
 import '../../models/message_model.dart';
 import '../../core/cache/message_cache_manager.dart';
+import '../../core/cache/favorite_cache_manager.dart';
+import '../../models/favorite_model.dart';
 import '../../services/conversation_service.dart';
 import '../../providers/chat_provider.dart';
 import '../widgets/chat_bubble.dart';
@@ -1281,11 +1283,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           status: msg.status,
           nowMillis: DateTime.now().millisecondsSinceEpoch,
         );
+    // 仅文本/图片消息可收藏（对标唐道道"收藏模块"：可收藏文本/图片消息）
+    final canFavorite = msg.type == 'text' || msg.type == 'image';
     // 弹出底部操作菜单，返回用户所选动作；取消则返回 null
     final action = await showMessageActionSheet(
       context,
       canRecall: canRecall, // 需求2：仅满足撤回条件的消息才显示"撤回"
       canForward: true, // 需求3：启用"转发"到其他会话
+      canFavorite: canFavorite, // 收藏：文本/图片消息可收藏
     );
     // 用户取消或页面已关闭则不继续
     if (action == null || !mounted) return;
@@ -1343,6 +1348,53 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         // README：弹出目标选择器，把消息转发到其他会话（好友私聊）
         await _forwardMessage(msg);
         break;
+      case MessageAction.favorite:
+        // 收藏当前消息（仅文本/图片可进入此分支）
+        await _favoriteMessage(msg, isMe);
+        break;
+    }
+  }
+
+  /// 收藏一条消息到本地（对标唐道道"收藏模块"文本/图片消息可收藏）
+  ///
+  /// [msg] 目标消息；[isMe] 是否本人发送（用于记录发送者昵称）。
+  /// 已收藏的消息再次收藏给出"该消息已收藏"提示，避免重复。
+  Future<void> _favoriteMessage(_DisplayMessage msg, bool isMe) async {
+    final l10n = AppLocalizations.of(context)!;
+    final auth = context.read<AuthProvider>();
+    if (auth.userId == null) return;
+
+    // 收藏管理器需要知道当前用户，以生成带用户ID前缀的表
+    final cache = FavoriteCacheManager();
+    cache.setUserId(auth.userId!);
+
+    // 同一消息只能收藏一次，重复收藏时友好提示
+    if (await cache.contains(msg.id)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(l10n.alreadyFavorited)));
+      }
+      return;
+    }
+
+    // 发送者昵称：本人消息记自己的昵称，否则记对方展示名（私聊取对方昵称，群聊取群名）
+    final fromNickname = isMe ? (auth.nickname ?? '') : (widget.targetName ?? '');
+
+    // 组装收藏记录并写入本地 SQLite
+    final favorite = FavoriteModel(
+      messageId: msg.id,
+      type: msg.type,
+      content: msg.content,
+      fromUserId: msg.fromUserId,
+      fromNickname: fromNickname,
+      createTime: DateTime.now().millisecondsSinceEpoch,
+    );
+    await cache.add(favorite);
+
+    // 收藏成功后轻提示
+    if (mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.favoriteAdded)));
     }
   }
 

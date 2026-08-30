@@ -43,6 +43,7 @@ class DatabaseHelper {
     await db.execute(Tables.createGroupsTable(userId));
     await db.execute(Tables.createGroupMembersTable(userId));
     await db.execute(Tables.createSessionsTable(userId));
+    await db.execute(Tables.createFavoritesTable(userId));
   }
 
   /// 数据库升级逻辑

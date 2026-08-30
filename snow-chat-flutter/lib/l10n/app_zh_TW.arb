@@ -305,5 +305,17 @@
   "genderFemale": "女",
   "@genderFemale": {"description": "性別選項：女"},
   "genderSelect": "選擇性別",
-  "@genderSelect": {"description": "性別選擇頁面標題"}
+  "@genderSelect": {"description": "性別選擇頁面標題"},
+  "favorite": "收藏",
+  "@favorite": {"description": "收藏操作"},
+  "myFavorites": "我的收藏",
+  "@myFavorites": {"description": "收藏列表標題"},
+  "removeFavorite": "取消收藏",
+  "@removeFavorite": {"description": "取消收藏操作"},
+  "favoriteAdded": "已收藏",
+  "@favoriteAdded": {"description": "收藏成功提示"},
+  "alreadyFavorited": "該消息已收藏",
+  "@alreadyFavorited": {"description": "重複收藏提示"},
+  "favoriteEmpty": "暫無收藏",
+  "@favoriteEmpty": {"description": "收藏為空提示"}
 }

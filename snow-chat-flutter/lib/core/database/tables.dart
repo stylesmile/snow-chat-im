@@ -7,6 +7,7 @@ class Tables {
   static String groupsTable(int userId) => 'local_groups_$userId';
   static String groupMembersTable(int userId) => 'group_members_$userId';
   static String sessionsTable(int userId) => 'sessions_$userId';
+  static String favoritesTable(int userId) => 'favorites_$userId';
 
   /// 生成消息表建表SQL（带用户ID前缀）
   static String createMessagesTable(int userId) => '''
@@ -94,6 +95,21 @@ class Tables {
       is_muted INTEGER DEFAULT 0,
       update_time INTEGER,
       UNIQUE(user_id, target_id, target_type)
+    )
+  ''';
+
+  /// 生成收藏表建表SQL（带用户ID前缀）
+  /// message_id 加 UNIQUE 约束，保证同一消息只能收藏一次（去重）
+  static String createFavoritesTable(int userId) => '''
+    CREATE TABLE IF NOT EXISTS ${favoritesTable(userId)} (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      message_id INTEGER,
+      msg_type TEXT DEFAULT 'text',
+      content TEXT,
+      from_user_id INTEGER,
+      from_nickname TEXT DEFAULT '',
+      create_time INTEGER,
+      UNIQUE(message_id)
     )
   ''';
 }

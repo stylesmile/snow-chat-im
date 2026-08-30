@@ -541,4 +541,22 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get genderSelect => '성별 선택';
+
+  @override
+  String get favorite => '즐겨찾기';
+
+  @override
+  String get myFavorites => '내 즐겨찾기';
+
+  @override
+  String get removeFavorite => '즐겨찾기 해제';
+
+  @override
+  String get favoriteAdded => '즐겨찾기에 추가됨';
+
+  @override
+  String get alreadyFavorited => '이미 즐겨찾기한 메시지입니다';
+
+  @override
+  String get favoriteEmpty => '즐겨찾기가 없습니다';
 }

@@ -12,17 +12,19 @@ import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 
 /// 消息长按菜单可选操作
-enum MessageAction { copy, recall, forward }
+enum MessageAction { copy, recall, forward, favorite }
 
 /// 以底部弹窗形式展示消息操作菜单。
 ///
 /// [canRecall] 是否允许撤回（本人发送且在 3 分钟内，或群主/管理员）。
 /// [canForward] 是否允许转发。
+/// [canFavorite] 是否允许收藏（文本/图片消息）。
 /// 返回用户选择的 [MessageAction]，取消（点空白处关闭）返回 null。
 Future<MessageAction?> showMessageActionSheet(
   BuildContext context, {
   required bool canRecall,
   required bool canForward,
+  bool canFavorite = false,
 }) {
   // 用底部弹窗承载菜单，返回所选动作
   return showModalBottomSheet<MessageAction>(
@@ -35,6 +37,7 @@ Future<MessageAction?> showMessageActionSheet(
     builder: (_) => MessageActionSheet(
       canRecall: canRecall,
       canForward: canForward,
+      canFavorite: canFavorite,
     ),
   );
 }
@@ -51,6 +54,9 @@ class MessageActionSheet extends StatelessWidget {
   /// 是否展示"转发"操作项
   final bool canForward;
 
+  /// 是否展示"收藏"操作项（文本/图片消息可收藏）
+  final bool canFavorite;
+
   /// 用户点击某项时的回调；不传则依赖底部弹窗 pop 返回
   final ValueChanged<MessageAction>? onAction;
 
@@ -58,6 +64,7 @@ class MessageActionSheet extends StatelessWidget {
     super.key,
     required this.canRecall,
     required this.canForward,
+    this.canFavorite = false,
     this.onAction,
   });
 
@@ -72,6 +79,9 @@ class MessageActionSheet extends StatelessWidget {
         (action: MessageAction.recall, icon: Icons.history_edu_rounded, label: l10n.recallMessage),
       if (canForward)
         (action: MessageAction.forward, icon: Icons.send_rounded, label: l10n.forward),
+      // 文本/图片消息可收藏
+      if (canFavorite)
+        (action: MessageAction.favorite, icon: Icons.star_rounded, label: l10n.favorite),
     ];
   }
 

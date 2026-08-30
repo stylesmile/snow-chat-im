@@ -541,6 +541,24 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get genderSelect => '选择性别';
+
+  @override
+  String get favorite => '收藏';
+
+  @override
+  String get myFavorites => '我的收藏';
+
+  @override
+  String get removeFavorite => '取消收藏';
+
+  @override
+  String get favoriteAdded => '已收藏';
+
+  @override
+  String get alreadyFavorited => '该消息已收藏';
+
+  @override
+  String get favoriteEmpty => '暂无收藏';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -1005,4 +1023,22 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get genderSelect => '選擇性別';
+
+  @override
+  String get favorite => '收藏';
+
+  @override
+  String get myFavorites => '我的收藏';
+
+  @override
+  String get removeFavorite => '取消收藏';
+
+  @override
+  String get favoriteAdded => '已收藏';
+
+  @override
+  String get alreadyFavorited => '該消息已收藏';
+
+  @override
+  String get favoriteEmpty => '暫無收藏';
 }

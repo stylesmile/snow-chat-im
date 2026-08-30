@@ -541,4 +541,22 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get genderSelect => '性別を選択';
+
+  @override
+  String get favorite => 'お気に入り';
+
+  @override
+  String get myFavorites => 'マイお気に入り';
+
+  @override
+  String get removeFavorite => 'お気に入り解除';
+
+  @override
+  String get favoriteAdded => 'お気に入りに追加しました';
+
+  @override
+  String get alreadyFavorited => 'このメッセージは既にお気に入りです';
+
+  @override
+  String get favoriteEmpty => 'お気に入りはありません';
 }

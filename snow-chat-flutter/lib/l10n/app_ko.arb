@@ -305,5 +305,17 @@
   "genderFemale": "여성",
   "@genderFemale": {"description": "성별 옵션: 여성"},
   "genderSelect": "성별 선택",
-  "@genderSelect": {"description": "성별 선택 페이지 제목"}
+  "@genderSelect": {"description": "성별 선택 페이지 제목"},
+  "favorite": "즐겨찾기",
+  "@favorite": {"description": "즐겨찾기 작업"},
+  "myFavorites": "내 즐겨찾기",
+  "@myFavorites": {"description": "즐겨찾기 목록 제목"},
+  "removeFavorite": "즐겨찾기 해제",
+  "@removeFavorite": {"description": "즐겨찾기 해제 작업"},
+  "favoriteAdded": "즐겨찾기에 추가됨",
+  "@favoriteAdded": {"description": "즐겨찾기 추가 성공"},
+  "alreadyFavorited": "이미 즐겨찾기한 메시지입니다",
+  "@alreadyFavorited": {"description": "중복 즐겨찾기 힌트"},
+  "favoriteEmpty": "즐겨찾기가 없습니다",
+  "@favoriteEmpty": {"description": "즐겨찾기 없음 힌트"}
 }

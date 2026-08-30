@@ -1138,7 +1138,7 @@ abstract class AppLocalizations {
   /// **'Stop recording failed'**
   String get voiceStopFailed;
 
-  /// wechat_assets_picker failure hint
+  /// wechat_assets_picker pick failure prompt
   ///
   /// In en, this message translates to:
   /// **'Failed to pick media'**
@@ -1150,23 +1150,59 @@ abstract class AppLocalizations {
   /// **'Gender'**
   String get gender;
 
-  /// Male gender option
+  /// Gender option: male
   ///
   /// In en, this message translates to:
   /// **'Male'**
   String get genderMale;
 
-  /// Female gender option
+  /// Gender option: female
   ///
   /// In en, this message translates to:
   /// **'Female'**
   String get genderFemale;
 
-  /// Title for the gender selection page
+  /// Gender selection page title
   ///
   /// In en, this message translates to:
   /// **'Select Gender'**
   String get genderSelect;
+
+  /// Favorite action
+  ///
+  /// In en, this message translates to:
+  /// **'Favorite'**
+  String get favorite;
+
+  /// Favorites list title
+  ///
+  /// In en, this message translates to:
+  /// **'My Favorites'**
+  String get myFavorites;
+
+  /// Unfavorite action
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Favorite'**
+  String get removeFavorite;
+
+  /// Favorite success toast
+  ///
+  /// In en, this message translates to:
+  /// **'Favorited'**
+  String get favoriteAdded;
+
+  /// Duplicate favorite toast
+  ///
+  /// In en, this message translates to:
+  /// **'Already favorited'**
+  String get alreadyFavorited;
+
+  /// Empty favorites hint
+  ///
+  /// In en, this message translates to:
+  /// **'No favorites'**
+  String get favoriteEmpty;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

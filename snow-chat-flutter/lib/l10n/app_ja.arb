@@ -305,5 +305,17 @@
   "genderFemale": "女性",
   "@genderFemale": {"description": "性別オプション：女性"},
   "genderSelect": "性別を選択",
-  "@genderSelect": {"description": "性別選択ページタイトル"}
+  "@genderSelect": {"description": "性別選択ページタイトル"},
+  "favorite": "お気に入り",
+  "@favorite": {"description": "お気に入り操作"},
+  "myFavorites": "マイお気に入り",
+  "@myFavorites": {"description": "お気に入りリストのタイトル"},
+  "removeFavorite": "お気に入り解除",
+  "@removeFavorite": {"description": "お気に入り解除操作"},
+  "favoriteAdded": "お気に入りに追加しました",
+  "@favoriteAdded": {"description": "お気に入り追加成功のトースト"},
+  "alreadyFavorited": "このメッセージは既にお気に入りです",
+  "@alreadyFavorited": {"description": "重複お気に入りのトースト"},
+  "favoriteEmpty": "お気に入りはありません",
+  "@favoriteEmpty": {"description": "お気に入りが空のヒント"}
 }

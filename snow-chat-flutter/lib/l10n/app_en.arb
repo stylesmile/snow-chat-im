@@ -355,5 +355,17 @@
   "genderFemale": "Female",
   "@genderFemale": {"description": "Gender option: female"},
   "genderSelect": "Select Gender",
-  "@genderSelect": {"description": "Gender selection page title"}
+  "@genderSelect": {"description": "Gender selection page title"},
+  "favorite": "Favorite",
+  "@favorite": {"description": "Favorite action"},
+  "myFavorites": "My Favorites",
+  "@myFavorites": {"description": "Favorites list title"},
+  "removeFavorite": "Remove Favorite",
+  "@removeFavorite": {"description": "Unfavorite action"},
+  "favoriteAdded": "Favorited",
+  "@favoriteAdded": {"description": "Favorite success toast"},
+  "alreadyFavorited": "Already favorited",
+  "@alreadyFavorited": {"description": "Duplicate favorite toast"},
+  "favoriteEmpty": "No favorites",
+  "@favoriteEmpty": {"description": "Empty favorites hint"}
 }

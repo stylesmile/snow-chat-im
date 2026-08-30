@@ -541,4 +541,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get genderSelect => 'Select Gender';
+
+  @override
+  String get favorite => 'Favorite';
+
+  @override
+  String get myFavorites => 'My Favorites';
+
+  @override
+  String get removeFavorite => 'Remove Favorite';
+
+  @override
+  String get favoriteAdded => 'Favorited';
+
+  @override
+  String get alreadyFavorited => 'Already favorited';
+
+  @override
+  String get favoriteEmpty => 'No favorites';
 }
