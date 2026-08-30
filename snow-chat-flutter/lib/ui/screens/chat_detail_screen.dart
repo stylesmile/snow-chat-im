@@ -32,6 +32,7 @@ import '../widgets/forward_picker_sheet.dart';
 import '../../services/contact_service.dart';
 import '../../models/friend_model.dart';
 import 'group_detail_screen.dart';
+import 'image_viewer_screen.dart';
 import '../../core/utils/date_utils.dart' as app_date;
 
 /// 媒体类型：image / video / audio / file
@@ -996,25 +997,36 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         'image' => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: msg.content.startsWith('data:')
-                    ? Image.memory(
-                        base64Decode(msg.content.split(',').last),
-                        width: 200,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) =>
-                            _fallbackPlaceholder(theme, textColor, Icons.broken_image),
-                      )
-                    : Image.network(
-                        msg.content,
-                        width: 200,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (_, child, progress) =>
-                            progress == null ? child : _fallbackPlaceholder(theme, textColor, Icons.image),
-                        errorBuilder: (_, __, ___) =>
-                            _fallbackPlaceholder(theme, textColor, Icons.broken_image),
-                      ),
+              // 点击图片进入大图查看页，支持缩放与保存到相册
+              InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ImageViewerScreen(content: msg.content),
+                    ),
+                  );
+                },
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: msg.content.startsWith('data:')
+                      ? Image.memory(
+                          base64Decode(msg.content.split(',').last),
+                          width: 200,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              _fallbackPlaceholder(theme, textColor, Icons.broken_image),
+                        )
+                      : Image.network(
+                          msg.content,
+                          width: 200,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (_, child, progress) =>
+                              progress == null ? child : _fallbackPlaceholder(theme, textColor, Icons.image),
+                          errorBuilder: (_, __, ___) =>
+                              _fallbackPlaceholder(theme, textColor, Icons.broken_image),
+                        ),
+                ),
               ),
               if (msg.createTime != null) ...[
                 const SizedBox(height: 4),

@@ -48,6 +48,9 @@ dependencies:
   flutter_slidable: ^3.0.1
   flutter_staggered_grid_view: ^0.7.0
 
+  # Gallery (保存图片到相册)
+  gal: ^2.3.2
+
   # Pinyin
   lpinyin: ^2.0.3
 
