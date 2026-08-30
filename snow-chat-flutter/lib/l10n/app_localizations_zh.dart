@@ -135,6 +135,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get recallFailed => '撤回失败';
 
   @override
+  String get selectForwardTarget => '选择转发对象';
+
+  @override
   String get loading => '加载中...';
 
   @override
@@ -669,6 +672,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get recallFailed => '撤回失敗';
+
+  @override
+  String get selectForwardTarget => '選擇轉發對象';
 
   @override
   String get loading => '載入中...';

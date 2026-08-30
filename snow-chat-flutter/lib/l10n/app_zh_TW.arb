@@ -84,6 +84,8 @@
   "@messageRecalled": {"description": "訊息撤回提示"},
   "recallFailed": "撤回失敗",
   "@recallFailed": {"description": "撤回失敗提示"},
+  "selectForwardTarget": "選擇轉發對象",
+  "@selectForwardTarget": {"description": "轉發目標選擇器標題"},
   "loading": "載入中...",
   "@loading": {"description": "載入狀態"},
   "error": "錯誤",

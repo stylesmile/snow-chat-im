@@ -24,6 +24,9 @@ import '../../services/conversation_service.dart';
 import '../../providers/chat_provider.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/message_action_sheet.dart';
+import '../widgets/forward_picker_sheet.dart';
+import '../../services/contact_service.dart';
+import '../../models/friend_model.dart';
 import 'group_detail_screen.dart';
 import '../../core/utils/date_utils.dart' as app_date;
 
@@ -1282,7 +1285,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     final action = await showMessageActionSheet(
       context,
       canRecall: canRecall, // 需求2：仅满足撤回条件的消息才显示"撤回"
-      canForward: false, // 需求3 再启用转发
+      canForward: true, // 需求3：启用"转发"到其他会话
     );
     // 用户取消或页面已关闭则不继续
     if (action == null || !mounted) return;
@@ -1337,8 +1340,78 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         }
         break;
       case MessageAction.forward:
-        // TODO(需求3)：实现消息转发
+        // README：弹出目标选择器，把消息转发到其他会话（好友私聊）
+        await _forwardMessage(msg);
         break;
+    }
+  }
+
+  /// 消息转发：展示好友列表供选择，把当前消息发送到所选会话
+  ///
+  /// 转发逻辑：复用原消息的 [type] 与 [content]（图片/文件等 content 为已上传的
+  /// URL，可直接复用），以"我"为发送人、目标好友为接收人，构造一条新消息发送。
+  ///
+  /// @param msg 被转发的原消息
+  Future<void> _forwardMessage(_DisplayMessage msg) async {
+    // 读取本地化文案与登录用户
+    final l10n = AppLocalizations.of(context)!;
+    final auth = context.read<AuthProvider>();
+    if (auth.userId == null) return;
+
+    // 加载好友列表作为转发目标（本地优先，避免卡顿）
+    final friends = await ContactService(auth.apiClient).getLocalFriends(context);
+    if (!mounted) return;
+    // 组装转发目标：私聊目标类型统一为 friend
+    final targets = friends.map((f) {
+      // 显示名取昵称，缺失时用"用户 {id}"兜底
+      final name = f.nickname.isNotEmpty ? f.nickname : '用户 ${f.userId}';
+      return ForwardTarget(
+        targetId: f.userId,
+        targetType: 'friend',
+        displayName: name,
+        avatar: f.avatar,
+      );
+    }).toList();
+
+    // 弹出转发目标选择器；用户取消则返回 null，直接结束
+    final target = await showForwardPickerSheet(context, targets);
+    if (target == null || !mounted) return;
+
+    // 构造转发消息：新消息ID用当前时间戳，类型/内容沿用原消息
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final forwarded = MessageModel(
+      id: now,
+      fromUserId: auth.userId!,
+      toUserId: target.targetId,
+      groupId: null, // 私聊无群组ID
+      type: msg.type,
+      content: msg.content,
+      status: 'sent',
+      pushStatus: 'pending',
+      createTime: now,
+    );
+    // 通过 REST 接口发送（如后端不可用则返回 false）
+    final ok = await ChatService(auth.apiClient).sendMessage(forwarded);
+    if (!mounted) return;
+    if (ok) {
+      // 发送成功后轻提示，并刷新该会话在聊天列表中的摘要
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.messageSent)),
+      );
+      context.read<ChatProvider>().updateConversation(
+        Conversation(
+          targetId: target.targetId,
+          targetType: target.targetType,
+          lastMsg: MessageUtils.getMessagePreview(msg.type, msg.content),
+          lastMsgTime: now,
+          unreadCount: 0,
+        ),
+      );
+    } else {
+      // 发送失败提示，便于用户重试
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.messageFailed)),
+      );
     }
   }
 

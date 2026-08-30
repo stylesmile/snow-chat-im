@@ -135,6 +135,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get recallFailed => '取り消し失敗';
 
   @override
+  String get selectForwardTarget => '転送先を選択';
+
+  @override
   String get loading => '読み込み中...';
 
   @override

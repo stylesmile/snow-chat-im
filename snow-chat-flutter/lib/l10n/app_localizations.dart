@@ -352,6 +352,12 @@ abstract class AppLocalizations {
   /// **'Recall failed'**
   String get recallFailed;
 
+  /// Forward target picker title
+  ///
+  /// In en, this message translates to:
+  /// **'Select a chat'**
+  String get selectForwardTarget;
+
   /// Loading state
   ///
   /// In en, this message translates to:

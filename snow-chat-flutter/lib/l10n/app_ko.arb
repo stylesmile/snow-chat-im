@@ -84,6 +84,8 @@
   "@messageRecalled": {"description": "메시지 취소 표시"},
   "recallFailed": "취소 실패",
   "@recallFailed": {"description": "취소 실패"},
+  "selectForwardTarget": "전달 대상을 선택",
+  "@selectForwardTarget": {"description": "전달 대상 선택 제목"},
   "loading": "로딩 중...",
   "@loading": {"description": "로딩 상태"},
   "error": "오류",

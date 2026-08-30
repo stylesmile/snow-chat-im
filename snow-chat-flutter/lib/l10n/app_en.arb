@@ -84,6 +84,8 @@
   "@messageRecalled": {"description": "Message recalled"},
   "recallFailed": "Recall failed",
   "@recallFailed": {"description": "Recall failed"},
+  "selectForwardTarget": "Select a chat",
+  "@selectForwardTarget": {"description": "Forward target picker title"},
   "loading": "Loading...",
   "@loading": {"description": "Loading state"},
   "error": "Error",

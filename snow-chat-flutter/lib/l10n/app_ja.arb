@@ -84,6 +84,8 @@
   "@messageRecalled": {"description": "メッセージ取り消し表示"},
   "recallFailed": "取り消し失敗",
   "@recallFailed": {"description": "取り消し失敗"},
+  "selectForwardTarget": "転送先を選択",
+  "@selectForwardTarget": {"description": "転送先選択タイトル"},
   "loading": "読み込み中...",
   "@loading": {"description": "読み込み状態"},
   "error": "エラー",

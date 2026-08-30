@@ -135,6 +135,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get recallFailed => 'Recall failed';
 
   @override
+  String get selectForwardTarget => 'Select a chat';
+
+  @override
   String get loading => 'Loading...';
 
   @override
