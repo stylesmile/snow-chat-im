@@ -814,7 +814,7 @@ abstract class AppLocalizations {
   /// **'Check for Updates'**
   String get checkUpdate;
 
-  /// Clear cache
+  /// Settings page clear cache entry
   ///
   /// In en, this message translates to:
   /// **'Clear Cache'**
@@ -1059,6 +1059,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Attach'**
   String get attach;
+
+  /// Settings page general group title
+  ///
+  /// In en, this message translates to:
+  /// **'General'**
+  String get generalSettings;
+
+  /// Settings page chat background entry
+  ///
+  /// In en, this message translates to:
+  /// **'Chat Background'**
+  String get chatBackground;
+
+  /// Clear cache success toast
+  ///
+  /// In en, this message translates to:
+  /// **'Cache cleared'**
+  String get clearCacheDone;
+
+  /// Chat background - choose from album
+  ///
+  /// In en, this message translates to:
+  /// **'Choose from Album'**
+  String get chooseFromAlbum;
+
+  /// Chat background - reset to default
+  ///
+  /// In en, this message translates to:
+  /// **'Reset to Default'**
+  String get resetToDefault;
 
   /// Emoji button tooltip
   ///

@@ -7,6 +7,8 @@ import '../../providers/auth_provider.dart';
 import 'login_screen.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'sqlite_browser_screen.dart';
+import 'chat_background_screen.dart';
+import '../../services/cache_cleaner.dart';
 
 /// 设置页面（从个人中心"设置"入口进入）
 ///
@@ -61,6 +63,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildNotificationSection(settings),
           const Divider(height: 1, indent: 56, color: Color(0x0FFFFFFF)),
 
+          // === 通用设置（聊天背景 + 清理缓存） ===
+          _buildGeneralSection(l10n),
+          const Divider(height: 1, indent: 56, color: Color(0x0FFFFFFF)),
+
           // === 隐私 ===
           _buildSimpleTile(
             iconColor: const Color(0xFF6B7280),
@@ -83,6 +89,72 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildLogoutTile(auth, l10n),
         ],
       ),
+    );
+  }
+
+  /// 通用设置区：聊天背景 + 清理缓存
+  Widget _buildGeneralSection(AppLocalizations l10n) {
+    return Column(
+      children: [
+        // 聊天背景入口：进入独立设置页（选图/恢复默认）
+        ListTile(
+          leading: const Icon(Icons.wallpaper, color: Colors.grey, size: 24),
+          title: Text(
+            l10n.chatBackground,
+            style: const TextStyle(color: Colors.white, fontSize: 16),
+          ),
+          trailing: const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ChatBackgroundScreen()),
+            );
+          },
+        ),
+        const Divider(height: 1, indent: 56, color: Color(0x0FFFFFFF)),
+        // 清理缓存入口：计算并清理临时/图片缓存
+        ListTile(
+          leading: const Icon(Icons.cleaning_services_outlined, color: Colors.grey, size: 24),
+          title: Text(
+            l10n.clearCache,
+            style: const TextStyle(color: Colors.white, fontSize: 16),
+          ),
+          trailing: const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
+          onTap: () => _confirmClearCache(l10n),
+        ),
+      ],
+    );
+  }
+
+  /// 清理缓存：先弹窗确认，再调用 [CacheCleaner] 清理并提示
+  Future<void> _confirmClearCache(AppLocalizations l10n) async {
+    // 确认弹窗，避免误触清空缓存
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: _cardColor,
+        title: Text(l10n.clearCache, style: const TextStyle(color: Colors.white)),
+        content: Text(l10n.confirm, style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(l10n.cancel, style: const TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text(l10n.confirm),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    // 执行清理（清理临时目录与图片缓存）
+    await CacheCleaner().clear();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.clearCacheDone)),
     );
   }
 

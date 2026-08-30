@@ -491,6 +491,21 @@ class AppLocalizationsJa extends AppLocalizations {
   String get attach => 'Attach';
 
   @override
+  String get generalSettings => '一般';
+
+  @override
+  String get chatBackground => 'チャット背景';
+
+  @override
+  String get clearCacheDone => 'キャッシュをクリアしました';
+
+  @override
+  String get chooseFromAlbum => 'アルバムから選択';
+
+  @override
+  String get resetToDefault => 'デフォルトに戻す';
+
+  @override
   String get emoji => 'Emoji';
 
   @override

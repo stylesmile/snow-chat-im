@@ -368,7 +368,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get checkUpdate => '检查更新';
 
   @override
-  String get clearCache => '清除缓存';
+  String get clearCache => '清理缓存';
 
   @override
   String get cacheCleared => '缓存已清除';
@@ -489,6 +489,21 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get attach => '附件';
+
+  @override
+  String get generalSettings => '通用';
+
+  @override
+  String get chatBackground => '聊天背景';
+
+  @override
+  String get clearCacheDone => '缓存已清理';
+
+  @override
+  String get chooseFromAlbum => '从相册选择';
+
+  @override
+  String get resetToDefault => '恢复默认';
 
   @override
   String get emoji => '表情';
@@ -933,7 +948,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
   String get checkUpdate => '檢查更新';
 
   @override
-  String get clearCache => '清除快取';
+  String get clearCache => '清理快取';
 
   @override
   String get cacheCleared => '快取已清除';
@@ -1051,6 +1066,21 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get settingsMenu => '設定';
+
+  @override
+  String get generalSettings => '通用';
+
+  @override
+  String get chatBackground => '聊天背景';
+
+  @override
+  String get clearCacheDone => '快取已清理';
+
+  @override
+  String get chooseFromAlbum => '從相簿選擇';
+
+  @override
+  String get resetToDefault => '恢復預設';
 
   @override
   String get gender => '性別';

@@ -368,7 +368,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get checkUpdate => '업데이트 확인';
 
   @override
-  String get clearCache => '캐시 지우기';
+  String get clearCache => '캐시 정리';
 
   @override
   String get cacheCleared => '캐시가 지워졌습니다';
@@ -489,6 +489,21 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get attach => 'Attach';
+
+  @override
+  String get generalSettings => '일반';
+
+  @override
+  String get chatBackground => '채팅 배경';
+
+  @override
+  String get clearCacheDone => '캐시가 정리되었습니다';
+
+  @override
+  String get chooseFromAlbum => '앨범에서 선택';
+
+  @override
+  String get resetToDefault => '기본으로 복원';
 
   @override
   String get emoji => 'Emoji';

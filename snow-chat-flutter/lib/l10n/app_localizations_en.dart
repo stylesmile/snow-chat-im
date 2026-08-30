@@ -491,6 +491,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get attach => 'Attach';
 
   @override
+  String get generalSettings => 'General';
+
+  @override
+  String get chatBackground => 'Chat Background';
+
+  @override
+  String get clearCacheDone => 'Cache cleared';
+
+  @override
+  String get chooseFromAlbum => 'Choose from Album';
+
+  @override
+  String get resetToDefault => 'Reset to Default';
+
+  @override
   String get emoji => 'Emoji';
 
   @override
