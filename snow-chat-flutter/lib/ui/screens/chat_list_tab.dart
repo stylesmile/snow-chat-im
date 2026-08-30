@@ -19,7 +19,7 @@ class ChatListTab extends StatefulWidget {
 
 class _ChatListTabState extends State<ChatListTab> {
   bool _isLoading = true;
-  /// 好友 userId -> 昵称 映射，优先从后端 API 获取（含 nickname 字段）
+  /// 好友 userId -> 昵称 映射，从本地缓存加载（与通讯录保持一致）
   final Map<int, String> _friendNames = {};
 
   @override
@@ -40,15 +40,15 @@ class _ChatListTabState extends State<ChatListTab> {
     // 优先从后端 API 拉取好友列表（含 nickname），这是唯一可信的数据源
     final friends = await contactService.getFriends(auth.userId!);
     if (kDebugMode) {
-      print('[ChatList] getFriends returned ${friends.length} friends: ${friends.map((f) => '${f.userId}(${f.nickname})').join(', ')}');
+      print('[ChatList] getFriends returned ${friends.length} friends: ${friends.map((f) => '\${f.userId}(\${f.nickname})').join(', ')}');
     }
 
     _friendNames
       ..clear()
       ..addAll({for (final f in friends) f.userId: f.nickname});
 
-    // API 为空时，回退到本地 SQLite 缓存
-    if (_friendNames.isEmpty) {
+    // API 为空时，回退到本地 SQLite 缓存（与通讯录保持一致）
+    if (_friendNames.isEmpty || _friendNames.values.every((n) => n.isEmpty)) {
       final localFriends = await contactService.getLocalFriends(context);
       if (kDebugMode) {
         print('[ChatList] API returned empty, fallback to local friends: ${localFriends.length}');
@@ -71,7 +71,7 @@ class _ChatListTabState extends State<ChatListTab> {
     setState(() => _isLoading = false);
   }
 
-  /// 显示会话标题：从后端好友列表查昵称，查不到才显示用户ID
+  /// 显示会话标题：从好友映射查昵称，查不到才显示用户ID
   String _displayName(Conversation conv) {
     if (conv.targetType == 'group') {
       return '群组 ${conv.targetId}';
@@ -113,7 +113,7 @@ class _ChatListTabState extends State<ChatListTab> {
     );
   }
 
-  /// 格式化时间：今天显示时分，昨天显示"昨天"，更早显示日期
+  /// 格式化时间：今天显示时分，昨天显示昨天，更早显示日期
   String _formatTime(int timestamp) {
     final date = DateTime.fromMillisecondsSinceEpoch(timestamp);
     final now = DateTime.now();
@@ -194,8 +194,96 @@ class _ChatListTabState extends State<ChatListTab> {
               ),
             );
           },
+          onLongPress: () => _showConversationActions(conv),
         );
       },
     );
+  }
+
+  /// 长按会话弹出操作菜单：置顶/取消置顶、免打扰/取消免打扰、删除会话
+  ///
+  /// 每个操作都会更新内存状态（ChatProvider）并持久化到本地 SQLite
+  Future<void> _showConversationActions(Conversation conv) async {
+    final chatProvider = context.read<ChatProvider>();
+    final conversationService = ConversationService();
+    final isPinned = conv.isPinned;
+    final isMuted = conv.isMuted;
+
+    // 底部弹出操作面板，供用户选择针对当前会话的操作
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 面板标题：显示会话名称
+              ListTile(
+                title: Text(
+                  _displayName(conv),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                dense: true,
+              ),
+              const Divider(height: 1),
+              // 置顶/取消置顶
+              ListTile(
+                leading: Icon(isPinned ? Icons.push_pin_outlined : Icons.push_pin),
+                title: Text(isPinned ? '取消置顶' : '置顶会话'),
+                onTap: () => Navigator.pop(ctx, 'pin'),
+              ),
+              // 免打扰/取消免打扰
+              ListTile(
+                leading: Icon(isMuted ? Icons.notifications_off_outlined : Icons.notifications_off),
+                title: Text(isMuted ? '取消免打扰' : '消息免打扰'),
+                onTap: () => Navigator.pop(ctx, 'mute'),
+              ),
+              // 删除会话
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: const Text('删除会话', style: TextStyle(color: Colors.red)),
+                onTap: () => Navigator.pop(ctx, 'delete'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    // 面板关闭后，若组件已卸载则直接返回，避免使用失效的 context
+    if (!mounted) return;
+
+    // 根据用户选择执行对应操作
+    switch (action) {
+      case 'pin':
+        // 切换置顶状态，并持久化到本地数据库
+        chatProvider.togglePinned(conv.targetId, conv.targetType, pinned: !isPinned);
+        await conversationService.updateSessionFlags(
+          context: context,
+          targetId: conv.targetId,
+          targetType: conv.targetType,
+          isPinned: !isPinned,
+        );
+        break;
+      case 'mute':
+        // 切换免打扰状态，并持久化到本地数据库
+        chatProvider.toggleMuted(conv.targetId, conv.targetType, muted: !isMuted);
+        await conversationService.updateSessionFlags(
+          context: context,
+          targetId: conv.targetId,
+          targetType: conv.targetType,
+          isMuted: !isMuted,
+        );
+        break;
+      case 'delete':
+        // 删除会话：先从数据库删除，再从内存列表移除
+        await conversationService.deleteSession(
+          context: context,
+          targetId: conv.targetId,
+          targetType: conv.targetType,
+        );
+        chatProvider.removeConversation(conv.targetId, conv.targetType);
+        break;
+    }
   }
 }

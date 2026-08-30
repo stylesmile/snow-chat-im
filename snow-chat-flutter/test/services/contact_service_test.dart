@@ -115,7 +115,7 @@ void main() {
   });
 
   group('ContactService.sendFriendRequest', () {
-    test('should return true when request succeeds', () async {
+    test('should return success map when request succeeds', () async {
       mockApiClient.adapter.onPost(
         '/chat/friend/request',
         (server) => server.reply(200, {'code': '200'}),
@@ -123,24 +123,28 @@ void main() {
 
       final result = await contactService.sendFriendRequest(1, 2, 'Hello!');
 
-      expect(result, isTrue);
+      // 成功时应返回 {success: true}，并携带空错误信息
+      expect(result['success'], isTrue);
+      expect(result['message'], isEmpty);
     });
 
-    test('should return false when request fails', () async {
+    test('should return failure map when request fails', () async {
       mockApiClient.adapter.onPost(
         '/chat/friend/request',
         (server) =>
-            server.reply(400, {'code': '400', 'message': 'Already friends'}),
+            server.reply(200, {'code': '400', 'msg': 'Already friends'}),
       );
 
       final result = await contactService.sendFriendRequest(1, 2, 'Hello!');
 
-      expect(result, isFalse);
+      // 失败时应返回 {success: false}，并携带后端返回的失败原因
+      expect(result['success'], isFalse);
+      expect(result['message'], 'Already friends');
     });
   });
 
   group('ContactService.handleFriendRequest', () {
-    test('should return true when accept succeeds', () async {
+    test('should return success map when accept succeeds', () async {
       mockApiClient.adapter.onPost(
         '/chat/friend/handle',
         (server) => server.reply(200, {'code': '200'}),
@@ -148,10 +152,11 @@ void main() {
 
       final result = await contactService.handleFriendRequest(1, 2, true);
 
-      expect(result, isTrue);
+      // 接受成功应返回 {success: true}
+      expect(result['success'], isTrue);
     });
 
-    test('should return true when reject succeeds', () async {
+    test('should return success map when reject succeeds', () async {
       mockApiClient.adapter.onPost(
         '/chat/friend/handle',
         (server) => server.reply(200, {'code': '200'}),
@@ -159,7 +164,8 @@ void main() {
 
       final result = await contactService.handleFriendRequest(1, 2, false);
 
-      expect(result, isTrue);
+      // 拒绝成功应返回 {success: true}
+      expect(result['success'], isTrue);
     });
   });
 

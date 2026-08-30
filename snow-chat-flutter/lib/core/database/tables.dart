@@ -93,6 +93,7 @@ class Tables {
       last_msg_time INTEGER,
       unread_count INTEGER DEFAULT 0,
       is_muted INTEGER DEFAULT 0,
+      is_pinned INTEGER DEFAULT 0,
       update_time INTEGER,
       UNIQUE(user_id, target_id, target_type)
     )

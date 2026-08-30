@@ -175,6 +175,129 @@ void main() {
     });
   });
 
+  // 验证会话置顶/免打扰标记的持久化读写
+  group('Conversation pinning & mute flags', () {
+    test('should persist is_pinned and is_muted flags', () async {
+      final table = Tables.sessionsTable(testUserId);
+
+      // 插入一个置顶且免打扰的会话
+      await db.insert(
+        table,
+        {
+          'user_id': testUserId,
+          'target_id': 2,
+          'target_type': 'friend',
+          'last_msg': 'Hello',
+          'last_msg_time': 1700000000000,
+          'unread_count': 1,
+          'is_muted': 1,
+          'is_pinned': 1,
+          'update_time': DateTime.now().millisecondsSinceEpoch,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+
+      // 读回数据库记录，验证标记正确写入
+      final rows = await db.query(table);
+      expect(rows.length, equals(1));
+      expect(rows[0]['is_pinned'], equals(1));
+      expect(rows[0]['is_muted'], equals(1));
+    });
+
+    test('should default to is_pinned=0 and is_muted=0', () async {
+      final table = Tables.sessionsTable(testUserId);
+
+      // 不传置顶/免打扰字段，应使用默认值
+      await db.insert(table, {
+        'user_id': testUserId,
+        'target_id': 2,
+        'target_type': 'friend',
+        'last_msg': 'Hello',
+        'last_msg_time': 1700000000000,
+        'unread_count': 0,
+        'update_time': DateTime.now().millisecondsSinceEpoch,
+      });
+
+      final rows = await db.query(table);
+      expect(rows.length, equals(1));
+      expect(rows[0]['is_pinned'], equals(0));
+      expect(rows[0]['is_muted'], equals(0));
+    });
+
+    test('should upsert flags without losing pinned/muted on replace', () async {
+      final table = Tables.sessionsTable(testUserId);
+
+      // 第一次插入：普通会话
+      await db.insert(
+        table,
+        {
+          'user_id': testUserId,
+          'target_id': 2,
+          'target_type': 'friend',
+          'last_msg': 'Hello',
+          'last_msg_time': 1700000000000,
+          'unread_count': 0,
+          'is_pinned': 0,
+          'is_muted': 0,
+          'update_time': DateTime.now().millisecondsSinceEpoch,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+
+      // 第二次插入：同一会话更新消息，并置顶
+      await db.insert(
+        table,
+        {
+          'user_id': testUserId,
+          'target_id': 2,
+          'target_type': 'friend',
+          'last_msg': 'Updated',
+          'last_msg_time': 1700000001000,
+          'unread_count': 2,
+          'is_pinned': 1,
+          'is_muted': 1,
+          'update_time': DateTime.now().millisecondsSinceEpoch,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+
+      final rows = await db.query(table);
+      expect(rows.length, equals(1));
+      expect(rows[0]['last_msg'], equals('Updated'));
+      expect(rows[0]['is_pinned'], equals(1));
+      expect(rows[0]['is_muted'], equals(1));
+    });
+
+    test('should update only the provided flag via incremental update', () async {
+      final table = Tables.sessionsTable(testUserId);
+
+      await db.insert(table, {
+        'user_id': testUserId,
+        'target_id': 2,
+        'target_type': 'friend',
+        'last_msg': 'Hello',
+        'last_msg_time': 1700000000000,
+        'unread_count': 0,
+        'is_pinned': 0,
+        'is_muted': 0,
+        'update_time': DateTime.now().millisecondsSinceEpoch,
+      });
+
+      // 仅更新置顶标记，免打扰保持不变
+      await db.update(
+        table,
+        {'is_pinned': 1},
+        where: 'target_id = ? AND target_type = ?',
+        whereArgs: [2, 'friend'],
+      );
+
+      final rows = await db.query(table);
+      expect(rows.length, equals(1));
+      expect(rows[0]['is_pinned'], equals(1));
+      expect(rows[0]['is_muted'], equals(0));
+    });
+  });
+
   group('ConversationService.deleteSession', () {
     test('should delete session', () async {
       final table = Tables.sessionsTable(testUserId);
