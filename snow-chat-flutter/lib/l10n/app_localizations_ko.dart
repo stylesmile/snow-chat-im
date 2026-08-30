@@ -153,6 +153,20 @@ class AppLocalizationsKo extends AppLocalizations {
   String get cancel => '취소';
 
   @override
+  String get clearChat => '채팅 기록 지우기';
+
+  @override
+  String get clearChatConfirmTitle => '채팅 기록 지우기';
+
+  @override
+  String clearChatConfirmBody(Object name) {
+    return '$name 님과의 채팅 기록을 지우시겠습니까? 실행 후 되돌릴 수 없습니다.';
+  }
+
+  @override
+  String get clearChatDone => '채팅 기록을 지웠습니다';
+
+  @override
   String get save => '저장';
 
   @override

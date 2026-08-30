@@ -388,6 +388,30 @@ abstract class AppLocalizations {
   /// **'Cancel'**
   String get cancel;
 
+  /// Clear chat history action
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Chat History'**
+  String get clearChat;
+
+  /// Clear chat history confirmation title
+  ///
+  /// In en, this message translates to:
+  /// **'Clear Chat History'**
+  String get clearChatConfirmTitle;
+
+  /// Clear chat history confirmation body, {name} is the conversation name
+  ///
+  /// In en, this message translates to:
+  /// **'Clear the chat history with {name}? This cannot be undone.'**
+  String clearChatConfirmBody(Object name);
+
+  /// Clear chat success message
+  ///
+  /// In en, this message translates to:
+  /// **'Chat history cleared'**
+  String get clearChatDone;
+
   /// Save button
   ///
   /// In en, this message translates to:

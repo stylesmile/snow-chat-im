@@ -806,6 +806,49 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     });
   }
 
+  /// 弹出"清空聊天记录"确认对话框，确认后清空该会话的本地消息。
+  ///
+  /// 只清除本机缓存的该会话消息（DB + 内存），不影响双方服务器中的消息，
+  /// 也不删除会话本身；清空后消息列表立即置空。
+  Future<void> _confirmClearChat() async {
+    final l10n = AppLocalizations.of(context)!;
+    // 弹出确认对话框，防止误操作；取消则直接返回
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.clearChatConfirmTitle),
+        content: Text(l10n.clearChatConfirmBody(widget.targetName ?? l10n.myFriends)),
+        actions: [
+          // 取消清空
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.cancel),
+          ),
+          // 确认清空
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l10n.confirm),
+          ),
+        ],
+      ),
+    );
+    // 用户取消时不做任何操作
+    if (confirmed != true) return;
+    if (!mounted) return;
+    // 清除数据库与该会话的内存缓存
+    await MessageCacheManager().clearSessionMessages(_sessionId);
+    if (!mounted) return;
+    // 立即清空界面消息列表并重置分页状态
+    setState(() {
+      _messages.clear();
+      _hasMore = false;
+    });
+    // 提示清空成功
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(l10n.clearChatDone)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -818,22 +861,28 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         backgroundColor: const Color(0xFF1E1E1E),
         elevation: 1,
         title: Text(displayName),
-        actions: widget.targetType == 'group'
-            ? [
-                IconButton(
-                  icon: const Icon(Icons.more_vert),
-                  tooltip: '群聊信息',
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => GroupDetailScreen(groupId: widget.targetId),
-                      ),
-                    );
-                  },
-                ),
-              ]
-            : null,
+        actions: [
+          // 清空本地聊天记录入口（单聊 / 群聊通用）
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip: l10n.clearChat,
+            onPressed: _confirmClearChat,
+          ),
+          // 群聊专属：进入群信息页
+          if (widget.targetType == 'group')
+            IconButton(
+              icon: const Icon(Icons.more_vert),
+              tooltip: '群聊信息',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => GroupDetailScreen(groupId: widget.targetId),
+                  ),
+                );
+              },
+            ),
+        ],
       ),
       body: Column(
         children: [

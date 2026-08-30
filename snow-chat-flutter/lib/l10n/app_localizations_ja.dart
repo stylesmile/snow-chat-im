@@ -153,6 +153,20 @@ class AppLocalizationsJa extends AppLocalizations {
   String get cancel => 'キャンセル';
 
   @override
+  String get clearChat => 'チャット履歴を消去';
+
+  @override
+  String get clearChatConfirmTitle => 'チャット履歴を消去';
+
+  @override
+  String clearChatConfirmBody(Object name) {
+    return '$name とのチャット履歴を消去しますか？この操作は取り消せません。';
+  }
+
+  @override
+  String get clearChatDone => 'チャット履歴を消去しました';
+
+  @override
   String get save => '保存';
 
   @override

@@ -153,6 +153,20 @@ class AppLocalizationsZh extends AppLocalizations {
   String get cancel => '取消';
 
   @override
+  String get clearChat => '清空聊天记录';
+
+  @override
+  String get clearChatConfirmTitle => '清空聊天记录';
+
+  @override
+  String clearChatConfirmBody(Object name) {
+    return '确定清空与 $name 的聊天记录吗？清空后无法恢复。';
+  }
+
+  @override
+  String get clearChatDone => '聊天记录已清空';
+
+  @override
   String get save => '保存';
 
   @override
@@ -708,6 +722,20 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get cancel => '取消';
+
+  @override
+  String get clearChat => '清空聊天記錄';
+
+  @override
+  String get clearChatConfirmTitle => '清空聊天記錄';
+
+  @override
+  String clearChatConfirmBody(Object name) {
+    return '確定清空與 $name 的聊天記錄嗎？清空後無法恢復。';
+  }
+
+  @override
+  String get clearChatDone => '聊天記錄已清空';
 
   @override
   String get save => '儲存';

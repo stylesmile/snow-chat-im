@@ -153,6 +153,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String get cancel => 'Cancel';
 
   @override
+  String get clearChat => 'Clear Chat History';
+
+  @override
+  String get clearChatConfirmTitle => 'Clear Chat History';
+
+  @override
+  String clearChatConfirmBody(Object name) {
+    return 'Clear the chat history with $name? This cannot be undone.';
+  }
+
+  @override
+  String get clearChatDone => 'Chat history cleared';
+
+  @override
   String get save => 'Save';
 
   @override
