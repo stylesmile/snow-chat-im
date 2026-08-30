@@ -30,6 +30,7 @@ import '../widgets/message_delivery_status.dart';
 import '../widgets/message_action_sheet.dart';
 import '../widgets/forward_picker_sheet.dart';
 import '../../services/contact_service.dart';
+import '../../services/chat_background_service.dart';
 import '../../models/friend_model.dart';
 import 'group_detail_screen.dart';
 import 'image_viewer_screen.dart';
@@ -70,6 +71,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   String _pendingMediaType = 'text'; // text / image / video / file / voice
   String? _pendingMediaUrl;
   String? _pendingFileName;
+
+  // 聊天背景路径；null 表示使用默认背景（从 ChatBackgroundService 读取）
+  String? _chatBackgroundPath;
 
   // 表情面板状态
   bool _showEmojiPanel = false;
@@ -139,6 +143,18 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     _ensureConversationSaved();
     _initCache();
     _initMqtt();
+    // 异步加载用户设置的聊天背景，不阻塞首帧
+    _loadChatBackground();
+  }
+
+  /// 从 ChatBackgroundService 读取聊天背景路径
+  Future<void> _loadChatBackground() async {
+    final path = await ChatBackgroundService().getBackgroundPath();
+    if (!mounted) return;
+    // 仅在确实是本地已存在的文件时应用，否则回退默认背景
+    if (path != null && await File(path).exists()) {
+      setState(() => _chatBackgroundPath = path);
+    }
   }
 
   @override
@@ -889,45 +905,68 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           // 预览区域
           if (_pendingMediaType != 'text' && _pendingMediaUrl != null)
             _buildMediaPreview(theme),
+          // 消息区：有背景图时用 Stack 把图片垫在列表下方
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _messages.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.chat_bubble_outline, size: 48, color: Colors.white24),
-                            const SizedBox(height: 8),
-                            Text(l10n.noMessages, style: const TextStyle(color: Colors.white54)),
-                          ],
-                        ),
-                      )
-                    : NotificationListener<ScrollNotification>(
-                        onNotification: (notification) {
-                          if (notification is ScrollEndNotification &&
-                              notification.metrics.pixels == notification.metrics.maxScrollExtent) {
-                            _loadMore();
-                          }
-                          return false;
-                        },
-                        child: ListView.builder(
-                          controller: _scrollController,
-                          reverse: true,
-                          padding: const EdgeInsets.all(8),
-                          itemCount: _messages.length,
-                          itemBuilder: (context, index) {
-                            final msg = _messages[_messages.length - 1 - index];
-                            final isMe = msg.fromUserId == (context.read<AuthProvider>().userId ?? 0);
-                            return _buildMessageBubble(msg, isMe, theme);
-                          },
-                        ),
+            child: _chatBackgroundPath != null
+                ? Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // 背景图铺满消息区
+                      Image.file(
+                        File(_chatBackgroundPath!),
+                        fit: BoxFit.cover,
                       ),
+                      // 半透明遮罩提升文字可读性
+                      const DecoratedBox(
+                        decoration: BoxDecoration(color: Color(0x66000000)),
+                      ),
+                      // 消息列表叠在背景之上
+                      _buildMessageBody(theme, l10n),
+                    ],
+                  )
+                : _buildMessageBody(theme, l10n),
           ),
           _buildInputBar(theme, l10n),
         ],
       ),
     );
+  }
+
+  /// 消息列表主体（含空态提示）；被 [_build] 的背景 Stack 或直接使用
+  Widget _buildMessageBody(ThemeData theme, AppLocalizations l10n) {
+    return _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : _messages.isEmpty
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.chat_bubble_outline, size: 48, color: Colors.white24),
+                    const SizedBox(height: 8),
+                    Text(l10n.noMessages, style: const TextStyle(color: Colors.white54)),
+                  ],
+                ),
+              )
+            : NotificationListener<ScrollNotification>(
+                onNotification: (notification) {
+                  if (notification is ScrollEndNotification &&
+                      notification.metrics.pixels == notification.metrics.maxScrollExtent) {
+                    _loadMore();
+                  }
+                  return false;
+                },
+                child: ListView.builder(
+                  controller: _scrollController,
+                  reverse: true,
+                  padding: const EdgeInsets.all(8),
+                  itemCount: _messages.length,
+                  itemBuilder: (context, index) {
+                    final msg = _messages[_messages.length - 1 - index];
+                    final isMe = msg.fromUserId == (context.read<AuthProvider>().userId ?? 0);
+                    return _buildMessageBubble(msg, isMe, theme);
+                  },
+                ),
+              );
   }
 
   /// 构建媒体预览组件
