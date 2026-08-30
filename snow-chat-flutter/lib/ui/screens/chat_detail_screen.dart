@@ -8,6 +8,7 @@ import 'package:video_player/video_player.dart';
 import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter/services.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -22,6 +23,7 @@ import '../../core/cache/message_cache_manager.dart';
 import '../../services/conversation_service.dart';
 import '../../providers/chat_provider.dart';
 import '../widgets/chat_bubble.dart';
+import '../widgets/message_action_sheet.dart';
 import 'group_detail_screen.dart';
 import '../../core/utils/date_utils.dart' as app_date;
 
@@ -954,7 +956,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             ),
             const SizedBox(width: 8),
           ],
-          Flexible(child: _buildMessageBubbleByType(msg, isMe, theme)),
+          Flexible(
+            child: GestureDetector(
+              // 长按气泡弹出操作菜单（复制/撤回/转发）
+              onLongPress: () => _showMessageActionMenu(msg, isMe),
+              child: _buildMessageBubbleByType(msg, isMe, theme),
+            ),
+          ),
           if (isMe) ...[
             const SizedBox(width: 8),
             CircleAvatar(
@@ -1243,6 +1251,47 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   void _openFile(String url) {
     // TODO: 接入 open_file / share_plus 插件
     debugPrint('[ChatDetail] 打开文件: $url');
+  }
+
+  /// 长按消息弹出操作菜单（复制/撤回/转发）
+  ///
+  /// [msg] 被按下的消息；[isMe] 是否本人发送（决定撤回权限）。
+  /// 需求1 仅实现"复制"；撤回(canRecall)、转发(canForward)在后续小需求逐步启用，
+  /// 这样每次小需求提交都保持菜单完整可用，不留下"点了没反应"的残缺项。
+  Future<void> _showMessageActionMenu(_DisplayMessage msg, bool isMe) async {
+    // 弹出底部操作菜单，返回用户所选动作；取消则返回 null
+    final action = await showMessageActionSheet(
+      context,
+      canRecall: false, // 需求1 暂未启用撤回
+      canForward: false, // 需求1 暂未启用转发
+    );
+    // 用户取消或页面已关闭则不继续
+    if (action == null || !mounted) return;
+    await _handleMessageAction(msg, isMe, action);
+  }
+
+  /// 执行用户选择的消息操作：复制 / 撤回 / 转发
+  ///
+  /// [msg] 目标消息；[isMe] 是否本人发送（用于撤回权限判断）。
+  Future<void> _handleMessageAction(_DisplayMessage msg, bool isMe, MessageAction action) async {
+    // 读取本地化文案，避免硬编码
+    final l10n = AppLocalizations.of(context)!;
+    switch (action) {
+      case MessageAction.copy:
+        // 把消息内容写入系统剪贴板，供用户随意粘贴
+        await Clipboard.setData(ClipboardData(text: msg.content));
+        // 复制成功后轻提示"已复制"
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.copied)));
+        }
+        break;
+      case MessageAction.recall:
+        // TODO(需求2)：实现消息撤回
+        break;
+      case MessageAction.forward:
+        // TODO(需求3)：实现消息转发
+        break;
+    }
   }
 
   Widget _buildInputBar(ThemeData theme, AppLocalizations l10n) {
