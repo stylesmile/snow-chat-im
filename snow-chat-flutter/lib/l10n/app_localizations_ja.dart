@@ -428,6 +428,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get search => '検索';
 
   @override
+  String get searchChatHistory => 'チャット履歴';
+
+  @override
+  String get noSearchResult => '該当する結果がありません';
+
+  @override
   String get friendRequestAccepted => '友達リクエストが承認されました';
 
   @override

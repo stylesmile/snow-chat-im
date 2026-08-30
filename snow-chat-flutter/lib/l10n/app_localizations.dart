@@ -934,6 +934,18 @@ abstract class AppLocalizations {
   /// **'Search'**
   String get search;
 
+  /// Chat history group title in search screen
+  ///
+  /// In en, this message translates to:
+  /// **'Chat History'**
+  String get searchChatHistory;
+
+  /// Empty search result message
+  ///
+  /// In en, this message translates to:
+  /// **'No results found'**
+  String get noSearchResult;
+
   /// Friend request accepted notification
   ///
   /// In en, this message translates to:

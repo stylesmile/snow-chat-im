@@ -8,6 +8,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/contact_service.dart';
 import '../../services/conversation_service.dart';
 import 'chat_detail_screen.dart';
+import 'global_search_screen.dart';
 import 'login_screen.dart';
 
 class ChatListTab extends StatefulWidget {
@@ -135,18 +136,52 @@ class _ChatListTabState extends State<ChatListTab> {
     }
   }
 
+  /// 顶部搜索入口；点击进入全局搜索页。
+  Widget _buildSearchEntry(AppLocalizations l10n) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: GestureDetector(
+        onTap: () {
+          // 跳转到全局搜索页，检索联系人/聊天记录
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const GlobalSearchScreen()),
+          );
+        },
+        child: TextField(
+          // 仅作入口展示；不接收输入，点击整体跳转
+          enabled: false,
+          decoration: InputDecoration(
+            hintText: l10n.searchHint,
+            prefixIcon: const Icon(Icons.search),
+            filled: true,
+            isDense: true,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(24),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final chatProvider = context.watch<ChatProvider>();
     final conversations = chatProvider.conversations;
 
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    // 顶部搜索入口，点击进入全局搜索页
+    final Widget searchBar = _buildSearchEntry(l10n);
+    Widget content;
 
-    if (conversations.isEmpty) {
-      return Center(
+    if (_isLoading) {
+      // 会话列表加载中
+      content = const Center(child: CircularProgressIndicator());
+    } else if (conversations.isEmpty) {
+      // 无会话时的空态引导
+      content = Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -156,47 +191,53 @@ class _ChatListTabState extends State<ChatListTab> {
           ],
         ),
       );
+    } else {
+      // 会话列表
+      content = ListView.separated(
+        padding: const EdgeInsets.only(top: 8),
+        itemCount: conversations.length,
+        separatorBuilder: (_, __) => const Divider(height: 1, indent: 72),
+        itemBuilder: (context, index) {
+          final conv = conversations[index];
+          return ListTile(
+            leading: _buildAvatar(conv),
+            title: Text(
+              _displayName(conv),
+              style: const TextStyle(fontSize: 16),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: Text(
+              conv.lastMsg.isNotEmpty ? conv.lastMsg : l10n.noMessages,
+              style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            trailing: Text(
+              _formatTime(conv.lastMsgTime),
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+            ),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ChatDetailScreen(
+                    targetId: conv.targetId,
+                    targetType: conv.targetType,
+                    targetName: _displayName(conv),
+                  ),
+                ),
+              );
+            },
+            onLongPress: () => _showConversationActions(conv),
+          );
+        },
+      );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.only(top: 8),
-      itemCount: conversations.length,
-      separatorBuilder: (_, __) => const Divider(height: 1, indent: 72),
-      itemBuilder: (context, index) {
-        final conv = conversations[index];
-        return ListTile(
-          leading: _buildAvatar(conv),
-          title: Text(
-            _displayName(conv),
-            style: const TextStyle(fontSize: 16),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          subtitle: Text(
-            conv.lastMsg.isNotEmpty ? conv.lastMsg : l10n.noMessages,
-            style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          trailing: Text(
-            _formatTime(conv.lastMsgTime),
-            style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
-          ),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => ChatDetailScreen(
-                  targetId: conv.targetId,
-                  targetType: conv.targetType,
-                  targetName: _displayName(conv),
-                ),
-              ),
-            );
-          },
-          onLongPress: () => _showConversationActions(conv),
-        );
-      },
+    // 顶部搜索条 + 下方会话内容
+    return Column(
+      children: [searchBar, Expanded(child: content)],
     );
   }
 

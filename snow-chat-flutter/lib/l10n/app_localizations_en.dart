@@ -428,6 +428,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get search => 'Search';
 
   @override
+  String get searchChatHistory => 'Chat History';
+
+  @override
+  String get noSearchResult => 'No results found';
+
+  @override
   String get friendRequestAccepted => 'Friend request accepted';
 
   @override
