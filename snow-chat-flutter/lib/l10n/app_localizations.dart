@@ -346,6 +346,12 @@ abstract class AppLocalizations {
   /// **'Message recalled'**
   String get messageRecalled;
 
+  /// Recall failed
+  ///
+  /// In en, this message translates to:
+  /// **'Recall failed'**
+  String get recallFailed;
+
   /// Loading state
   ///
   /// In en, this message translates to:

@@ -132,6 +132,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get messageRecalled => 'メッセージ取り消し済み';
 
   @override
+  String get recallFailed => '取り消し失敗';
+
+  @override
   String get loading => '読み込み中...';
 
   @override

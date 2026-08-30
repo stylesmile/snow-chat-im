@@ -82,6 +82,8 @@
   "@messageFailed": {"description": "メッセージ送信失敗"},
   "messageRecalled": "メッセージ取り消し済み",
   "@messageRecalled": {"description": "メッセージ取り消し表示"},
+  "recallFailed": "取り消し失敗",
+  "@recallFailed": {"description": "取り消し失敗"},
   "loading": "読み込み中...",
   "@loading": {"description": "読み込み状態"},
   "error": "エラー",

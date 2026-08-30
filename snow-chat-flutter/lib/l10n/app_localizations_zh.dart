@@ -132,6 +132,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get messageRecalled => '消息已撤回';
 
   @override
+  String get recallFailed => '撤回失败';
+
+  @override
   String get loading => '加载中...';
 
   @override
@@ -663,6 +666,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get messageRecalled => '訊息已撤回';
+
+  @override
+  String get recallFailed => '撤回失敗';
 
   @override
   String get loading => '載入中...';

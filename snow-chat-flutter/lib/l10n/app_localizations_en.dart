@@ -132,6 +132,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get messageRecalled => 'Message recalled';
 
   @override
+  String get recallFailed => 'Recall failed';
+
+  @override
   String get loading => 'Loading...';
 
   @override

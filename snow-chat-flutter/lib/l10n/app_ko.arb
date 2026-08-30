@@ -82,6 +82,8 @@
   "@messageFailed": {"description": "메시지 전송 실패"},
   "messageRecalled": "메시지 취소됨",
   "@messageRecalled": {"description": "메시지 취소 표시"},
+  "recallFailed": "취소 실패",
+  "@recallFailed": {"description": "취소 실패"},
   "loading": "로딩 중...",
   "@loading": {"description": "로딩 상태"},
   "error": "오류",

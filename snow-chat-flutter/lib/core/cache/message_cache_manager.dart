@@ -100,6 +100,43 @@ class MessageCacheManager {
     }
   }
 
+  /// 更新消息的类型与内容（消息撤回后调用，把消息标记为 recall）
+  ///
+  /// 撤回场景：把原始消息的类型改为 recall、内容改为"消息已撤回"，
+  /// 从而在 UI 与后续重新拉取历史时都显示为"已撤回"，而非原始内容。
+  Future<void> updateMessageTypeAndContent(
+    String sessionId,
+    int msgId, {
+    required String type,
+    required String content,
+  }) async {
+    final db = _requireDb();
+    await db.update(
+      _messagesTable(),
+      {'type': type, 'content': content},
+      where: 'msg_id = ? AND session_id = ?',
+      whereArgs: [msgId, sessionId],
+    );
+    // 同步更新内存缓存
+    final cache = _memory[sessionId];
+    if (cache != null) {
+      final idx = cache.indexWhere((m) => m.id == msgId);
+      if (idx >= 0) {
+        cache[idx] = MessageModel(
+          id: cache[idx].id,
+          fromUserId: cache[idx].fromUserId,
+          toUserId: cache[idx].toUserId,
+          groupId: cache[idx].groupId,
+          type: type,
+          content: content,
+          status: cache[idx].status,
+          pushStatus: cache[idx].pushStatus,
+          createTime: cache[idx].createTime,
+        );
+      }
+    }
+  }
+
   /// 同步读取内存中的最近消息（createTime 升序，便于 UI 直接展示）。
   List<MessageModel> recentMessagesSync(String sessionId) {
     final cache = _memory[sessionId] ?? [];

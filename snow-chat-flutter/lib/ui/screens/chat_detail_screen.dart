@@ -1153,6 +1153,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               style: const TextStyle(fontSize: 36),
             ),
           ),
+        // 撤回消息：居中、斜体、浅灰，弱化视觉层级，与普通消息明显区分
+        'recall' => Center(
+            child: Text(
+              AppLocalizations.of(context)!.messageRecalled,
+              style: TextStyle(
+                fontSize: 13,
+                fontStyle: FontStyle.italic,
+                color: Colors.grey.shade500,
+              ),
+            ),
+          ),
         _ => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1256,14 +1267,22 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   /// 长按消息弹出操作菜单（复制/撤回/转发）
   ///
   /// [msg] 被按下的消息；[isMe] 是否本人发送（决定撤回权限）。
-  /// 需求1 仅实现"复制"；撤回(canRecall)、转发(canForward)在后续小需求逐步启用，
-  /// 这样每次小需求提交都保持菜单完整可用，不留下"点了没反应"的残缺项。
+  /// 需求2 启用"撤回"：仅本人消息、已发送成功且处于 2 分钟撤回时限内才显示撤回项；
+  /// 转发(canForward)在需求3 再启用。
   Future<void> _showMessageActionMenu(_DisplayMessage msg, bool isMe) async {
+    // 判断当前是否允许撤回：本人 + 已发送 + 2 分钟内，且该消息尚未被撤回
+    final canRecall = msg.type != 'recall' &&
+        MessageUtils.canRecallMessage(
+          isMe: isMe,
+          createTime: msg.createTime,
+          status: msg.status,
+          nowMillis: DateTime.now().millisecondsSinceEpoch,
+        );
     // 弹出底部操作菜单，返回用户所选动作；取消则返回 null
     final action = await showMessageActionSheet(
       context,
-      canRecall: false, // 需求1 暂未启用撤回
-      canForward: false, // 需求1 暂未启用转发
+      canRecall: canRecall, // 需求2：仅满足撤回条件的消息才显示"撤回"
+      canForward: false, // 需求3 再启用转发
     );
     // 用户取消或页面已关闭则不继续
     if (action == null || !mounted) return;
@@ -1286,7 +1305,36 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         }
         break;
       case MessageAction.recall:
-        // TODO(需求2)：实现消息撤回
+        // README：调用后端撤回接口，成功后把本地消息标记为"已撤回"
+        final recallAuth = context.read<AuthProvider>();
+        if (recallAuth.userId == null) break;
+        final recallService = ChatService(recallAuth.apiClient);
+        final recalled = await recallService.recallMessage(recallAuth.userId!, msg.id);
+        if (!mounted) break;
+        if (recalled) {
+          // 构造撤回后的消息：类型改为 recall、内容换成"消息已撤回"
+          final recalledMsg = msg.copyWith(
+            type: 'recall',
+            content: l10n.messageRecalled,
+          );
+          // 就地替换 UI 列表中的消息，让其立即显示为"已撤回"
+          final idx = _messages.indexWhere((m) => m.id == msg.id);
+          if (idx != -1) {
+            setState(() => _messages[idx] = recalledMsg);
+          }
+          // 持久化到本地 SQLite，重新加载历史时仍保持"已撤回"
+          await MessageCacheManager()
+              .updateMessageTypeAndContent(
+                _sessionId,
+                msg.id,
+                type: 'recall',
+                content: l10n.messageRecalled,
+              );
+        } else {
+          // 撤回失败（例如已超时被服务端拒绝），轻提示告知用户
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(l10n.recallFailed)));
+        }
         break;
       case MessageAction.forward:
         // TODO(需求3)：实现消息转发

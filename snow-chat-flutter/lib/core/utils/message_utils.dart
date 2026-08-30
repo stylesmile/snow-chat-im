@@ -62,4 +62,35 @@ class MessageUtils {
     }
     return null;
   }
+
+  static const int recallMaxAgeMs = 2 * 60 * 1000; // 撤回时限：2 分钟
+
+  /// 判断某条消息当前是否允许撤回
+  ///
+  /// 撤回条件（与主流 IM 一致）：
+  /// 1. 必须是本人发送的消息（[isMe] 为 true）
+  /// 2. 必须是已成功投递给服务器的消息（status 为 sent/read，发送中/失败不可撤回）
+  /// 3. 必须在发送后 2 分钟内操作（超过时限服务端同样拒绝，此处前端先行拦截）
+  ///
+  /// @param isMe 是否本人发送
+  /// @param createTime 消息创建时间戳（毫秒）
+  /// @param status 消息状态：sent/read 视为已成功
+  /// @param nowMillis 当前时间戳（毫秒），默认取本机时间
+  /// @param maxAgeMs 撤回时限（毫秒），默认 2 分钟，便于测试注入
+  /// @return 是否允许撤回
+  static bool canRecallMessage({
+    required bool isMe,
+    required int createTime,
+    required String status,
+    required int nowMillis,
+    int maxAgeMs = recallMaxAgeMs,
+  }) {
+    // 非本人消息一律不可撤回
+    if (!isMe) return false;
+    // 仅发送成功/已读的消息可撤回；发送中(sending)、失败(failed)不可撤回
+    if (status != 'sent' && status != 'read') return false;
+    // 超过撤回时限不可撤回
+    if (nowMillis - createTime > maxAgeMs) return false;
+    return true;
+  }
 }

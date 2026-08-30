@@ -132,6 +132,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get messageRecalled => '메시지 취소됨';
 
   @override
+  String get recallFailed => '취소 실패';
+
+  @override
   String get loading => '로딩 중...';
 
   @override

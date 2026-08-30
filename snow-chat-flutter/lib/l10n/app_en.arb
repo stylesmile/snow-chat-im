@@ -82,6 +82,8 @@
   "@messageFailed": {"description": "Message send failed"},
   "messageRecalled": "Message recalled",
   "@messageRecalled": {"description": "Message recalled"},
+  "recallFailed": "Recall failed",
+  "@recallFailed": {"description": "Recall failed"},
   "loading": "Loading...",
   "@loading": {"description": "Loading state"},
   "error": "Error",

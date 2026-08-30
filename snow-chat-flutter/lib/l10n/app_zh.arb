@@ -82,6 +82,8 @@
   "@messageFailed": {"description": "消息发送失败"},
   "messageRecalled": "消息已撤回",
   "@messageRecalled": {"description": "消息撤回提示"},
+  "recallFailed": "撤回失败",
+  "@recallFailed": {"description": "撤回失败提示"},
   "loading": "加载中...",
   "@loading": {"description": "加载状态"},
   "error": "错误",
