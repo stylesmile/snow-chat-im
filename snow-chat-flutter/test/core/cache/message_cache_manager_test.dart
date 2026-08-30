@@ -142,6 +142,35 @@ void main() {
         expect(manager.recentMessagesSync('u_10_42'), isEmpty);
       });
     });
+
+    group('searchMessages', () {
+      test('returns matching messages across sessions ordered by latest first', () async {
+        // 准备：两条命中（会话A、会话B）与一条不命中，验证跨会话 + 过滤
+        await manager.appendMessage('u_10_42', _message(id: 1, fromUserId: 10, toUserId: 42, content: '你好 西瓜', createTime: 1000));
+        await manager.appendMessage('u_10_55', _message(id: 2, fromUserId: 10, toUserId: 55, content: '晚上吃西瓜吗', createTime: 2000));
+        await manager.appendMessage('u_10_66', _message(id: 3, fromUserId: 10, toUserId: 66, content: '完全无关的消息', createTime: 3000));
+
+        // 执行：搜索关键词"西瓜"
+        final hits = await manager.searchMessages('西瓜');
+
+        // 验证：命中两条，按时间倒序（最新在前）
+        expect(hits.length, 2);
+        expect(hits.first.message.id, 2);
+        expect(hits.first.sessionId, 'u_10_55');
+        expect(hits.last.message.id, 1);
+      });
+
+      test('returns empty when no message matches', () async {
+        // 准备：仅一条不含关键词的消息
+        await manager.appendMessage('u_10_42', _message(id: 1, fromUserId: 10, toUserId: 42, content: '你好', createTime: 1000));
+
+        // 执行：搜索不存在的关键词
+        final hits = await manager.searchMessages('苹果');
+
+        // 验证：无命中
+        expect(hits, isEmpty);
+      });
+    });
   });
 }
 
@@ -171,6 +200,7 @@ MessageModel _message({
   int? toUserId,
   int? groupId,
   required int createTime,
+  String? content,
 }) {
   return MessageModel(
     id: id,
@@ -178,7 +208,7 @@ MessageModel _message({
     toUserId: toUserId,
     groupId: groupId,
     type: 'text',
-    content: 'msg_$id',
+    content: content ?? 'msg_$id',
     status: 'sent',
     createTime: createTime,
   );

@@ -185,6 +185,27 @@ class MessageCacheManager {
     _memory.remove(sessionId);
   }
 
+  /// 跨会话搜索本地消息：匹配 [keyword] 的消息，按时间倒序返回。
+  ///
+  /// 使用 SQL 参数化 + LIKE 模糊匹配，避免 SQL 注入；仅搜索文本类内容，
+  /// 图片/视频/文件等媒体消息不参与全文匹配。
+  Future<List<MessageSearchHit>> searchMessages(String keyword, {int limit = 50}) async {
+    final db = _requireDb();
+    // 构造模糊匹配表达式，%kw% 表示任意前缀/后缀
+    final pattern = '%$keyword%';
+    final rows = await db.query(
+      _messagesTable(),
+      where: 'content LIKE ?',
+      whereArgs: [pattern],
+      orderBy: 'create_time DESC', // 最新命中优先
+      limit: limit,
+    );
+    // 将查询结果转换为"会话ID + 消息"的搜索结果条目
+    return rows
+        .map((r) => MessageSearchHit(sessionId: r['session_id'] as String, message: _fromMap(r)))
+        .toList();
+  }
+
   /// 清空内存缓存（例如切换账号时调用）。
   void clearMemory() => _memory.clear();
 
@@ -253,4 +274,14 @@ class MessageCacheManager {
       createTime: row['create_time'] as int? ?? 0,
     );
   }
+}
+
+/// 一条消息搜索命中结果：标识所属会话与命中的消息本身。
+///
+/// 供"全局搜索"展示时，结合会话信息反查聊天对象名称。
+class MessageSearchHit {
+  final String sessionId;
+  final MessageModel message;
+
+  const MessageSearchHit({required this.sessionId, required this.message});
 }
