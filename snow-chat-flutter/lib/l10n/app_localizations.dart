@@ -1090,6 +1090,30 @@ abstract class AppLocalizations {
   /// **'Reset to Default'**
   String get resetToDefault;
 
+  /// Hold-to-talk button label
+  ///
+  /// In en, this message translates to:
+  /// **'Hold to Talk'**
+  String get holdToTalk;
+
+  /// Hint to release and send while recording
+  ///
+  /// In en, this message translates to:
+  /// **'Release to Send'**
+  String get releaseToSend;
+
+  /// Swipe up to cancel recording hint
+  ///
+  /// In en, this message translates to:
+  /// **'Release to cancel'**
+  String get releaseToCancel;
+
+  /// Recording duration too short toast
+  ///
+  /// In en, this message translates to:
+  /// **'Recording too short'**
+  String get recordingTooShort;
+
   /// Emoji button tooltip
   ///
   /// In en, this message translates to:

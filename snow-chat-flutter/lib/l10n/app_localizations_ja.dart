@@ -506,6 +506,18 @@ class AppLocalizationsJa extends AppLocalizations {
   String get resetToDefault => 'デフォルトに戻す';
 
   @override
+  String get holdToTalk => '長押しで話す';
+
+  @override
+  String get releaseToSend => '離して送信';
+
+  @override
+  String get releaseToCancel => '指を離してキャンセル';
+
+  @override
+  String get recordingTooShort => '録音が短すぎます';
+
+  @override
   String get emoji => 'Emoji';
 
   @override

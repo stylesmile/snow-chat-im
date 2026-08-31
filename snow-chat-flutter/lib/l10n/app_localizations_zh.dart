@@ -506,6 +506,18 @@ class AppLocalizationsZh extends AppLocalizations {
   String get resetToDefault => '恢复默认';
 
   @override
+  String get holdToTalk => '按住 说话';
+
+  @override
+  String get releaseToSend => '松开 发送';
+
+  @override
+  String get releaseToCancel => '松开手指，取消发送';
+
+  @override
+  String get recordingTooShort => '说话时间太短';
+
+  @override
   String get emoji => '表情';
 
   @override
@@ -1081,6 +1093,18 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get resetToDefault => '恢復預設';
+
+  @override
+  String get holdToTalk => '按住 說話';
+
+  @override
+  String get releaseToSend => '鬆開 傳送';
+
+  @override
+  String get releaseToCancel => '鬆開手指，取消傳送';
+
+  @override
+  String get recordingTooShort => '說話時間太短';
 
   @override
   String get gender => '性別';

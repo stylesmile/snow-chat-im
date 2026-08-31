@@ -31,6 +31,7 @@ import '../widgets/message_action_sheet.dart';
 import '../widgets/forward_picker_sheet.dart';
 import '../../services/contact_service.dart';
 import '../../services/chat_background_service.dart';
+import '../../core/utils/voice_content_codec.dart';
 import '../../models/friend_model.dart';
 import 'group_detail_screen.dart';
 import 'image_viewer_screen.dart';
@@ -133,6 +134,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   String? _recordingPath;
   bool _isRecording = false;
   Duration? _recordDuration;
+  // 长按录音：录音计时器（每秒刷新覆盖层时长）
+  Timer? _recordTimer;
+  // 长按录音：手指按下时的全局 Y 坐标，用于判断上滑取消
+  double _recordStartY = 0;
+  // 长按录音：当前是否处于"上滑取消"状态（覆盖层变红提示）
+  bool _isCancelling = false;
+  // 语音输入模式：true 时输入栏显示"按住说话"按钮而非文本框
+  bool _voiceMode = false;
 
   // 当前播放中的语音消息 ID（用于气泡更新播放状态）
   int? _playingVoiceMsgId;
@@ -170,7 +179,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     _videoPlayers.clear();
     // 停止音频播放
     _audioPlayer.stop();
-    // 停止录音（如有）
+    // 停止录音计时器与录音（如有）
+    _recordTimer?.cancel();
     if (_isRecording) {
       _recorder.stop();
     }
@@ -487,8 +497,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     }
   }
 
-  /// 开始录音
-  Future<void> _startRecording() async {
+  /// 长按开始录音（微信风格：按住说话）
+  Future<void> _onRecordStart(double globalY) async {
     try {
       if (!await _recorder.hasPermission()) {
         if (!mounted) return;
@@ -503,9 +513,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         _isRecording = true;
         _recordingPath = path;
         _recordDuration = Duration.zero;
+        _recordStartY = globalY;
+        _isCancelling = false;
       });
-      // 定时更新录音时长
-      Timer.periodic(const Duration(seconds: 1), (timer) {
+      // 每秒刷新录音时长（覆盖层显示）
+      _recordTimer?.cancel();
+      _recordTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
         if (!mounted || !_isRecording) {
           timer.cancel();
           return;
@@ -522,22 +535,98 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     }
   }
 
-  /// 停止录音并上传
-  Future<void> _stopRecording() async {
+  /// 长按移动：判断是否上滑进入取消区域
+  void _onRecordMove(double globalY) {
+    if (!_isRecording) return;
+    // 上滑超过 80px 进入取消状态
+    final shouldCancel = (_recordStartY - globalY) > 80;
+    if (shouldCancel != _isCancelling) {
+      setState(() => _isCancelling = shouldCancel);
+    }
+  }
+
+  /// 长按结束：根据是否处于取消状态决定发送或丢弃
+  Future<void> _onRecordEnd() async {
+    if (!_isRecording) return;
+    _recordTimer?.cancel();
+    _recordTimer = null;
+
+    final duration = _recordDuration ?? Duration.zero;
+    final wasCancelling = _isCancelling;
+
     try {
-      if (!_isRecording) return;
       final path = await _recorder.stop();
-      setState(() => _isRecording = false);
+      setState(() {
+        _isRecording = false;
+        _isCancelling = false;
+      });
+
+      // 取消：直接丢弃录音文件
+      if (wasCancelling) {
+        if (path != null) {
+          final f = File(path);
+          if (await f.exists()) await f.delete();
+        }
+        return;
+      }
+
+      // 时长不足 1 秒：提示太短
+      if (duration.inSeconds < 1) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context)!.recordingTooShort)),
+        );
+        if (path != null) {
+          final f = File(path);
+          if (await f.exists()) await f.delete();
+        }
+        return;
+      }
+
+      // 正常发送：上传 + 编码时长 + 直接发送（跳过预览）
       if (path == null) return;
-      // 上传语音并发送
       final file = File(path);
-      _onMediaPicked(file, 'voice');
+      _uploadAndSendVoice(file, duration.inSeconds);
     } catch (e) {
+      setState(() {
+        _isRecording = false;
+        _isCancelling = false;
+      });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${AppLocalizations.of(context)!.voiceStopFailed}: $e')),
       );
     }
+  }
+
+  /// 上传语音文件并直接发送（携带时长编码）
+  void _uploadAndSendVoice(File file, int durationSeconds) {
+    final l10n = AppLocalizations.of(context)!;
+    final service = ChatService(context.read<AuthProvider>().apiClient);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${l10n.uploading}...')),
+    );
+    service.uploadMedia(file, 'voice').then((result) {
+      if (!mounted) return;
+      if (result == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.uploadFailed)),
+        );
+        return;
+      }
+      // 编码 content 为 "url|秒数" 格式
+      final encodedContent = VoiceContentCodec.encode(result.url, durationSeconds);
+      // 直接发送（跳过预览步骤）
+      final auth = context.read<AuthProvider>();
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final scaffoldMessenger = ScaffoldMessenger.of(context);
+      _doSendMedia('voice', encodedContent, null, now, auth, scaffoldMessenger, l10n);
+    }).catchError((e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${l10n.uploadFailed}: $e')),
+      );
+    });
   }
 
   /// 发送消息（含文本 / 图片 / 视频 / 文件 / 语音）
@@ -900,33 +989,39 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
-          // 预览区域
-          if (_pendingMediaType != 'text' && _pendingMediaUrl != null)
-            _buildMediaPreview(theme),
-          // 消息区：有背景图时用 Stack 把图片垫在列表下方
-          Expanded(
-            child: _chatBackgroundPath != null
-                ? Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      // 背景图铺满消息区
-                      Image.file(
-                        File(_chatBackgroundPath!),
-                        fit: BoxFit.cover,
-                      ),
-                      // 半透明遮罩提升文字可读性
-                      const DecoratedBox(
-                        decoration: BoxDecoration(color: Color(0x66000000)),
-                      ),
-                      // 消息列表叠在背景之上
-                      _buildMessageBody(theme, l10n),
-                    ],
-                  )
-                : _buildMessageBody(theme, l10n),
+          Column(
+            children: [
+              // 预览区域
+              if (_pendingMediaType != 'text' && _pendingMediaUrl != null)
+                _buildMediaPreview(theme),
+              // 消息区：有背景图时用 Stack 把图片垫在列表下方
+              Expanded(
+                child: _chatBackgroundPath != null
+                    ? Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          // 背景图铺满消息区
+                          Image.file(
+                            File(_chatBackgroundPath!),
+                            fit: BoxFit.cover,
+                          ),
+                          // 半透明遮罩提升文字可读性
+                          const DecoratedBox(
+                            decoration: BoxDecoration(color: Color(0x66000000)),
+                          ),
+                          // 消息列表叠在背景之上
+                          _buildMessageBody(theme, l10n),
+                        ],
+                      )
+                    : _buildMessageBody(theme, l10n),
+              ),
+              _buildInputBar(theme, l10n),
+            ],
           ),
-          _buildInputBar(theme, l10n),
+          // 录音中覆盖层：显示时长与上滑取消提示
+          if (_isRecording) _buildRecordingOverlay(l10n),
         ],
       ),
     );
@@ -1586,6 +1681,44 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           ),
           child: Row(
             children: [
+              // 语音/键盘切换按钮：切换"按住说话"与文本输入
+              IconButton(
+                icon: Icon(_voiceMode ? Icons.keyboard : Icons.mic),
+                tooltip: _voiceMode ? l10n.inputMessage : l10n.voice,
+                onPressed: () {
+                  setState(() {
+                    _voiceMode = !_voiceMode;
+                    // 切回文本模式时收起表情面板并聚焦输入框
+                    if (!_voiceMode) {
+                      _showEmojiPanel = false;
+                      _inputFocusNode.requestFocus();
+                    } else {
+                      // 切到语音模式时收起键盘与表情面板
+                      _inputFocusNode.unfocus();
+                      _showEmojiPanel = false;
+                    }
+                  });
+                },
+              ),
+              // 中间区域：语音模式显示"按住说话"按钮，文本模式显示输入框
+              Expanded(
+                child: _voiceMode
+                    ? _buildHoldToTalkButton(theme, l10n)
+                    : TextField(
+                        controller: _controller,
+                        focusNode: _inputFocusNode,
+                        decoration: InputDecoration(
+                          hintText: l10n.inputMessage,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
+                          filled: true,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        ),
+                        maxLines: null,
+                        textCapitalization: TextCapitalization.none,
+                        onSubmitted: (_) => _sendMessage(),
+                      ),
+              ),
+              const SizedBox(width: 4),
               // 表情按钮
               IconButton(
                 icon: const Icon(Icons.emoji_emotions),
@@ -1593,7 +1726,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 onPressed: () {
                   setState(() {
                     _showEmojiPanel = !_showEmojiPanel;
-                    if (!_showEmojiPanel) {
+                    if (_showEmojiPanel) {
+                      // 打开表情面板时收起键盘
+                      _inputFocusNode.unfocus();
+                    } else {
                       _pendingMediaType = 'text';
                       _pendingMediaUrl = null;
                       _pendingMediaFile = null;
@@ -1602,62 +1738,123 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   });
                 },
               ),
-              // 附件按钮
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.attach_file),
-                tooltip: l10n.attach,
-                itemBuilder: (_) => [
-                  PopupMenuItem(value: 'image', child: Row(children: [const Icon(Icons.photo_library, size: 18), const SizedBox(width: 8), Text(l10n.image)])),
-                  PopupMenuItem(value: 'video', child: Row(children: [const Icon(Icons.videocam, size: 18), const SizedBox(width: 8), Text(l10n.video)])),
-                  PopupMenuItem(value: 'file', child: Row(children: [const Icon(Icons.insert_drive_file, size: 18), const SizedBox(width: 8), Text(l10n.file)])),
-                ],
-                onSelected: (type) {
-                  setState(() {
-                    _showEmojiPanel = false;
-                    _pendingMediaType = type;
-                  });
-                  _onAttachTap();
-                },
-              ),
-              Expanded(
-                child: TextField(
-                  controller: _controller,
-                  focusNode: _inputFocusNode,
-                  decoration: InputDecoration(
-                    hintText: l10n.inputMessage,
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
-                    filled: true,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  ),
-                  maxLines: null,
-                  textCapitalization: TextCapitalization.none,
-                  onSubmitted: (_) => _sendMessage(),
+              // 附件按钮（语音模式下隐藏，避免误触；文本模式下显示）
+              if (!_voiceMode)
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.attach_file),
+                  tooltip: l10n.attach,
+                  itemBuilder: (_) => [
+                    PopupMenuItem(value: 'image', child: Row(children: [const Icon(Icons.photo_library, size: 18), const SizedBox(width: 8), Text(l10n.image)])),
+                    PopupMenuItem(value: 'video', child: Row(children: [const Icon(Icons.videocam, size: 18), const SizedBox(width: 8), Text(l10n.video)])),
+                    PopupMenuItem(value: 'file', child: Row(children: [const Icon(Icons.insert_drive_file, size: 18), const SizedBox(width: 8), Text(l10n.file)])),
+                  ],
+                  onSelected: (type) {
+                    setState(() {
+                      _showEmojiPanel = false;
+                      _pendingMediaType = type;
+                    });
+                    _onAttachTap();
+                  },
                 ),
-              ),
-              const SizedBox(width: 4),
-              // 语音按钮：长按录音，松开发送
-              if (!_isRecording)
+              // 发送按钮：仅在文本模式且输入框有内容时显示
+              if (!_voiceMode)
                 IconButton(
-                  icon: const Icon(Icons.mic),
-                  tooltip: l10n.voice,
-                  onPressed: () => _startRecording(),
-                )
-              else
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  tooltip: l10n.cancel,
-                  onPressed: () => _stopRecording(),
+                  icon: const Icon(Icons.send_rounded),
+                  color: theme.colorScheme.primary,
+                  tooltip: l10n.send,
+                  onPressed: _sendMessage,
                 ),
-              IconButton(
-                icon: const Icon(Icons.send_rounded),
-                color: theme.colorScheme.primary,
-                tooltip: l10n.send,
-                onPressed: _sendMessage,
-              ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  /// "按住说话"按钮：长按开始录音，移动判断上滑取消，松开发送/取消
+  Widget _buildHoldToTalkButton(ThemeData theme, AppLocalizations l10n) {
+    return GestureDetector(
+      // 按下：记录起点 Y 并开始录音
+      onLongPressStart: (details) {
+        _onRecordStart(details.globalPosition.dy);
+      },
+      // 移动：判断是否上滑进入取消区域
+      onLongPressMoveUpdate: (details) {
+        _onRecordMove(details.globalPosition.dy);
+      },
+      // 松开：发送或取消
+      onLongPressEnd: (_) {
+        _onRecordEnd();
+      },
+      // 长按被系统取消时也要收尾（避免录音状态残留）
+      onLongPressCancel: () {
+        if (_isRecording) _onRecordEnd();
+      },
+      child: Container(
+        height: 40,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          // 录音中按钮变色提示正在录音
+          color: _isRecording
+              ? theme.colorScheme.primary.withValues(alpha: 0.25)
+              : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Text(
+          _isRecording ? l10n.releaseToSend : l10n.holdToTalk,
+          style: TextStyle(
+            color: _isRecording ? theme.colorScheme.primary : Colors.white70,
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 录音中覆盖层：显示录音时长与提示（上滑取消时变红）
+  Widget _buildRecordingOverlay(AppLocalizations l10n) {
+    final seconds = (_recordDuration ?? Duration.zero).inSeconds;
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: Container(
+          color: Colors.black54,
+          alignment: Alignment.center,
+          child: Container(
+            width: 160,
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+            decoration: BoxDecoration(
+              // 取消状态变红色警示
+              color: _isCancelling ? const Color(0xCCB71C1C) : const Color(0xCC333333),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // 麦克风图标（取消状态显示删除图标）
+                Icon(
+                  _isCancelling ? Icons.delete_outline : Icons.mic,
+                  color: Colors.white,
+                  size: 40,
+                ),
+                const SizedBox(height: 12),
+                // 录音时长
+                Text(
+                  '$seconds"',
+                  style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                // 提示文字：上滑取消 / 松开发送
+                Text(
+                  _isCancelling ? l10n.releaseToCancel : l10n.releaseToSend,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 

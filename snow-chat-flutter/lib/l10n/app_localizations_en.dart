@@ -506,6 +506,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get resetToDefault => 'Reset to Default';
 
   @override
+  String get holdToTalk => 'Hold to Talk';
+
+  @override
+  String get releaseToSend => 'Release to Send';
+
+  @override
+  String get releaseToCancel => 'Release to cancel';
+
+  @override
+  String get recordingTooShort => 'Recording too short';
+
+  @override
   String get emoji => 'Emoji';
 
   @override

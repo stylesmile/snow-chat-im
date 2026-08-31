@@ -506,6 +506,18 @@ class AppLocalizationsKo extends AppLocalizations {
   String get resetToDefault => '기본으로 복원';
 
   @override
+  String get holdToTalk => '길게 눌러 말하기';
+
+  @override
+  String get releaseToSend => '놓아서 보내기';
+
+  @override
+  String get releaseToCancel => '손가락을 놓아 취소';
+
+  @override
+  String get recordingTooShort => '녹음이 너무 짧습니다';
+
+  @override
   String get emoji => 'Emoji';
 
   @override
