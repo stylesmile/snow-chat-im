@@ -434,6 +434,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get noSearchResult => '該当する結果がありません';
 
   @override
+  String get findChatRecord => 'チャット履歴を検索';
+
+  @override
   String get friendRequestAccepted => '友達リクエストが承認されました';
 
   @override

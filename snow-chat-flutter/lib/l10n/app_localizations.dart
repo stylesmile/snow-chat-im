@@ -946,6 +946,12 @@ abstract class AppLocalizations {
   /// **'No results found'**
   String get noSearchResult;
 
+  /// Single chat settings find chat records entry
+  ///
+  /// In en, this message translates to:
+  /// **'Search chat records'**
+  String get findChatRecord;
+
   /// Friend request accepted notification
   ///
   /// In en, this message translates to:

@@ -273,6 +273,8 @@
   "@searchChatHistory": {"description": "検索画面のチャット履歴グループタイトル"},
   "noSearchResult": "該当する結果がありません",
   "@noSearchResult": {"description": "検索結果が無い場合のメッセージ"},
+  "findChatRecord": "チャット履歴を検索",
+  "@findChatRecord": {"description": "単チャット設定のチャット履歴検索エントリ"},
   "@search": {"description": "検索ボタン"},
   "friendRequestAccepted": "友達リクエストが承認されました",
   "@friendRequestAccepted": {"description": "友達リクエスト承認通知"},

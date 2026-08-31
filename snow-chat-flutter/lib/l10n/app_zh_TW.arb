@@ -273,6 +273,8 @@
   "@searchChatHistory": {"description": "搜尋頁聊天記錄分組標題"},
   "noSearchResult": "未找到相關內容",
   "@noSearchResult": {"description": "搜尋無結果提示"},
+  "findChatRecord": "查找聊天記錄",
+  "@findChatRecord": {"description": "單聊設定頁查找聊天記錄入口"},
   "@search": {"description": "搜尋按鈕"},
   "friendRequestAccepted": "已通過好友申請",
   "@friendRequestAccepted": {"description": "好友請求已通過"},

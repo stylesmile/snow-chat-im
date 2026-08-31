@@ -281,6 +281,8 @@
   "@searchChatHistory": {"description": "Chat history group title in search screen"},
   "noSearchResult": "No results found",
   "@noSearchResult": {"description": "Empty search result message"},
+  "findChatRecord": "Search chat records",
+  "@findChatRecord": {"description": "Single chat settings find chat records entry"},
   "@search": {"description": "Search button"},
   "friendRequestAccepted": "Friend request accepted",
   "@friendRequestAccepted": {"description": "Friend request accepted notification"},

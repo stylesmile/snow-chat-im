@@ -279,6 +279,8 @@
   "@searchChatHistory": {"description": "搜索页聊天记录分组标题"},
   "noSearchResult": "未找到相关内容",
   "@noSearchResult": {"description": "搜索无结果提示"},
+  "findChatRecord": "查找聊天记录",
+  "@findChatRecord": {"description": "单聊设置页查找聊天记录入口"},
   "@search": {"description": "搜索按钮"},
   "friendRequestAccepted": "已通过好友申请",
   "@friendRequestAccepted": {"description": "好友请求已通过"},

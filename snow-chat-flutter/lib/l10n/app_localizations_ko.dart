@@ -434,6 +434,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get noSearchResult => '검색 결과가 없습니다';
 
   @override
+  String get findChatRecord => '채팅 기록 찾기';
+
+  @override
   String get friendRequestAccepted => '친구 요청이 수락되었습니다';
 
   @override

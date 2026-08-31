@@ -434,6 +434,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noSearchResult => '未找到相关内容';
 
   @override
+  String get findChatRecord => '查找聊天记录';
+
+  @override
   String get friendRequestAccepted => '已通过好友申请';
 
   @override
@@ -1024,6 +1027,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get noSearchResult => '未找到相關內容';
+
+  @override
+  String get findChatRecord => '查找聊天記錄';
 
   @override
   String get friendRequestAccepted => '已通過好友申請';

@@ -273,6 +273,8 @@
   "@searchChatHistory": {"description": "검색 화면의 채팅 기록 그룹 제목"},
   "noSearchResult": "검색 결과가 없습니다",
   "@noSearchResult": {"description": "검색 결과 없음 안내"},
+  "findChatRecord": "채팅 기록 찾기",
+  "@findChatRecord": {"description": "1:1 채팅 설정의 채팅 기록 찾기 항목"},
   "@search": {"description": "검색 버튼"},
   "friendRequestAccepted": "친구 요청이 수락되었습니다",
   "@friendRequestAccepted": {"description": "친구 요청 수락 알림"},

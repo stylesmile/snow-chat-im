@@ -434,6 +434,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noSearchResult => 'No results found';
 
   @override
+  String get findChatRecord => 'Search chat records';
+
+  @override
   String get friendRequestAccepted => 'Friend request accepted';
 
   @override
