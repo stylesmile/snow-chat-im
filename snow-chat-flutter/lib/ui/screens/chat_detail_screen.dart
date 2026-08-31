@@ -131,7 +131,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   // 录音状态（record 4.4.4 使用 Record 类，非 AudioRecorder）
   final Record _recorder = Record();
-  String? _recordingPath;
   bool _isRecording = false;
   Duration? _recordDuration;
   // 长按录音：录音计时器（每秒刷新覆盖层时长）
@@ -511,7 +510,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       await _recorder.start(path: path);
       setState(() {
         _isRecording = true;
-        _recordingPath = path;
         _recordDuration = Duration.zero;
         _recordStartY = globalY;
         _isCancelling = false;
@@ -1064,12 +1062,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               );
   }
 
-  /// 构建媒体预览组件
+  /// 构建媒体预览组件（图片/视频/文件；语音已改为直接发送，不走预览）
   Widget _buildMediaPreview(ThemeData theme) {
     final l10n = AppLocalizations.of(context)!;
     final isImage = _pendingMediaType == 'image';
     final isVideo = _pendingMediaType == 'video';
-    final isVoice = _pendingMediaType == 'voice';
     return Container(
       padding: const EdgeInsets.all(8),
       color: theme.cardColor,
@@ -1094,9 +1091,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   )
                 : isVideo
                     ? const Icon(Icons.videocam, color: Colors.white54)
-                    : isVoice
-                        ? const Icon(Icons.mic, color: Colors.white54)
-                        : const Icon(Icons.insert_drive_file, color: Colors.white54),
+                    : const Icon(Icons.insert_drive_file, color: Colors.white54),
           ),
           const SizedBox(width: 8),
           if (_pendingFileName != null)
@@ -1107,13 +1102,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 style: const TextStyle(fontSize: 13),
               ),
             ),
-          if (isVoice && _recordDuration != null) ...[
-            const SizedBox(width: 8),
-            Text(
-              '${_recordDuration!.inSeconds}""',
-              style: const TextStyle(fontSize: 13),
-            ),
-          ],
           const SizedBox(width: 8),
           IconButton(
             icon: const Icon(Icons.close, size: 18),
@@ -1124,7 +1112,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 _pendingMediaUrl = null;
                 _pendingMediaFile = null;
                 _pendingFileName = null;
-                _recordDuration = null;
               });
             },
           ),
@@ -1251,41 +1238,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               ],
             ],
           ),
-        'voice' => Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              InkWell(
-                onTap: () => _playVoice(msg.id, msg.content),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      _playingVoiceMsgId == msg.id
-                          ? Icons.stop_circle
-                          : Icons.play_arrow,
-                      color: textColor,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        msg.content.split('/').last, // 简单截断文件名
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: textColor, fontSize: 14),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (msg.createTime != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  app_date.DateUtils.formatTime(msg.createTime),
-                  style: TextStyle(fontSize: 10, color: textColor.withOpacity(0.6)),
-                ),
-              ],
-            ],
-          ),
+        'voice' => _buildVoiceBubble(msg, isMe, textColor),
         'file' => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1432,6 +1385,72 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       final c = _videoPlayers.remove(msgId);
       c?.dispose();
     }
+  }
+
+  /// 语音气泡：显示时长 + 波形图标，点击播放/停止
+  ///
+  /// 微信风格：自己发的语音波形在右侧，对方的在左侧；
+  /// 气泡宽度随时长增加（越长越宽，上限 200）。
+  Widget _buildVoiceBubble(_DisplayMessage msg, bool isMe, Color textColor) {
+    // 解码 content 获取 URL 与时长
+    final voice = VoiceContentCodec.decode(msg.content);
+    final isPlaying = _playingVoiceMsgId == msg.id;
+    // 气泡宽度随时长增加（模拟微信：越长越宽，上限 200）
+    final bubbleWidth = (80.0 + voice.durationSeconds * 4).clamp(80.0, 200.0);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          onTap: () => _playVoice(msg.id, voice.url),
+          child: Container(
+            width: bubbleWidth,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              // 自己发的：时长在左，波形在右；对方的：波形在左，时长在右
+              mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+              children: isMe
+                  ? [
+                      // 时长文本
+                      Text(
+                        VoiceContentCodec.formatDuration(voice.durationSeconds),
+                        style: TextStyle(color: textColor, fontSize: 14),
+                      ),
+                      const SizedBox(width: 8),
+                      // 波形/播放图标
+                      Icon(
+                        isPlaying ? Icons.stop_circle : Icons.graphic_eq,
+                        color: textColor,
+                        size: 22,
+                      ),
+                    ]
+                  : [
+                      // 波形/播放图标
+                      Icon(
+                        isPlaying ? Icons.stop_circle : Icons.graphic_eq,
+                        color: textColor,
+                        size: 22,
+                      ),
+                      const SizedBox(width: 8),
+                      // 时长文本
+                      Text(
+                        VoiceContentCodec.formatDuration(voice.durationSeconds),
+                        style: TextStyle(color: textColor, fontSize: 14),
+                      ),
+                    ],
+            ),
+          ),
+        ),
+        if (msg.createTime != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            app_date.DateUtils.formatTime(msg.createTime),
+            style: TextStyle(fontSize: 10, color: textColor.withValues(alpha: 0.6)),
+          ),
+        ],
+      ],
+    );
   }
 
   /// 播放语音消息
