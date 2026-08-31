@@ -34,6 +34,7 @@ import '../../services/chat_background_service.dart';
 import '../../core/utils/voice_content_codec.dart';
 import '../../models/friend_model.dart';
 import 'group_detail_screen.dart';
+import 'single_chat_settings_screen.dart';
 import 'image_viewer_screen.dart';
 import '../../core/utils/date_utils.dart' as app_date;
 
@@ -965,14 +966,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         elevation: 1,
         title: Text(displayName),
         actions: [
-          // 清空本地聊天记录入口（单聊 / 群聊通用）
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            tooltip: l10n.clearChat,
-            onPressed: _confirmClearChat,
-          ),
-          // 群聊专属：进入群信息页
-          if (widget.targetType == 'group')
+          if (widget.targetType == 'group') ...[
+            // 群聊：提供清空记录 + 群聊信息入口
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              tooltip: l10n.clearChat,
+              onPressed: _confirmClearChat,
+            ),
             IconButton(
               icon: const Icon(Icons.more_vert),
               tooltip: '群聊信息',
@@ -985,6 +985,25 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 );
               },
             ),
+          ] else ...[
+            // 单聊：清空/置顶/免打扰/投诉等集中到单聊设置页
+            IconButton(
+              icon: const Icon(Icons.more_vert),
+              tooltip: l10n.chatSettings,
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SingleChatSettingsScreen(
+                      targetId: widget.targetId,
+                      targetType: widget.targetType,
+                      targetName: widget.targetName,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
         ],
       ),
       body: Stack(

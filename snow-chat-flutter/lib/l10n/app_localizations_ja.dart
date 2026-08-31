@@ -167,6 +167,21 @@ class AppLocalizationsJa extends AppLocalizations {
   String get clearChatDone => 'チャット履歴を消去しました';
 
   @override
+  String get chatSettings => 'チャット設定';
+
+  @override
+  String get reportComplaint => '通報';
+
+  @override
+  String get reportHint => '通報理由を入力してください（任意）';
+
+  @override
+  String get reportSubmit => '通報を送信';
+
+  @override
+  String get reportSubmitted => '通報を受け付けました。すぐに確認します';
+
+  @override
   String get save => '保存';
 
   @override

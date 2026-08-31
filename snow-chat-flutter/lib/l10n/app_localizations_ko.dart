@@ -167,6 +167,21 @@ class AppLocalizationsKo extends AppLocalizations {
   String get clearChatDone => '채팅 기록을 지웠습니다';
 
   @override
+  String get chatSettings => '채팅 설정';
+
+  @override
+  String get reportComplaint => '신고';
+
+  @override
+  String get reportHint => '신고 사유를 입력하세요 (선택)';
+
+  @override
+  String get reportSubmit => '신고 전송';
+
+  @override
+  String get reportSubmitted => '신고를 접수했습니다. 곧 확인하겠습니다';
+
+  @override
   String get save => '저장';
 
   @override

@@ -406,11 +406,41 @@ abstract class AppLocalizations {
   /// **'Clear the chat history with {name}? This cannot be undone.'**
   String clearChatConfirmBody(Object name);
 
-  /// Clear chat success message
+  /// Clear success toast
   ///
   /// In en, this message translates to:
   /// **'Chat history cleared'**
   String get clearChatDone;
+
+  /// Single chat settings page title
+  ///
+  /// In en, this message translates to:
+  /// **'Chat Settings'**
+  String get chatSettings;
+
+  /// Complaint entry
+  ///
+  /// In en, this message translates to:
+  /// **'Report'**
+  String get reportComplaint;
+
+  /// Report dialog input hint
+  ///
+  /// In en, this message translates to:
+  /// **'Please describe the reason (optional)'**
+  String get reportHint;
+
+  /// Submit report button
+  ///
+  /// In en, this message translates to:
+  /// **'Submit'**
+  String get reportSubmit;
+
+  /// Report submitted success toast
+  ///
+  /// In en, this message translates to:
+  /// **'We received your report and will handle it soon'**
+  String get reportSubmitted;
 
   /// Save button
   ///

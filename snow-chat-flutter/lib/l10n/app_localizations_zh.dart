@@ -167,6 +167,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get clearChatDone => '聊天记录已清空';
 
   @override
+  String get chatSettings => '聊天设置';
+
+  @override
+  String get reportComplaint => '投诉';
+
+  @override
+  String get reportHint => '请填写投诉原因（选填）';
+
+  @override
+  String get reportSubmit => '提交投诉';
+
+  @override
+  String get reportSubmitted => '已收到您的投诉，我们会尽快处理';
+
+  @override
   String get save => '保存';
 
   @override
@@ -772,6 +787,21 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get clearChatDone => '聊天記錄已清空';
+
+  @override
+  String get chatSettings => '聊天設定';
+
+  @override
+  String get reportComplaint => '投訴';
+
+  @override
+  String get reportHint => '請填寫投訴原因（選填）';
+
+  @override
+  String get reportSubmit => '提交投訴';
+
+  @override
+  String get reportSubmitted => '已收到您的投訴，我們會盡快處理';
 
   @override
   String get save => '儲存';

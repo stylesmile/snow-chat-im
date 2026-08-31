@@ -167,6 +167,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get clearChatDone => 'Chat history cleared';
 
   @override
+  String get chatSettings => 'Chat Settings';
+
+  @override
+  String get reportComplaint => 'Report';
+
+  @override
+  String get reportHint => 'Please describe the reason (optional)';
+
+  @override
+  String get reportSubmit => 'Submit';
+
+  @override
+  String get reportSubmitted => 'We received your report and will handle it soon';
+
+  @override
   String get save => 'Save';
 
   @override
