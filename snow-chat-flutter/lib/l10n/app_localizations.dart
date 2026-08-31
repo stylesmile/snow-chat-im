@@ -664,6 +664,84 @@ abstract class AppLocalizations {
   /// **'Total members'**
   String get totalMembers;
 
+  /// No description provided for @groupNotExist.
+  ///
+  /// In en, this message translates to:
+  /// **'Group not found'**
+  String get groupNotExist;
+
+  /// No description provided for @groupInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Group Info'**
+  String get groupInfo;
+
+  /// No description provided for @groupSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Group Settings'**
+  String get groupSettings;
+
+  /// No description provided for @remove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get remove;
+
+  /// No description provided for @noAddableFriends.
+  ///
+  /// In en, this message translates to:
+  /// **'No friends can be added'**
+  String get noAddableFriends;
+
+  /// No description provided for @selectMembersToAdd.
+  ///
+  /// In en, this message translates to:
+  /// **'Select members to add'**
+  String get selectMembersToAdd;
+
+  /// No description provided for @membersAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Added {count} member(s)'**
+  String membersAdded(Object count);
+
+  /// No description provided for @removeMemberConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove \"{name}\" from the group?'**
+  String removeMemberConfirm(Object name);
+
+  /// No description provided for @memberRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed \"{name}\" from the group'**
+  String memberRemoved(Object name);
+
+  /// No description provided for @peopleCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} people'**
+  String peopleCount(Object count);
+
+  /// No description provided for @membersCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Members ({count})'**
+  String membersCount(Object count);
+
+  /// No description provided for @add.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get add;
+
+  /// No description provided for @addMembersCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Add ({count})'**
+  String addMembersCount(Object count);
+
   /// Chat list title
   ///
   /// In en, this message translates to:

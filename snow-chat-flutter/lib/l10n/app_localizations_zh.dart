@@ -293,6 +293,57 @@ class AppLocalizationsZh extends AppLocalizations {
   String get totalMembers => '总成员数';
 
   @override
+  String get groupNotExist => '群组不存在';
+
+  @override
+  String get groupInfo => '群聊信息';
+
+  @override
+  String get groupSettings => '群聊设置';
+
+  @override
+  String get remove => '移除';
+
+  @override
+  String get noAddableFriends => '没有可添加的好友';
+
+  @override
+  String get selectMembersToAdd => '选择要添加的成员';
+
+  @override
+  String membersAdded(Object count) {
+    return '已添加 $count 位成员';
+  }
+
+  @override
+  String removeMemberConfirm(Object name) {
+    return '确定要将 \"$name\" 移出群聊吗？';
+  }
+
+  @override
+  String memberRemoved(Object name) {
+    return '已将 \"$name\" 移出群聊';
+  }
+
+  @override
+  String peopleCount(Object count) {
+    return '$count 人';
+  }
+
+  @override
+  String membersCount(Object count) {
+    return '群成员 ($count)';
+  }
+
+  @override
+  String get add => '添加';
+
+  @override
+  String addMembersCount(Object count) {
+    return '添加 ($count)';
+  }
+
+  @override
   String get chatList => '会话';
 
   @override
@@ -913,6 +964,57 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get totalMembers => '總成員數';
+
+  @override
+  String get groupNotExist => '群組不存在';
+
+  @override
+  String get groupInfo => '群聊資訊';
+
+  @override
+  String get groupSettings => '群聊設定';
+
+  @override
+  String get remove => '移除';
+
+  @override
+  String get noAddableFriends => '沒有可添加的好友';
+
+  @override
+  String get selectMembersToAdd => '選擇要添加的成員';
+
+  @override
+  String membersAdded(Object count) {
+    return '已添加 $count 位成員';
+  }
+
+  @override
+  String removeMemberConfirm(Object name) {
+    return '確定要將 \"$name\" 移出群聊嗎？';
+  }
+
+  @override
+  String memberRemoved(Object name) {
+    return '已將 \"$name\" 移出群聊';
+  }
+
+  @override
+  String peopleCount(Object count) {
+    return '$count 人';
+  }
+
+  @override
+  String membersCount(Object count) {
+    return '群成員 ($count)';
+  }
+
+  @override
+  String get add => '添加';
+
+  @override
+  String addMembersCount(Object count) {
+    return '添加 ($count)';
+  }
 
   @override
   String get chatList => '會話';

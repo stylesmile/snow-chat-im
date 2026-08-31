@@ -293,6 +293,57 @@ class AppLocalizationsJa extends AppLocalizations {
   String get totalMembers => '総メンバー数';
 
   @override
+  String get groupNotExist => 'グループが存在しません';
+
+  @override
+  String get groupInfo => 'グループ情報';
+
+  @override
+  String get groupSettings => 'グループ設定';
+
+  @override
+  String get remove => '削除';
+
+  @override
+  String get noAddableFriends => '追加できる友達がいません';
+
+  @override
+  String get selectMembersToAdd => '追加するメンバーを選択';
+
+  @override
+  String membersAdded(Object count) {
+    return '$count 人を追加しました';
+  }
+
+  @override
+  String removeMemberConfirm(Object name) {
+    return '\"$name\" をグループから削除しますか？';
+  }
+
+  @override
+  String memberRemoved(Object name) {
+    return '\"$name\" をグループから削除しました';
+  }
+
+  @override
+  String peopleCount(Object count) {
+    return '$count 人';
+  }
+
+  @override
+  String membersCount(Object count) {
+    return 'メンバー ($count)';
+  }
+
+  @override
+  String get add => '追加';
+
+  @override
+  String addMembersCount(Object count) {
+    return '追加 ($count)';
+  }
+
+  @override
   String get chatList => 'チャット';
 
   @override

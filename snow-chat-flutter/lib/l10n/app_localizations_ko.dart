@@ -293,6 +293,57 @@ class AppLocalizationsKo extends AppLocalizations {
   String get totalMembers => '총 멤버 수';
 
   @override
+  String get groupNotExist => '그룹이 존재하지 않습니다';
+
+  @override
+  String get groupInfo => '그룹 정보';
+
+  @override
+  String get groupSettings => '그룹 설정';
+
+  @override
+  String get remove => '제거';
+
+  @override
+  String get noAddableFriends => '추가할 수 있는 친구가 없습니다';
+
+  @override
+  String get selectMembersToAdd => '추가할 멤버 선택';
+
+  @override
+  String membersAdded(Object count) {
+    return '멤버 $count명을 추가했습니다';
+  }
+
+  @override
+  String removeMemberConfirm(Object name) {
+    return '\"$name\" 님을 그룹에서 제거하시겠습니까?';
+  }
+
+  @override
+  String memberRemoved(Object name) {
+    return '\"$name\" 님을 그룹에서 제거했습니다';
+  }
+
+  @override
+  String peopleCount(Object count) {
+    return '$count명';
+  }
+
+  @override
+  String membersCount(Object count) {
+    return '멤버 ($count)';
+  }
+
+  @override
+  String get add => '추가';
+
+  @override
+  String addMembersCount(Object count) {
+    return '추가 ($count)';
+  }
+
+  @override
   String get chatList => '채팅';
 
   @override

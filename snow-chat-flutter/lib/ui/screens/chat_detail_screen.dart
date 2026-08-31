@@ -25,15 +25,13 @@ import '../../core/cache/favorite_cache_manager.dart';
 import '../../models/favorite_model.dart';
 import '../../services/conversation_service.dart';
 import '../../providers/chat_provider.dart';
-import '../widgets/chat_bubble.dart';
 import '../widgets/message_delivery_status.dart';
 import '../widgets/message_action_sheet.dart';
 import '../widgets/forward_picker_sheet.dart';
 import '../../services/contact_service.dart';
 import '../../services/chat_background_service.dart';
 import '../../core/utils/voice_content_codec.dart';
-import '../../models/friend_model.dart';
-import 'group_detail_screen.dart';
+import 'group_settings_screen.dart';
 import 'single_chat_settings_screen.dart';
 import 'image_viewer_screen.dart';
 import '../../core/utils/date_utils.dart' as app_date;
@@ -910,49 +908,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     });
   }
 
-  /// 弹出"清空聊天记录"确认对话框，确认后清空该会话的本地消息。
-  ///
-  /// 只清除本机缓存的该会话消息（DB + 内存），不影响双方服务器中的消息，
-  /// 也不删除会话本身；清空后消息列表立即置空。
-  Future<void> _confirmClearChat() async {
-    final l10n = AppLocalizations.of(context)!;
-    // 弹出确认对话框，防止误操作；取消则直接返回
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(l10n.clearChatConfirmTitle),
-        content: Text(l10n.clearChatConfirmBody(widget.targetName ?? l10n.myFriends)),
-        actions: [
-          // 取消清空
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l10n.cancel),
-          ),
-          // 确认清空
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(l10n.confirm),
-          ),
-        ],
-      ),
-    );
-    // 用户取消时不做任何操作
-    if (confirmed != true) return;
-    if (!mounted) return;
-    // 清除数据库与该会话的内存缓存
-    await MessageCacheManager().clearSessionMessages(_sessionId);
-    if (!mounted) return;
-    // 立即清空界面消息列表并重置分页状态
-    setState(() {
-      _messages.clear();
-      _hasMore = false;
-    });
-    // 提示清空成功
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l10n.clearChatDone)),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -967,20 +922,19 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         title: Text(displayName),
         actions: [
           if (widget.targetType == 'group') ...[
-            // 群聊：提供清空记录 + 群聊信息入口
-            IconButton(
-              icon: const Icon(Icons.delete_outline),
-              tooltip: l10n.clearChat,
-              onPressed: _confirmClearChat,
-            ),
+            // 群聊：设置入口（群聊信息/查找记录/置顶/免打扰/清空记录等集中到群聊设置页）
             IconButton(
               icon: const Icon(Icons.more_vert),
-              tooltip: '群聊信息',
+              tooltip: l10n.groupSettings,
               onPressed: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => GroupDetailScreen(groupId: widget.targetId),
+                    builder: (_) => GroupSettingsScreen(
+                      groupId: widget.targetId,
+                      targetType: widget.targetType,
+                      targetName: widget.targetName,
+                    ),
                   ),
                 );
               },

@@ -6,6 +6,7 @@ import '../../services/contact_service.dart';
 import '../../models/group_model.dart';
 import '../../models/friend_model.dart';
 import '../widgets/avatar_widget.dart';
+import '../../l10n/app_localizations.dart';
 
 /// 群聊详情页面：显示群信息、成员列表，群主可管理
 class GroupDetailScreen extends StatefulWidget {
@@ -66,6 +67,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
   /// 添加成员
   Future<void> _addMembers() async {
+    final l10n = AppLocalizations.of(context)!;
     final auth = context.read<AuthProvider>();
     if (auth.userId == null) return;
 
@@ -79,7 +81,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
     if (availableFriends.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('没有可添加的好友')),
+        SnackBar(content: Text(l10n.noAddableFriends)),
       );
       return;
     }
@@ -89,7 +91,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       context: context,
       builder: (ctx) => _MemberSelectDialog(
         friends: availableFriends,
-        title: '选择要添加的成员',
+        title: l10n.selectMembersToAdd,
       ),
     );
 
@@ -99,7 +101,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     final success = await service.addMembers(widget.groupId, selectedIds);
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已添加 ${selectedIds.length} 位成员')),
+        SnackBar(content: Text(l10n.membersAdded(selectedIds.length))),
       );
       _loadGroupInfo(); // 刷新列表
     }
@@ -107,17 +109,18 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
   /// 移除成员
   Future<void> _removeMember(int userId, String name) async {
+    final l10n = AppLocalizations.of(context)!;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('移除成员'),
-        content: Text('确定要将 "$name" 移出群聊吗？'),
+        title: Text(l10n.removeMember),
+        content: Text(l10n.removeMemberConfirm(name)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.cancel)),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('移除'),
+            child: Text(l10n.remove),
           ),
         ],
       ),
@@ -132,7 +135,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     final success = await service.removeMembers(widget.groupId, [userId]);
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('已将 "$name" 移出群聊')),
+        SnackBar(content: Text(l10n.memberRemoved(name))),
       );
       _loadGroupInfo();
     }
@@ -140,15 +143,16 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('群聊信息'),
+        title: Text(l10n.groupInfo),
         actions: [
           // 群主可以添加成员
           if (_isOwner)
             IconButton(
               icon: const Icon(Icons.person_add),
-              tooltip: '添加成员',
+              tooltip: l10n.addMember,
               onPressed: _addMembers,
             ),
         ],
@@ -156,7 +160,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _group == null
-              ? const Center(child: Text('群组不存在'))
+              ? Center(child: Text(l10n.groupNotExist))
               : ListView(
                   children: [
                     // 群名称
@@ -171,7 +175,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                           ),
                         ),
                         title: Text(_group!.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
-                        subtitle: Text('${_members.length} 人'),
+                        subtitle: Text(l10n.peopleCount(_members.length)),
                       ),
                     ]),
                     const SizedBox(height: 12),
@@ -182,12 +186,12 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('群成员 (${_members.length})', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
+                            Text(l10n.membersCount(_members.length), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500)),
                             if (_isOwner)
                               TextButton.icon(
                                 onPressed: _addMembers,
                                 icon: const Icon(Icons.add, size: 18),
-                                label: const Text('添加'),
+                                label: Text(l10n.add),
                               ),
                           ],
                         ),
@@ -295,6 +299,7 @@ class _MemberSelectDialogState extends State<_MemberSelectDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return AlertDialog(
       title: Text(widget.title),
       content: SizedBox(
@@ -327,12 +332,12 @@ class _MemberSelectDialogState extends State<_MemberSelectDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('取消')),
+        TextButton(onPressed: () => Navigator.pop(context), child: Text(l10n.cancel)),
         ElevatedButton(
           onPressed: _selectedIds.isEmpty
               ? null
               : () => Navigator.pop(context, _selectedIds.toList()),
-          child: Text('添加 (${_selectedIds.length})'),
+          child: Text(l10n.addMembersCount(_selectedIds.length)),
         ),
       ],
     );

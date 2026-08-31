@@ -293,6 +293,57 @@ class AppLocalizationsEn extends AppLocalizations {
   String get totalMembers => 'Total members';
 
   @override
+  String get groupNotExist => 'Group not found';
+
+  @override
+  String get groupInfo => 'Group Info';
+
+  @override
+  String get groupSettings => 'Group Settings';
+
+  @override
+  String get remove => 'Remove';
+
+  @override
+  String get noAddableFriends => 'No friends can be added';
+
+  @override
+  String get selectMembersToAdd => 'Select members to add';
+
+  @override
+  String membersAdded(Object count) {
+    return 'Added $count member(s)';
+  }
+
+  @override
+  String removeMemberConfirm(Object name) {
+    return 'Remove \"$name\" from the group?';
+  }
+
+  @override
+  String memberRemoved(Object name) {
+    return 'Removed \"$name\" from the group';
+  }
+
+  @override
+  String peopleCount(Object count) {
+    return '$count people';
+  }
+
+  @override
+  String membersCount(Object count) {
+    return 'Members ($count)';
+  }
+
+  @override
+  String get add => 'Add';
+
+  @override
+  String addMembersCount(Object count) {
+    return 'Add ($count)';
+  }
+
+  @override
   String get chatList => 'Chats';
 
   @override
