@@ -206,6 +206,31 @@ class MessageCacheManager {
         .toList();
   }
 
+  /// 在指定会话内搜索本地消息：仅匹配 [sessionId] 中内容含 [keyword] 的消息。
+  ///
+  /// 供"查找聊天记录"使用：把搜索范围限定在当前会话，避免跨会话干扰。
+  /// 使用 SQL 参数化 + LIKE 模糊匹配，防止 SQL 注入；按时间倒序返回最新命中。
+  Future<List<MessageSearchHit>> searchMessagesInSession(
+    String sessionId,
+    String keyword, {
+    int limit = 50,
+  }) async {
+    final db = _requireDb();
+    // 构造模糊匹配表达式，%kw% 表示任意前缀/后缀
+    final pattern = '%$keyword%';
+    final rows = await db.query(
+      _messagesTable(),
+      where: 'session_id = ? AND content LIKE ?',
+      whereArgs: [sessionId, pattern],
+      orderBy: 'create_time DESC', // 最新命中优先
+      limit: limit,
+    );
+    // 转换为"会话ID + 消息"结构；sessionId 恒定为目标会话
+    return rows
+        .map((r) => MessageSearchHit(sessionId: sessionId, message: _fromMap(r)))
+        .toList();
+  }
+
   /// 清空内存缓存（例如切换账号时调用）。
   void clearMemory() => _memory.clear();
 

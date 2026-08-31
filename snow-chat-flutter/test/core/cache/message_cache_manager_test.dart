@@ -171,6 +171,34 @@ void main() {
         expect(hits, isEmpty);
       });
     });
+
+    group('searchMessagesInSession', () {
+      test('returns matching messages within the target session only', () async {
+        // 准备：目标会话两条命中 + 其它会话一条命中，验证按会话隔离
+        await manager.appendMessage('u_10_42', _message(id: 1, fromUserId: 10, toUserId: 42, content: '你好 西瓜', createTime: 1000));
+        await manager.appendMessage('u_10_42', _message(id: 2, fromUserId: 42, toUserId: 10, content: '晚上吃西瓜吗', createTime: 2000));
+        await manager.appendMessage('u_10_55', _message(id: 3, fromUserId: 10, toUserId: 55, content: '西瓜在这儿', createTime: 3000));
+
+        // 执行：仅在会话 u_10_42 内搜索"西瓜"
+        final hits = await manager.searchMessagesInSession('u_10_42', '西瓜');
+
+        // 验证：仅返回目标会话的命中，且按时间倒序（最新在前）
+        expect(hits.length, 2);
+        expect(hits.first.message.id, 2);
+        expect(hits.last.message.id, 1);
+      });
+
+      test('returns empty for a session with no matching content', () async {
+        // 准备：目标会话中无关键词命中
+        await manager.appendMessage('u_10_42', _message(id: 1, fromUserId: 10, toUserId: 42, content: '你好', createTime: 1000));
+
+        // 执行：在会话内搜索不存在的关键词
+        final hits = await manager.searchMessagesInSession('u_10_42', '苹果');
+
+        // 验证：无命中
+        expect(hits, isEmpty);
+      });
+    });
   });
 }
 
