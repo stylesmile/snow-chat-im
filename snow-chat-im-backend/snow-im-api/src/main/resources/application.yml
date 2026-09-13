@@ -1,6 +1,12 @@
 spring:
   profiles:
-    active: test
+    # 默认激活 dev：dev/prod 才是当前实际维护的 profile
+    # 注意：原用的 test profile 已在提交 4ba09f3「优化sql」中连同 application-test.yml 一并删除，
+    #      此处若继续指向 test，启动时会因找不到任何数据源配置而失败：
+    #      "Failed to configure a DataSource: 'url' attribute is not specified"
+    # 需要临时切换环境时用命令行/环境变量覆盖即可（优先级高于此处）：
+    #       --spring.profiles.active=prod  或  SPRING_PROFILES_ACTIVE=prod
+    active: dev
   application:
     name: snow-im-api
   main:

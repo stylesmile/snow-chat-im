@@ -5,7 +5,10 @@ spring:
   datasource:
     type: com.alibaba.druid.pool.DruidDataSource
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/snow_chat_im?useUnicode=true&characterEncoding=utf8mb4&useSSL=false&serverTimezone=GMT&allowPublicKeyRetrieval=true
+    # characterEncoding 必须填 Java 字符集名：utf8mb4 是 MySQL 的字符集名，Java 不认识，
+    # Connector/J 8.0.32 会直接抛 WrongArgumentException: Unsupported character encoding 'utf8mb4'；
+    # 填 UTF-8 后由 MySQL 8 服务端默认排序规则映射为 utf8mb4，实际存储语义不变（仍支持 emoji）
+    url: jdbc:mysql://localhost:3306/snow_chat_im?useUnicode=true&characterEncoding=UTF-8&useSSL=false&serverTimezone=GMT&allowPublicKeyRetrieval=true
     username: root
     password: 12345678
     druid:
