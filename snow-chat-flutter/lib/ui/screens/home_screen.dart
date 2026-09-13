@@ -304,7 +304,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       backgroundColor: AppTheme.background,
       // 无阴影，扁平风格
       elevation: 0,
-      title: Text(l10n.chat),
+      title: Text(l10n.chatList),
       centerTitle: false,
       actions: [
         // 添加联系人按钮
