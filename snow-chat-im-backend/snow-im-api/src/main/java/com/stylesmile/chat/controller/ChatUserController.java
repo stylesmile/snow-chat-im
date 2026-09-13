@@ -176,6 +176,36 @@ public class ChatUserController {
     }
 
     /**
+     * 按任意 userId 查询用户公开信息（扫码添加好友预览用）
+     *
+     * <p>与 {@code /info} 的区别：这里按 URL 传入的 userId 查询，而非从 JWT token
+     * 解析当前用户，且不做登录态校验——因为扫码场景需要查看【对方】的资料。
+     *
+     * <p>avatar 处理逻辑与 /info 保持一致：若以 {@code avatars/} 开头则视为 storage key，
+     * 实时生成 pre-signed URL；否则原样返回。</p>
+     *
+     * @param userId 目标用户 ID（来自二维码内容）
+     * @return 该用户公开信息；不存在时返回失败
+     */
+    @Operation(summary = "按用户ID查询公开信息", description = "扫码添加好友时按userId查询对方资料（无需登录态校验）")
+    @ApiResponse(responseCode = "200", description = "查询成功")
+    @ApiResponse(responseCode = "500", description = "用户不存在")
+    @GetMapping("/infoById")
+    public Result<ChatUser> infoById(@RequestParam Integer userId, HttpServletRequest request) {
+        ChatUser user = chatUserService.getUserById(userId);
+        if (user == null) {
+            return Result.failMessage("用户不存在");
+        }
+        // 若 avatar 是 storage key，实时生成有效 URL（与 /info 一致）
+        String avatar = user.getAvatar();
+        if (avatar != null && avatar.startsWith("avatars/")) {
+            String url = fileStorageService.generateAvatarUrl(avatar);
+            user.setAvatar(url);
+        }
+        return Result.success(user);
+    }
+
+    /**
      * 更新用户资料（昵称、头像、签名、性别）
      */
     @Operation(summary = "更新用户资料", description = "更新用户昵称、头像、签名、性别")

@@ -196,6 +196,81 @@ class ChatUserControllerTest {
         verify(chatUserService).updateById(user);
     }
 
+    // =========================================================================
+    // infoById —— 扫码预览：按任意 userId 查询公开用户信息（不做 JWT 校验）
+    // =========================================================================
+
+    /**
+     * infoById 按传入 userId 查询用户并返回，不依赖 request 令牌。
+     */
+    @Test
+    void infoByIdReturnsUserByGivenId() {
+        // 准备：目标用户存在于库中（id 用 Long 字面量避免装箱编译问题）
+        ChatUser user = new ChatUser();
+        user.setId(7L);
+        user.setUsername("bob");
+        user.setNickname("Bob");
+        when(chatUserService.getUserById(eq(7))).thenReturn(user);
+
+        // 执行：按 userId 查询（不传入 request 令牌）
+        Result<ChatUser> result = controller.infoById(7, null);
+
+        // 验证：成功且返回该用户
+        assertSuccess(result);
+        assertEquals(user, result.getData());
+    }
+
+    /**
+     * infoById 返回的 avatar 为 avatars/ 前缀 key 时，应转换为可访问 URL。
+     */
+    @Test
+    void infoByIdConvertsAvatarKeyToUrl() {
+        // 准备：目标用户头像存的是对象存储 key
+        ChatUser user = new ChatUser();
+        user.setId(9L);
+        user.setAvatar("avatars/uuid9.jpg");
+        when(chatUserService.getUserById(eq(9))).thenReturn(user);
+        when(fileStorageService.generateAvatarUrl("avatars/uuid9.jpg"))
+                .thenReturn("https://img.example.com/avatars/uuid9.jpg");
+
+        // 执行
+        Result<ChatUser> result = controller.infoById(9, null);
+
+        // 验证：avatar 已转换为可访问 URL
+        assertEquals("https://img.example.com/avatars/uuid9.jpg", result.getData().getAvatar());
+    }
+
+    /**
+     * infoById 对历史全 URL 的 avatar 原样返回，不做转换。
+     */
+    @Test
+    void infoByIdPassesThroughLegacyAvatar() {
+        ChatUser user = new ChatUser();
+        user.setId(10L);
+        user.setAvatar("https://legacy.example.com/old.png");
+        when(chatUserService.getUserById(eq(10))).thenReturn(user);
+
+        Result<ChatUser> result = controller.infoById(10, null);
+
+        assertEquals("https://legacy.example.com/old.png", result.getData().getAvatar());
+        verify(fileStorageService, never()).generateAvatarUrl(any());
+    }
+
+    /**
+     * infoById 在目标用户不存在时返回"用户不存在"失败结果。
+     */
+    @Test
+    void infoByIdReturnsFailWhenUserMissing() {
+        // 准备：该 userId 无对应用户
+        when(chatUserService.getUserById(eq(404))).thenReturn(null);
+
+        // 执行
+        Result<ChatUser> result = controller.infoById(404, null);
+
+        // 验证：非 200 成功码
+        assertEquals("500", result.getCode());
+    }
+
     /**
      * 用户不存在时 updateProfile 返回失败，不调用 updateById。
      */
