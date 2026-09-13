@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:snow_chat/core/database/database_helper.dart';
 import 'package:snow_chat/core/database/tables.dart';
+import 'package:snow_chat/services/conversation_service.dart';
 
 void main() {
   // 在桌面端使用内存 SQLite 跑测试
@@ -484,6 +485,77 @@ void main() {
 
       expect(merged, isFalse);
       await fresh.close();
+    });
+  });
+
+  // 「文件传输助手」消息实际发给自己（type=self），后端回推到自己 topic。
+  // 老版本把它误记成 target_id=自己 的好友会话，聊天列表随之多出一条
+  // 显示不了名字头像的重复数据。loadSessions 前会先自愈清理这类脏行。
+  group('ConversationService.purgeSelfEchoSessions（自聊脏数据清理）', () {
+    test('删除 target_id=自己 的好友会话，保留文件传输助手会话', () async {
+      final table = Tables.sessionsTable(testUserId);
+
+      // 脏数据：发消息给文件传输助手后，回推消息被误记成「和自己聊」
+      await db.insert(table, {
+        'user_id': testUserId,
+        'target_id': testUserId, // target_id = 自己
+        'target_type': 'friend',
+        'last_msg': '11111',
+        'last_msg_time': 1700000000000,
+        'update_time': 1700000000000,
+      });
+      // 真会话：文件传输助手
+      await db.insert(table, {
+        'user_id': testUserId,
+        'target_id': 0,
+        'target_type': 'file_helper',
+        'last_msg': '11111',
+        'last_msg_time': 1700000000000,
+        'update_time': 1700000000000,
+      });
+      // 真会话：正常好友
+      await db.insert(table, {
+        'user_id': testUserId,
+        'target_id': 2,
+        'target_type': 'friend',
+        'last_msg': 'hi',
+        'last_msg_time': 1700000001000,
+        'update_time': 1700000001000,
+      });
+
+      await ConversationService.purgeSelfEchoSessions(
+        db,
+        table,
+        testUserId,
+      );
+
+      final rows = await db.query(table);
+      expect(rows.length, equals(2), reason: '只应删掉自聊那一条');
+      expect(
+        rows.every((r) => r['target_id'] != testUserId || r['target_type'] != 'friend'),
+        isTrue,
+      );
+      // 文件传输助手会话保留
+      expect(
+        rows.any((r) => r['target_id'] == 0 && r['target_type'] == 'file_helper'),
+        isTrue,
+      );
+    });
+
+    test('target_id 相同但类型不同（如群聊）不会被误删', () async {
+      final table = Tables.sessionsTable(testUserId);
+      // 用户自己是群主、群 id 恰好等于自己 id 的极端情况：不应被误删
+      await db.insert(table, {
+        'user_id': testUserId,
+        'target_id': testUserId,
+        'target_type': 'group',
+        'last_msg': 'group msg',
+        'update_time': 1700000000000,
+      });
+
+      await ConversationService.purgeSelfEchoSessions(db, table, testUserId);
+
+      expect((await db.query(table)).length, equals(1));
     });
   });
 }

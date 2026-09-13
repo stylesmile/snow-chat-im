@@ -191,10 +191,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final createTime = MessageUtils.toInt(data['createTime'], DateTime.now().millisecondsSinceEpoch);
     final int? groupIdValue = groupId;
     final bool isGroup = groupIdValue != null;
+    // 文件传输助手：消息实际发给自己（type=self），后端会回推到自己 topic，
+    // fromUserId == toUserId == 自己。必须归到 (0, file_helper) 会话，
+    // 否则会被当成普通好友消息造出一条「targetId=自己」的自聊会话，
+    // 聊天列表里随之多出一条显示不了名字头像的重复数据。
+    final bool isFileHelper = !isGroup &&
+        data['type'] == 'self' &&
+        fromUserId != null &&
+        fromUserId == toUserId &&
+        fromUserId == userId;
     final int targetId = isGroup
-        ? groupIdValue!
-        : (fromUserId == userId ? (toUserId ?? 0) : (fromUserId ?? 0));
-    final String targetType = isGroup ? 'group' : 'friend';
+        ? groupIdValue
+        : (isFileHelper ? 0 : (fromUserId == userId ? (toUserId ?? 0) : (fromUserId ?? 0)));
+    final String targetType = isGroup
+        ? 'group'
+        : (isFileHelper ? 'file_helper' : 'friend');
     final existingIndex = _chatProvider?.conversations.indexWhere(
       (c) => c.targetId == targetId && c.targetType == targetType,
     );

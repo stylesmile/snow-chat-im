@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:sqflite/sqflite.dart';
 import '../core/database/database_helper.dart';
 import '../core/database/tables.dart';
 import '../providers/chat_provider.dart';
@@ -9,6 +10,25 @@ import 'package:provider/provider.dart';
 /// 表名按用户ID隔离：sessions_{userId}
 class ConversationService {
   final DatabaseHelper _dbHelper = DatabaseHelper();
+
+  /// 自愈清理：删除「自聊」脏会话行。
+  ///
+  /// 历史上「文件传输助手」的回推消息（type=self，实际发给自己）曾被当成
+  /// 普通好友消息记成 target_id=自己 的好友会话，在聊天列表里多出一条
+  /// 显示不了名字头像的重复数据。好友 id 不可能等于自己，这类行一定是脏数据。
+  ///
+  /// 静态方法便于直接用测试数据库验证。
+  static Future<void> purgeSelfEchoSessions(
+    Database db,
+    String table,
+    int userId,
+  ) async {
+    await db.delete(
+      table,
+      where: 'user_id = ? AND target_type = ? AND target_id = ?',
+      whereArgs: [userId, 'friend', userId],
+    );
+  }
 
   /// 从 Provider 获取当前用户ID
   int _getUserId(BuildContext context) {
@@ -81,6 +101,10 @@ class ConversationService {
     final userId = _getUserId(context);
     final db = await _dbHelper.database;
     final table = Tables.sessionsTable(userId);
+
+    // 加载前先清掉历史脏数据（见 [purgeSelfEchoSessions]）
+    await purgeSelfEchoSessions(db, table, userId);
+
     // 每个会话只取 id 最大的一行（最后一次写入的状态）：
     // 老库里同一会话可能残留多行（缺 UNIQUE 约束的历史数据），
     // 单纯 GROUP BY 会「随机」挑一行、拿不到最新状态，所以用 MAX(id) 精确定位。

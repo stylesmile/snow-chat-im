@@ -85,6 +85,10 @@ class _ChatListTabState extends State<ChatListTab> {
 
   /// 显示会话标题：按 targetId 查好友目录，查不到才回退带 id 的占位名
   String _displayName(Conversation conv) {
+    // 文件传输助手：固定入口（targetId=0 不在好友目录里），名字用本地化文案
+    if (conv.targetType == 'file_helper') {
+      return AppLocalizations.of(context)?.fileHelper ?? '文件传输助手';
+    }
     if (conv.targetType == 'group') {
       return '群组 ${conv.targetId}';
     }
@@ -92,28 +96,51 @@ class _ChatListTabState extends State<ChatListTab> {
     return name != null && name.isNotEmpty ? name : '用户 ${conv.targetId}';
   }
 
+  /// 文件传输助手的会话头像：绿色圆角底 + 图标，与通讯录入口同款
+  Widget _buildFileHelperAvatar() {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: const BoxDecoration(
+        color: Color(0xFF07C160),
+        borderRadius: BorderRadius.all(Radius.circular(6)),
+      ),
+      child: Image.asset(
+        'assets/images/file_transfer.png',
+        width: 22,
+        height: 22,
+      ),
+    );
+  }
+
   /// 构建带未读数角标的头像（类似微信）
   ///
-  /// 好友用**真实头像**（无头像时退回名字首字占位），群聊仍用「群」字圆底。
+  /// 好友用**真实头像**（无头像时退回名字首字占位），群聊仍用「群」字圆底，
+  /// 文件传输助手用专属图标。
   Widget _buildAvatar(Conversation conv) {
     final name = _displayName(conv);
     final avatar = _friendAvatars[conv.targetId] ?? '';
+    final Widget base;
+    if (conv.targetType == 'file_helper') {
+      base = _buildFileHelperAvatar();
+    } else if (conv.targetType == 'group') {
+      base = const CircleAvatar(
+        // 群聊头像底色使用设计令牌：品牌蓝
+        backgroundColor: AppTheme.primary,
+        child: Text('群'),
+      );
+    } else {
+      base = AvatarWidget(
+        imageUrl: avatar,
+        // 没有头像图时显示名字首字，而不是一个与本人无关的「友」字
+        initials: name.isNotEmpty ? name[0] : '?',
+        size: 40,
+      );
+    }
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        if (conv.targetType == 'group')
-          const CircleAvatar(
-            // 群聊头像底色使用设计令牌：品牌蓝
-            backgroundColor: AppTheme.primary,
-            child: Text('群'),
-          )
-        else
-          AvatarWidget(
-            imageUrl: avatar,
-            // 没有头像图时显示名字首字，而不是一个与本人无关的「友」字
-            initials: name.isNotEmpty ? name[0] : '?',
-            size: 40,
-          ),
+        base,
         // 未读数角标：显示在头像右上角
         if (conv.unreadCount > 0)
           Positioned(
