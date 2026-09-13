@@ -60,6 +60,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   /// 个人中心图标（选中）：实心人像
   static const String _navProfileIconActive = 'assets/images/navigation/my_s.png';
 
+  /// 通讯录 tab 在底部导航中的索引
+  ///
+  /// ContactTab 自带 AppBar（标题「通讯录」+ 搜索/添加好友），若外层再叠加固定标题栏
+  /// 就会出现两个标题栏，故该索引下外层让位给页面自己的 AppBar。
+  static const int _contactsTabIndex = 1;
+
   @override
   void initState() {
     super.initState();
@@ -67,10 +73,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     _tabController.addListener(_onTabChanged);
   }
 
-  /// TabController 变化时同步导航栏高亮（包括滑动切换和点击切换）
+  /// TabController 变化时同步当前索引（导航栏高亮与顶部标题栏都依赖它）
   void _onTabChanged() {
-    // TabController.indexIsChanging 为 true 时表示动画进行中，跳过中间帧
-    if (!_tabController.indexIsChanging) return;
+    // 不能只判断 indexIsChanging：点击切换时它为 true（此时 index 已是目标值），
+    // 而滑动手势期间它为 false，要等拖动/动画结束后 index 才更新并再次触发本回调。
+    // 用「与当前索引比较」的方式才能同时覆盖点击与滑动两种情况，
+    // 否则滑动到通讯录时顶部标题栏不会让位，双标题栏会再次出现。
+    if (_currentIndex == _tabController.index) return;
     setState(() => _currentIndex = _tabController.index);
   }
 
@@ -273,6 +282,42 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
+  /// 构建顶部标题栏（会话 / 通讯录 / 个人中心 三个 tab 共用）
+  ///
+  /// 通讯录 tab 返回 null，让位给 ContactTab 自带的 AppBar —— 该页的标题栏里
+  /// 还有「搜索」与「添加好友」两个动作，外层若再画一个就会出现两个标题栏。
+  PreferredSizeWidget? _buildAppBar(AppLocalizations l10n) {
+    if (_currentIndex == _contactsTabIndex) return null;
+
+    return AppBar(
+      // 背景色与页面一致，保持深色主题连贯性
+      backgroundColor: AppTheme.background,
+      // 无阴影，扁平风格
+      elevation: 0,
+      title: Text(l10n.chat),
+      centerTitle: false,
+      actions: [
+        // 添加联系人按钮
+        IconButton(
+          icon: const Icon(Icons.person_add),
+          tooltip: '添加联系人',
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AddFriendScreen()),
+            );
+          },
+        ),
+        // 更多操作按钮
+        IconButton(
+          icon: const Icon(Icons.more_vert),
+          tooltip: '更多',
+          onPressed: () {},
+        ),
+      ],
+    );
+  }
+
   @override
   void dispose() {
     _tabController.removeListener(_onTabChanged);
@@ -293,34 +338,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final totalUnread = chatProvider.totalUnreadCount;
 
     return Scaffold(
-      // 顶部 TabBar 导航：会话 / 通讯录 / 个人中心
-      appBar: AppBar(
-        // 背景色与页面一致，保持深色主题连贯性
-        backgroundColor: AppTheme.background,
-        // 无阴影，扁平风格
-        elevation: 0,
-        title: Text(l10n.chat),
-        centerTitle: false,
-        actions: [
-          // 添加联系人按钮
-          IconButton(
-            icon: const Icon(Icons.person_add),
-            tooltip: '添加联系人',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AddFriendScreen()),
-              );
-            },
-          ),
-          // 更多操作按钮
-          IconButton(
-            icon: const Icon(Icons.more_vert),
-            tooltip: '更多',
-            onPressed: () {},
-          ),
-        ],
-      ),
+      // 顶部标题栏：通讯录 tab 由 ContactTab 自带的 AppBar 承担，此处返回 null
+      appBar: _buildAppBar(l10n),
       body: TabBarView(
         controller: _tabController,
         children: [
