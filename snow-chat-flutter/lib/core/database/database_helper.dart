@@ -21,7 +21,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 4, // 升级到v4，支持按用户分表
+      version: 5, // 升级到v5，为旧会话表补齐 is_pinned 列
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -61,6 +61,37 @@ class DatabaseHelper {
       // v4: 迁移到按用户分表
       // 将旧表数据迁移到新表（userId=0 的表迁移为当前用户的表）
       await _migrateToUserTables(db, 0);
+    }
+    if (oldVersion < 5) {
+      // v5: 复制置顶功能需要的 is_pinned 列
+      // 对库中所有按用户分表的会话表补齐 is_pinned 列（兼容更早版本建的表）
+      await _ensureAllSessionsPinned(db);
+    }
+  }
+
+  /// 遍历库中所有按用户分表的会话表，为其补齐 is_pinned 列
+  /// SQL 注入安全：表名来自 sqlite_master 且已按固定的 sessions_ 前缀过滤
+  Future<void> _ensureAllSessionsPinned(Database db) async {
+    // 查询所有以 sessions_ 开头的用户分表名
+    final rows = await db.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'sessions_%'",
+    );
+    // 对每个会话表执行幂等的列补齐迁移
+    for (final row in rows) {
+      await DatabaseHelper.ensurePinnedColumn(db, row['name'] as String);
+    }
+  }
+
+  /// 幂等地为指定会话表补齐 is_pinned 列（已存在则跳过）
+  /// 用于兼容早期版本创建的本地库，避免查询 is_pinned 时 SQLite 报 unknown column
+  static Future<void> ensurePinnedColumn(Database db, String table) async {
+    // 用 PRAGMA table_info 读取当前表的列信息
+    final cols = await db.rawQuery('PRAGMA table_info($table)');
+    // 判断是否已包含 is_pinned 列
+    final hasPinned = cols.any((c) => c['name'] == 'is_pinned');
+    if (!hasPinned) {
+      // 缺少则添加列，默认 0（未置顶），保证历史会话顶置状态安全初始化
+      await db.execute('ALTER TABLE $table ADD COLUMN is_pinned INTEGER DEFAULT 0');
     }
   }
 
