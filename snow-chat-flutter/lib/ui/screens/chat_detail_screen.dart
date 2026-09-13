@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:video_player/video_player.dart';
@@ -70,7 +71,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   MqttChatClient? _mqttClient;
 
   // 临时选择器状态
-  File? _pendingMediaFile;
   String _pendingMediaType = 'text'; // text / image / video / file / voice
   String? _pendingMediaUrl;
   String? _pendingFileName;
@@ -80,6 +80,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   // 表情面板状态
   bool _showEmojiPanel = false;
+  // 微信风格附件面板状态：点「+」后在输入栏上方展开图片/视频/文件
+  bool _showAttachPanel = false;
   // 丰富的表情列表（参考微信表情）
   static const List<String> _emojiList = [
     '😀','😃','😄','😁','😆','😅','🤣','😂',
@@ -647,8 +649,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       setState(() {
         _pendingMediaType = 'text';
         _pendingMediaUrl = null;
-        _pendingMediaFile = null;
-        _pendingFileName = null;
+                _pendingFileName = null;
       });
       await _doSendMedia(type, content, fileName, now, auth, scaffoldMessenger, l10n);
       return;
@@ -853,9 +854,19 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     }
   }
 
-  /// 用户点击附件按钮：按当前选中类型触发对应选择器
-  void _onAttachTap() {
-    switch (_pendingMediaType) {
+  /// 用户点击附件面板中的某一项：按类型触发对应选择器
+  ///
+  /// 与微信一致：选完即上传并直接发送，不再要求用户再点一次「发送」。
+  /// 选完收起附件面板与键盘，避免面板挡住刚发出的消息。
+  /// [_pendingMediaType] 仍需更新，供上传失败时的提示文案复用。
+  void _onAttachTap(String type) {
+    setState(() {
+      _pendingMediaType = type;
+      _showAttachPanel = false;
+      _showEmojiPanel = false;
+      _inputFocusNode.unfocus();
+    });
+    switch (type) {
       case 'image':
         _pickAsset(type: MediaType.image, onPicked: (f) => _onMediaPicked(f, 'image'));
         break;
@@ -870,10 +881,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     }
   }
 
-  /// 选择媒体/文件/语音后的统一处理：
-  /// 1. 上传到对象存储（POST /file/media/{type}）
-  /// 2. 将返回的 URL 暂存为 _pendingMediaUrl，类型暂存为 _pendingMediaType
-  /// 3. 切换到预览状态，等待用户点击发送
+  /// 选择媒体/文件后的统一处理：上传 → 直接发送
+  ///
+  /// 1. 上传到对象存储（POST /file/media/{type}），后端返回**可访问的 URL**
+  ///    （disk 存储为 http(s) 地址，不再是把整张图塞进消息体的 base64）；
+  /// 2. 用该 URL 作为消息 content 立即发送（微信行为，无需二次确认）。
+  ///
+  /// 历史消息里可能已存在 base64 data URL 的老数据，渲染侧仍兼容（见
+  /// [_buildMessageBubbleByType]），这里不再新增。
   void _onMediaPicked(File file, String type) {
     final l10n = AppLocalizations.of(context)!;
     final service = ChatService(context.read<AuthProvider>().apiClient);
@@ -888,11 +903,24 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         );
         return;
       }
+      // 上传成功：URL 就是消息内容，直接发送
+      final auth = context.read<AuthProvider>();
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final fileName = type == 'file' ? file.path.split('/').last : null;
+      _doSendMedia(
+        type,
+        result.url,
+        fileName,
+        now,
+        auth,
+        ScaffoldMessenger.of(context),
+        l10n,
+      );
+      // 复位待发状态，避免下次点「发送」把这条媒体再发一遍
       setState(() {
-        _pendingMediaType = type;
-        _pendingMediaUrl = result.url;
-        _pendingMediaFile = file;
-        _pendingFileName = type == 'file' ? file.path.split('/').last : null;
+        _pendingMediaType = 'text';
+        _pendingMediaUrl = null;
+                _pendingFileName = null;
       });
     }).catchError((e) {
       if (!mounted) return;
@@ -922,9 +950,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        // 使用略浅于页面的背景色 + 轻微阴影，让 AppBar 在视觉上有明确边界
-        backgroundColor: const Color(0xFF1E1E1E),
-        elevation: 1,
+        // 与通讯录/会话列表同一套写法：深色底、扁平无阴影、标题居中，
+        // 由全局 AppBarTheme 统一提供，避免各页各写一份硬编码色值
         title: Text(displayName),
         actions: [
           if (widget.targetType == 'group') ...[
@@ -970,9 +997,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         children: [
           Column(
             children: [
-              // 预览区域
-              if (_pendingMediaType != 'text' && _pendingMediaUrl != null)
-                _buildMediaPreview(theme),
               // 消息区：有背景图时用 Stack 把图片垫在列表下方
               Expanded(
                 child: _chatBackgroundPath != null
@@ -1041,64 +1065,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               );
   }
 
-  /// 构建媒体预览组件（图片/视频/文件；语音已改为直接发送，不走预览）
-  Widget _buildMediaPreview(ThemeData theme) {
-    final l10n = AppLocalizations.of(context)!;
-    final isImage = _pendingMediaType == 'image';
-    final isVideo = _pendingMediaType == 'video';
-    return Container(
-      padding: const EdgeInsets.all(8),
-      color: theme.cardColor,
-      child: Row(
-        children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: isImage
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.file(
-                      _pendingMediaFile!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) =>
-                          const Icon(Icons.broken_image, color: Colors.white54),
-                    ),
-                  )
-                : isVideo
-                    ? const Icon(Icons.videocam, color: Colors.white54)
-                    : const Icon(Icons.insert_drive_file, color: Colors.white54),
-          ),
-          const SizedBox(width: 8),
-          if (_pendingFileName != null)
-            Expanded(
-              child: Text(
-                _pendingFileName!,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 13),
-              ),
-            ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.close, size: 18),
-            tooltip: l10n.cancel,
-            onPressed: () {
-              setState(() {
-                _pendingMediaType = 'text';
-                _pendingMediaUrl = null;
-                _pendingMediaFile = null;
-                _pendingFileName = null;
-              });
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildMessageBubble(_DisplayMessage msg, bool isMe, ThemeData theme) {
     // 对标 win-chat：气泡箭头指向头像，头像侧需预留箭头伸出的宽度
     final avatarGap = SizedBox(width: BubbleContainer.arrowLen + 2);
@@ -1158,80 +1124,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         ? (bubbleless ? Colors.white : AppTheme.bubbleSentText)
         : AppTheme.bubbleReceivedText;
     final Widget content = switch (msg.type) {
-        'image' => Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 点击图片进入大图查看页，支持缩放与保存到相册
-              InkWell(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ImageViewerScreen(content: msg.content),
-                    ),
-                  );
-                },
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: msg.content.startsWith('data:')
-                      ? Image.memory(
-                          base64Decode(msg.content.split(',').last),
-                          width: 200,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              _fallbackPlaceholder(theme, textColor, Icons.broken_image),
-                        )
-                      : Image.network(
-                          msg.content,
-                          width: 200,
-                          fit: BoxFit.cover,
-                          loadingBuilder: (_, child, progress) =>
-                              progress == null ? child : _fallbackPlaceholder(theme, textColor, Icons.image),
-                          errorBuilder: (_, __, ___) =>
-                              _fallbackPlaceholder(theme, textColor, Icons.broken_image),
-                        ),
-                ),
-              ),
-              if (msg.createTime != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  app_date.DateUtils.formatTime(msg.createTime),
-                  style: TextStyle(fontSize: 10, color: textColor.withOpacity(0.6)),
-                ),
-              ],
-            ],
-          ),
-        'video' => Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              InkWell(
-                onTap: () => _openVideoPlayer(msg.id, msg.content),
-                child: Stack(
-                  children: [
-                    Container(
-                      width: 200,
-                      height: 150,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade300,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Center(
-                        child: Icon(Icons.play_circle_outline, size: 48, color: Colors.white70),
-                      ),
-                    ),
-                    // TODO: 后续用 VideoPlayerController 展示首帧
-                  ],
-                ),
-              ),
-              if (msg.createTime != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  app_date.DateUtils.formatTime(msg.createTime),
-                  style: TextStyle(fontSize: 10, color: textColor.withOpacity(0.6)),
-                ),
-              ],
-            ],
-          ),
+        'image' => _buildImageBubble(msg, textColor),
+        'video' => _buildVideoBubble(msg, textColor),
         'voice' => _buildVoiceBubble(msg, isMe, textColor),
         'file' => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1328,12 +1222,111 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     if (bubbleless) return content;
     return BubbleContainer(isMe: isMe, child: content);
   }
-  Widget _fallbackPlaceholder(ThemeData theme, Color textColor, IconData icon) {
+  /// 图片气泡：消息内容是后端对象存储返回的**可访问 URL**，直接按网络图渲染
+  ///
+  /// 历史消息里可能还残留旧版写入的 base64 data URI（整张图内嵌在消息体里），
+  /// 这里保留兼容分支，但新发的图片一律走 URL —— 消息体只有几十字节，
+  /// 对方拉历史时也不会拖回几 MB 的字符串。
+  ///
+  /// 点击统一走 [_openMediaPreview] 进入大图查看页（支持缩放与保存）。
+  Widget _buildImageBubble(_DisplayMessage msg, Color textColor) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          onTap: () => _openMediaPreview(msg),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: msg.content.startsWith('data:')
+                ? Image.memory(
+                    base64Decode(msg.content.split(',').last),
+                    width: 180,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        _mediaPlaceholder(Icons.broken_image),
+                  )
+                : CachedNetworkImage(
+                    imageUrl: msg.content,
+                    width: 180,
+                    fit: BoxFit.cover,
+                    // 加载中与失败都给出明确占位，避免气泡塌陷成一条细线
+                    placeholder: (_, __) => _mediaPlaceholder(Icons.image),
+                    errorWidget: (_, __, ___) =>
+                        _mediaPlaceholder(Icons.broken_image),
+                  ),
+          ),
+        ),
+        if (msg.createTime != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            app_date.DateUtils.formatTime(msg.createTime),
+            style: TextStyle(fontSize: 10, color: textColor.withOpacity(0.6)),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// 视频气泡：深色封面 + 居中播放按钮，点击进入全屏播放
+  ///
+  /// 视频首帧需要先把整个文件拉下来解码，代价过高，故用统一的播放封面代替
+  /// （与微信「未下载 video 消息」的展现一致）。
+  Widget _buildVideoBubble(_DisplayMessage msg, Color textColor) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          onTap: () => _openMediaPreview(msg),
+          child: Container(
+            width: 180,
+            height: 140,
+            decoration: BoxDecoration(
+              color: const Color(0xFF2C2C2E),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Center(
+              child: Icon(Icons.play_circle_fill, size: 44, color: Colors.white70),
+            ),
+          ),
+        ),
+        if (msg.createTime != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            app_date.DateUtils.formatTime(msg.createTime),
+            style: TextStyle(fontSize: 10, color: textColor.withOpacity(0.6)),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// 媒体消息统一预览入口：图片进大图查看页，视频进全屏播放器，文件走打开逻辑
+  void _openMediaPreview(_DisplayMessage msg) {
+    switch (msg.type) {
+      case 'image':
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ImageViewerScreen(content: msg.content),
+          ),
+        );
+        break;
+      case 'video':
+        _openVideoPlayer(msg.id, msg.content);
+        break;
+      case 'file':
+        _openFile(msg.content);
+        break;
+    }
+  }
+
+  /// 媒体占位图：加载中/失败时保持气泡尺寸稳定
+  Widget _mediaPlaceholder(IconData icon) {
     return Container(
-      width: 200,
-      height: 150,
-      color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
-      child: Icon(icon, color: textColor.withOpacity(0.5), size: 32),
+      width: 180,
+      height: 140,
+      color: const Color(0xFF2C2C2E),
+      child: Icon(icon, color: Colors.white38, size: 32),
     );
   }
 
@@ -1670,8 +1663,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // 微信风格：表情面板从底部滑入，覆盖在输入栏上方
+        // 微信风格：表情面板 / 附件面板都从底部滑入，覆盖在输入栏上方
         if (_showEmojiPanel) _buildEmojiPanel(theme),
+        if (_showAttachPanel) _buildAttachPanel(l10n),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
           decoration: const BoxDecoration(
@@ -1737,13 +1731,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   setState(() {
                     _showEmojiPanel = !_showEmojiPanel;
                     if (_showEmojiPanel) {
-                      // 打开表情面板时收起键盘
+                      // 打开表情面板时收起键盘与附件面板
+                      _showAttachPanel = false;
                       _inputFocusNode.unfocus();
                     } else {
                       _pendingMediaType = 'text';
                       _pendingMediaUrl = null;
-                      _pendingMediaFile = null;
-                      _pendingFileName = null;
+                                            _pendingFileName = null;
                     }
                   });
                 },
@@ -1767,29 +1761,104 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     ),
                   ),
                 ),
-              // 附件按钮（语音模式或有文字时隐藏，避免误触）
+              // 附件按钮（语音模式或有文字时隐藏，避免误触）：
+              // 点击后在输入栏上方展开微信风格的图片/视频/文件面板
               if (!_voiceMode && !hasText)
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.add_circle_outline,
-                      color: Colors.white, size: 28),
+                IconButton(
+                  icon: Icon(
+                    _showAttachPanel ? Icons.close : Icons.add_circle_outline,
+                    color: Colors.white,
+                    size: 28,
+                  ),
                   tooltip: l10n.attach,
-                  itemBuilder: (_) => [
-                    PopupMenuItem(value: 'image', child: Row(children: [const Icon(Icons.photo_library, size: 18), const SizedBox(width: 8), Text(l10n.image)])),
-                    PopupMenuItem(value: 'video', child: Row(children: [const Icon(Icons.videocam, size: 18), const SizedBox(width: 8), Text(l10n.video)])),
-                    PopupMenuItem(value: 'file', child: Row(children: [const Icon(Icons.insert_drive_file, size: 18), const SizedBox(width: 8), Text(l10n.file)])),
-                  ],
-                  onSelected: (type) {
+                  onPressed: () {
                     setState(() {
-                      _showEmojiPanel = false;
-                      _pendingMediaType = type;
+                      _showAttachPanel = !_showAttachPanel;
+                      // 展开附件面板时收起键盘与表情面板，避免两层面板叠在一起
+                      if (_showAttachPanel) {
+                        _showEmojiPanel = false;
+                        _inputFocusNode.unfocus();
+                      }
                     });
-                    _onAttachTap();
                   },
                 ),
             ],
           ),
         ),
       ],
+    );
+  }
+
+  /// 微信风格附件面板：图片 / 视频 / 文件 三宫格，位于输入栏上方
+  ///
+  /// 之前「+」是一个向上弹出的 PopupMenu，菜单浮在系统弹层里、位置随输入栏漂移，
+  /// 与微信「点 + 在输入栏上方展开面板」的体验不一致。改为内嵌面板后，
+  /// 面板与输入栏连成一体，点击即选文件，选完直接发送。
+  Widget _buildAttachPanel(AppLocalizations l10n) {
+    // 面板底色与输入栏一致（#1A1A1A），顶部一条分隔线划分边界
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
+      decoration: const BoxDecoration(
+        color: AppTheme.chatInputBar,
+        border: Border(top: BorderSide(color: AppTheme.chatDivider, width: 0.5)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildAttachItem(
+            icon: Icons.photo_library,
+            color: const Color(0xFF4CAF50),
+            label: l10n.image,
+            onTap: () => _onAttachTap('image'),
+          ),
+          _buildAttachItem(
+            icon: Icons.videocam,
+            color: const Color(0xFF3F8AE2),
+            label: l10n.video,
+            onTap: () => _onAttachTap('video'),
+          ),
+          _buildAttachItem(
+            icon: Icons.insert_drive_file,
+            color: const Color(0xFFFFA726),
+            label: l10n.file,
+            onTap: () => _onAttachTap('file'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 附件面板中的单个入口：圆角方块图标 + 下方文字（微信样式）
+  Widget _buildAttachItem({
+    required IconData icon,
+    required Color color,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: SizedBox(
+        width: 72,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: AppTheme.surface,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(icon, color: color, size: 28),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
