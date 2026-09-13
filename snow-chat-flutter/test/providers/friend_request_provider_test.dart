@@ -14,7 +14,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http_mock_adapter/http_mock_adapter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:snow_chat/providers/friend_request_provider.dart';
-import 'package:snow_chat/services/contact_service.dart';
 
 import '../helpers/mock_api_client.dart';
 
