@@ -200,6 +200,9 @@ class AppLocalizationsKo extends AppLocalizations {
   String get unknown => '알 수 없음';
 
   @override
+  String get userId => '사용자 ID';
+
+  @override
   String get you => '당신';
 
   @override
@@ -675,4 +678,37 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get favoriteEmpty => '즐겨찾기가 없습니다';
+
+  @override
+  String get scan => '스캔';
+
+  @override
+  String get myQrCode => '내 QR코드';
+
+  @override
+  String get findUser => '사용자 찾음';
+
+  @override
+  String get addToContacts => '연락처에 추가';
+
+  @override
+  String get requestSent => '친구 요청을 보냈습니다';
+
+  @override
+  String get invalidQr => '인식할 수 없는 QR코드';
+
+  @override
+  String get scanNotFound => '사용자를 찾을 수 없습니다';
+
+  @override
+  String get scanNetworkError => '네트워크 오류입니다. 나중에 다시 시도하세요';
+
+  @override
+  String get scanUserMissing => '사용자가 존재하지 않습니다';
+
+  @override
+  String get alreadyFriend => '이미 친구입니다';
+
+  @override
+  String get scanCameraDenied => '스캔하려면 카메라 권한이 필요합니다';
 }

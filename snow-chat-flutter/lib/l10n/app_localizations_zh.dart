@@ -200,6 +200,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get unknown => '未知';
 
   @override
+  String get userId => '用户ID';
+
+  @override
   String get you => '你';
 
   @override
@@ -675,6 +678,39 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get favoriteEmpty => '暂无收藏';
+
+  @override
+  String get scan => '扫一扫';
+
+  @override
+  String get myQrCode => '我的二维码';
+
+  @override
+  String get findUser => '找到用户';
+
+  @override
+  String get addToContacts => '添加到通讯录';
+
+  @override
+  String get requestSent => '好友请求已发送';
+
+  @override
+  String get invalidQr => '无法识别的二维码';
+
+  @override
+  String get scanNotFound => '未找到该用户';
+
+  @override
+  String get scanNetworkError => '网络异常，请稍后重试';
+
+  @override
+  String get scanUserMissing => '用户不存在';
+
+  @override
+  String get alreadyFriend => '你们已经是好友';
+
+  @override
+  String get scanCameraDenied => '需要相机权限才能扫码';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -871,6 +907,9 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get unknown => '未知';
+
+  @override
+  String get userId => '用戶ID';
 
   @override
   String get you => '你';
@@ -1273,4 +1312,37 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get favoriteEmpty => '暫無收藏';
+
+  @override
+  String get scan => '掃一掃';
+
+  @override
+  String get myQrCode => '我的QR碼';
+
+  @override
+  String get findUser => '找到用戶';
+
+  @override
+  String get addToContacts => '加到通訊錄';
+
+  @override
+  String get requestSent => '好友請求已發送';
+
+  @override
+  String get invalidQr => '無法識別的QR碼';
+
+  @override
+  String get scanNotFound => '未找到該用戶';
+
+  @override
+  String get scanNetworkError => '網路異常，請稍後重試';
+
+  @override
+  String get scanUserMissing => '用戶不存在';
+
+  @override
+  String get alreadyFriend => '你們已經是好友';
+
+  @override
+  String get scanCameraDenied => '需要相機權限才能掃碼';
 }

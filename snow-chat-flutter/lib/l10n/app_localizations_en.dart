@@ -200,6 +200,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get unknown => 'Unknown';
 
   @override
+  String get userId => 'User ID';
+
+  @override
   String get you => 'You';
 
   @override
@@ -675,4 +678,37 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get favoriteEmpty => 'No favorites';
+
+  @override
+  String get scan => 'Scan';
+
+  @override
+  String get myQrCode => 'My QR Code';
+
+  @override
+  String get findUser => 'User found';
+
+  @override
+  String get addToContacts => 'Add to Contacts';
+
+  @override
+  String get requestSent => 'Friend request sent';
+
+  @override
+  String get invalidQr => 'Unrecognizable QR code';
+
+  @override
+  String get scanNotFound => 'User not found';
+
+  @override
+  String get scanNetworkError => 'Network error, please try again later';
+
+  @override
+  String get scanUserMissing => 'User does not exist';
+
+  @override
+  String get alreadyFriend => 'You are already friends';
+
+  @override
+  String get scanCameraDenied => 'Camera permission required to scan';
 }

@@ -478,6 +478,12 @@ abstract class AppLocalizations {
   /// **'Unknown'**
   String get unknown;
 
+  /// User ID label
+  ///
+  /// In en, this message translates to:
+  /// **'User ID'**
+  String get userId;
+
   /// Self reference
   ///
   /// In en, this message translates to:
@@ -1407,6 +1413,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No favorites'**
   String get favoriteEmpty;
+
+  /// Profile center scan entry
+  ///
+  /// In en, this message translates to:
+  /// **'Scan'**
+  String get scan;
+
+  /// My QR code page title
+  ///
+  /// In en, this message translates to:
+  /// **'My QR Code'**
+  String get myQrCode;
+
+  /// Scan result preview title
+  ///
+  /// In en, this message translates to:
+  /// **'User found'**
+  String get findUser;
+
+  /// Preview page add friend button
+  ///
+  /// In en, this message translates to:
+  /// **'Add to Contacts'**
+  String get addToContacts;
+
+  /// Scan add friend request sent successfully
+  ///
+  /// In en, this message translates to:
+  /// **'Friend request sent'**
+  String get requestSent;
+
+  /// Invalid scanned QR code hint
+  ///
+  /// In en, this message translates to:
+  /// **'Unrecognizable QR code'**
+  String get invalidQr;
+
+  /// Scanned user not found hint
+  ///
+  /// In en, this message translates to:
+  /// **'User not found'**
+  String get scanNotFound;
+
+  /// Fail to fetch scanned user hint
+  ///
+  /// In en, this message translates to:
+  /// **'Network error, please try again later'**
+  String get scanNetworkError;
+
+  /// Scanned user missing
+  ///
+  /// In en, this message translates to:
+  /// **'User does not exist'**
+  String get scanUserMissing;
+
+  /// Scanned target is already friend
+  ///
+  /// In en, this message translates to:
+  /// **'You are already friends'**
+  String get alreadyFriend;
+
+  /// Camera permission denied hint
+  ///
+  /// In en, this message translates to:
+  /// **'Camera permission required to scan'**
+  String get scanCameraDenied;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

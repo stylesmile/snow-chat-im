@@ -200,6 +200,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get unknown => '不明';
 
   @override
+  String get userId => 'ユーザーID';
+
+  @override
   String get you => 'あなた';
 
   @override
@@ -675,4 +678,37 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get favoriteEmpty => 'お気に入りはありません';
+
+  @override
+  String get scan => 'スキャン';
+
+  @override
+  String get myQrCode => 'マイQRコード';
+
+  @override
+  String get findUser => 'ユーザーが見つかりました';
+
+  @override
+  String get addToContacts => '連絡先に追加';
+
+  @override
+  String get requestSent => '友達リクエストを送信しました';
+
+  @override
+  String get invalidQr => '認識できないQRコード';
+
+  @override
+  String get scanNotFound => '該当ユーザーが見つかりません';
+
+  @override
+  String get scanNetworkError => 'ネットワークエラーです。後でもう一度お試しください';
+
+  @override
+  String get scanUserMissing => 'ユーザーは存在しません';
+
+  @override
+  String get alreadyFriend => 'すでに友達です';
+
+  @override
+  String get scanCameraDenied => 'スキャンにはカメラ権限が必要です';
 }
