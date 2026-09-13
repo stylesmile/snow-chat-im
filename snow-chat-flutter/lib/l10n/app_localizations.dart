@@ -1479,6 +1479,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Camera permission required to scan'**
   String get scanCameraDenied;
+
+  /// Hint when scanning your own QR code
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot add yourself'**
+  String get cannotAddSelf;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

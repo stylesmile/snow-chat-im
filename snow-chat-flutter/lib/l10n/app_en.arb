@@ -448,5 +448,7 @@
   "alreadyFriend": "You are already friends",
   "@alreadyFriend": {"description": "Scanned target is already friend"},
   "scanCameraDenied": "Camera permission required to scan",
-  "@scanCameraDenied": {"description": "Camera permission denied hint"}
+  "@scanCameraDenied": {"description": "Camera permission denied hint"},
+  "cannotAddSelf": "Cannot add yourself",
+  "@cannotAddSelf": {"description": "Hint when scanning your own QR code"}
 }

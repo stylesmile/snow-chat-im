@@ -393,5 +393,7 @@
   "alreadyFriend": "你們已經是好友",
   "@alreadyFriend": {"description": "掃碼目標已是好友提示"},
   "scanCameraDenied": "需要相機權限才能掃碼",
-  "@scanCameraDenied": {"description": "相機權限被拒絕提示"}
+  "@scanCameraDenied": {"description": "相機權限被拒絕提示"},
+  "cannotAddSelf": "不能添加自己",
+  "@cannotAddSelf": {"description": "掃到自己二維碼時的提示"}
 }

@@ -9,6 +9,8 @@ import '../widgets/avatar_widget.dart';
 import 'contact_tab.dart';
 import 'settings_screen.dart';
 import 'gender_select_screen.dart';
+import 'my_qr_screen.dart';
+import 'scan_screen.dart';
 
 /// 个人中心独立页面（WINCHAT 设计稿风格）
 ///
@@ -74,6 +76,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildGenderEntry(context, auth, l10n),
             const SizedBox(height: 12),
 
+            // === 扫一扫 & 我的二维码（扫码添加好友 / 展示本人二维码）===
+            _buildScanSection(context, l10n),
+            const SizedBox(height: 12),
+
             // === 收藏 & 朋友圈 ===
             _buildMenuCard([
               ProfileMenuItem(
@@ -111,7 +117,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (auth.userId == null) return const SizedBox.shrink();
 
     return InkWell(
-      onTap: _showAvatarPickerSheet,
+      onTap: () {
+        // 点击头像行时上传头像
+        _showAvatarPickerSheet();
+      },
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -182,8 +191,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
-            // 二维码 + 箭头
-            const Icon(Icons.qr_code_2, color: Colors.grey, size: 24),
+            // 二维码（点击进入"我的二维码"页）+ 箭头
+            GestureDetector(
+              onTap: () {
+                // 跳转到我的二维码展示页
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const MyQrScreen()),
+                );
+              },
+              child: const Icon(Icons.qr_code_2, color: Colors.grey, size: 24),
+            ),
             const SizedBox(width: 4),
             const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
           ],
@@ -261,6 +279,65 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
           ],
         ),
+      ),
+    );
+  }
+
+  /// 构建"扫一扫"与"我的二维码"入口卡片
+  ///
+  /// 置于性别下方，包含两个菜单项：
+  /// - 扫一扫：跳转 [ScanScreen]，用相机扫二维码添加好友
+  /// - 我的二维码：跳转 [MyQrScreen]，展示本人二维码供他人扫描
+  Widget _buildScanSection(BuildContext context, AppLocalizations l10n) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: _cardColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      // 组合两个入口项，中间用分隔线隔开
+      child: Column(
+        children: [
+          // 扫一扫入口
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            leading: _buildColoredIcon(const Color(0xFF3B82F6)),
+            title: Text(
+              l10n.scan,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+            ),
+            trailing: const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
+            onTap: () {
+              // 跳转到扫码页
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ScanScreen()),
+              );
+            },
+          ),
+          Divider(
+            height: 1,
+            indent: 64,
+            color: Colors.white.withValues(alpha: 0.06),
+          ),
+          // 我的二维码入口
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            leading: _buildColoredIcon(const Color(0xFF10B981)),
+            title: Text(
+              l10n.myQrCode,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+            ),
+            trailing: const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
+            onTap: () {
+              // 跳转到我的二维码展示页
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MyQrScreen()),
+              );
+            },
+          ),
+        ],
       ),
     );
   }

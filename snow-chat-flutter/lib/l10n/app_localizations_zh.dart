@@ -711,6 +711,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get scanCameraDenied => '需要相机权限才能扫码';
+
+  @override
+  String get cannotAddSelf => '不能添加自己';
 }
 
 /// The translations for Chinese, as used in Taiwan (`zh_TW`).
@@ -1345,4 +1348,7 @@ class AppLocalizationsZhTw extends AppLocalizationsZh {
 
   @override
   String get scanCameraDenied => '需要相機權限才能掃碼';
+
+  @override
+  String get cannotAddSelf => '不能添加自己';
 }

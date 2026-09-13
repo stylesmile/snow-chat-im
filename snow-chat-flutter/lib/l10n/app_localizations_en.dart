@@ -711,4 +711,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get scanCameraDenied => 'Camera permission required to scan';
+
+  @override
+  String get cannotAddSelf => 'Cannot add yourself';
 }

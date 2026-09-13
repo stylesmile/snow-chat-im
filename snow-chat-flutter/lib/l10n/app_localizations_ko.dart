@@ -711,4 +711,7 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get scanCameraDenied => '스캔하려면 카메라 권한이 필요합니다';
+
+  @override
+  String get cannotAddSelf => '스스로를 추가할 수 없습니다';
 }

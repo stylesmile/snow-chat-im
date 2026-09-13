@@ -393,5 +393,7 @@
   "alreadyFriend": "すでに友達です",
   "@alreadyFriend": {"description": "スキャン対象が既に友達のヒント"},
   "scanCameraDenied": "スキャンにはカメラ権限が必要です",
-  "@scanCameraDenied": {"description": "カメラ権限拒否ヒント"}
+  "@scanCameraDenied": {"description": "カメラ権限拒否ヒント"},
+  "cannotAddSelf": "自分を追加することはできません",
+  "@cannotAddSelf": {"description": "自分のQRコードをスキャンしたときのヒント"}
 }

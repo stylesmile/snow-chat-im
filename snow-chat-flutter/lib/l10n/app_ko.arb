@@ -393,5 +393,7 @@
   "alreadyFriend": "이미 친구입니다",
   "@alreadyFriend": {"description": "스캔 대상이 이미 친구인 힌트"},
   "scanCameraDenied": "스캔하려면 카메라 권한이 필요합니다",
-  "@scanCameraDenied": {"description": "카메라 권한 거부 힌트"}
+  "@scanCameraDenied": {"description": "카메라 권한 거부 힌트"},
+  "cannotAddSelf": "스스로를 추가할 수 없습니다",
+  "@cannotAddSelf": {"description": "자신의 QR 코드를 스캔했을 때의 힌트"}
 }

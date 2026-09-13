@@ -1,55 +1,44 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:snow_chat/core/utils/qr_payload.dart';
 
-/// QR 内容编解码工具单元测试
+/// MyQrPayload 编解码单元测试
 ///
-/// 覆盖：合法编码/解码、非本 App 二维码返回 null、非法数字返回 null、
-/// 空串/缺失协议头、负数等边界情况。
+/// 覆盖：正常编码/解码、非本协议返回 null、非数字 / 空段 / 非法输入防御。
 void main() {
-  group('MyQrPayload', () {
-    test('encode 生成 snowchat://user/{id} 协议串', () {
-      // 准备：任意正整数 userId
-      const int userId = 1001;
-      // 执行：编码为二维码内容
-      final String payload = MyQrPayload.encode(userId);
-      // 验证：符合约定的协议格式
-      expect(payload, 'snowchat://user/1001');
+  group('encode', () {
+    test('应生成 snowchat://user/{id} 格式', () {
+      // 执行：编码 userId
+      expect(MyQrPayload.encode(1001), 'snowchat://user/1001');
+    });
+  });
+
+  group('decode', () {
+    test('应从合法二维码内容还原 userId', () {
+      // 验证：基础还原
+      expect(MyQrPayload.decode('snowchat://user/1001'), 1001);
+      // 验证：较大 id 也能解析
+      expect(MyQrPayload.decode('snowchat://user/1065095167'), 1065095167);
     });
 
-    test('decode 从合法协议串还原 userId', () {
-      // 准备：约定的二维码内容
-      const String payload = 'snowchat://user/42';
-      // 执行：解码
-      final int? userId = MyQrPayload.decode(payload);
-      // 验证：还原出原始 userId
-      expect(userId, 42);
+    test('非本协议前缀返回 null', () {
+      // 验证：裸数字 / 其他协议均无法识别
+      expect(MyQrPayload.decode('1001'), isNull);
+      expect(MyQrPayload.decode('https://example.com/user/1001'), isNull);
+      expect(MyQrPayload.decode(''), isNull);
     });
 
-    test('decode 对非本 App 协议前缀返回 null（无法识别）', () {
-      // 准备：其他二维码（如网址或别的 scheme）
-      const String payload = 'https://example.com/user/42';
-      // 执行：解码
-      final int? userId = MyQrPayload.decode(payload);
-      // 验证：返回 null，调用方据此提示"无效二维码"
-      expect(userId, isNull);
+    test('协议头之后非数字返回 null', () {
+      // 验证：id 段不是数字或为空时防御返回 null
+      expect(MyQrPayload.decode('snowchat://user/abc'), isNull);
+      expect(MyQrPayload.decode('snowchat://user/'), isNull);
+      expect(MyQrPayload.decode('snowchat://user/1001abc'), isNull);
     });
 
-    test('decode 对非法数字段返回 null', () {
-      // 准备：协议正确但 id 段不是数字
-      const String payload = 'snowchat://user/abc';
-      // 执行：解码
-      final int? userId = MyQrPayload.decode(payload);
-      // 验证：返回 null，避免误跳转
-      expect(userId, isNull);
-    });
-
-    test('decode 对空字符串返回 null', () {
-      // 准备：空串（理论上扫描不到，但防御处理）
-      const String payload = '';
-      // 执行：解码
-      final int? userId = MyQrPayload.decode(payload);
-      // 验证：返回 null
-      expect(userId, isNull);
+    test('encode 与 decode 互为逆操作', () {
+      // 验证：任意 id 编解码一致
+      for (final id in [1, 42, 9999, 1065095167]) {
+        expect(MyQrPayload.decode(MyQrPayload.encode(id)), id);
+      }
     });
   });
 }
