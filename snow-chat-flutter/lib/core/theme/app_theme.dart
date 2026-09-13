@@ -42,6 +42,28 @@ class AppTheme {
   static const Color navUnselected = Color(0xFF9E9E9E);
 
   // ---------------------------------------------------------------------------
+  // 聊天页令牌（对标 win-chat-android 夜间主题 values-night/color.xml）
+  // ---------------------------------------------------------------------------
+
+  /// 我方气泡：金黄底（win-chat `chat_bubble_send` #FFCC00），黑字
+  static const Color bubbleSent = Color(0xFFFFCC00);
+
+  /// 我方气泡文字
+  static const Color bubbleSentText = Color(0xFF000000);
+
+  /// 对方气泡：灰紫底（win-chat `chat_bubble_received` #505060），白字
+  static const Color bubbleReceived = Color(0xFF505060);
+
+  /// 对方气泡文字
+  static const Color bubbleReceivedText = Color(0xFFFFFFFF);
+
+  /// 聊天输入栏容器/输入框底色（win-chat `chat_face_tab_bg` / `chat_edit_bg`）
+  static const Color chatInputBar = Color(0xFF1A1A1A);
+
+  /// 聊天页分隔线（win-chat `wechatLine`/`layoutColorSelected`）
+  static const Color chatDivider = Color(0xFF2C2C2E);
+
+  // ---------------------------------------------------------------------------
   // 主题构建
   // ---------------------------------------------------------------------------
 

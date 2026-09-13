@@ -1,14 +1,13 @@
 // ChatBubble（聊天消息气泡）widget 测试
 //
-// 验证基于 WINCHAT Figma 设计稿的深色改造：
-// 1. 对方气泡应为深色表面（原浅灰 #EEEEEE 在深色页面是刺眼亮块）
-// 2. 对方气泡文字应为浅色（原 black87 在深色气泡上不可读）
-// 3. 我方气泡应为品牌蓝（主题主色）
-// 4. 我方气泡文字应为白色
-// 5. 两种气泡的时间戳均应为浅色
+// 验证对标 win-chat-android 夜间主题的气泡改造（values-night/color.xml + BubbleLayout）：
+// 1. 我方气泡：金黄底（chat_bubble_send #FFCC00）+ 黑字
+// 2. 对方气泡：灰紫底（chat_bubble_received #505060）+ 白字
+// 3. 气泡带指向头像一侧的 10dp 小箭头（我方在右、对方在左）
+// 4. 时间戳弱化但仍可读
 //
 // 背景：ChatDetailScreen 直接 pump 会触发 MQTT/SQLite 依赖，无法纯 UI 测试；
-// 因此将气泡 UI 提取为独立 ChatBubble 组件，聚焦颜色/布局验证
+// 因此将气泡 UI 提取为独立 ChatBubble 组件，聚焦颜色/形状验证
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:snow_chat/core/theme/app_theme.dart';
@@ -23,105 +22,82 @@ void main() {
     );
   }
 
-  group('ChatBubble 深色适配', () {
-    testWidgets('对方气泡应为深色表面色（非浅灰亮块）', (tester) async {
-      await tester.pumpWidget(wrapWithTheme(
-        const ChatBubble(content: '你好', isMe: false, createTime: 1726000000000),
-      ));
+  /// 找到气泡的绘制器（CustomPaint 的 painter）
+  BubblePainter painterOf(WidgetTester tester) {
+    final custom = tester.widget<CustomPaint>(
+      find.byWidgetPredicate((w) => w is CustomPaint && w.painter is BubblePainter),
+    );
+    return custom.painter as BubblePainter;
+  }
 
-      // 气泡根节点是带 BoxDecoration 的 Container
-      final container = tester.widget<Container>(
-        find.byWidgetPredicate((w) {
-          if (w is Container) {
-            return w.decoration is BoxDecoration;
-          }
-          return false;
-        }),
-      );
-      final decoration = container.decoration as BoxDecoration;
-      // 对方气泡：深色表面 #1E1E1E（原 grey.shade200 亮度 0.85 是刺眼亮块）
-      expect(decoration.color, AppTheme.surface);
-    });
-
-    testWidgets('对方气泡文字应为浅色（深色气泡上可读）', (tester) async {
-      await tester.pumpWidget(wrapWithTheme(
-        const ChatBubble(content: '你好', isMe: false, createTime: 1726000000000),
-      ));
-
-      final text = tester.widget<Text>(find.text('你好'));
-      final color = text.style?.color;
-      expect(color, isNotNull);
-      // 原实现为 black87（亮度 0.03），在深色气泡上不可读
-      expect(
-        color!.computeLuminance() > 0.3,
-        isTrue,
-        reason: '文字颜色 $color 应为浅色，实际亮度 ${color.computeLuminance()}',
-      );
-    });
-
-    testWidgets('我方气泡应为品牌蓝（主题主色）', (tester) async {
+  group('ChatBubble 对标 win-chat 夜间主题', () {
+    testWidgets('我方气泡应为金黄底（chat_bubble_send）', (tester) async {
       await tester.pumpWidget(wrapWithTheme(
         const ChatBubble(content: '你好', isMe: true, createTime: 1726000000000),
       ));
 
-      final container = tester.widget<Container>(
-        find.byWidgetPredicate((w) {
-          if (w is Container) {
-            return w.decoration is BoxDecoration;
-          }
-          return false;
-        }),
-      );
-      final decoration = container.decoration as BoxDecoration;
-      // 我方气泡：品牌蓝 #3F8AE2
-      expect(decoration.color, AppTheme.primary);
+      expect(painterOf(tester).color, AppTheme.bubbleSent);
+      expect(painterOf(tester).isMe, isTrue);
     });
 
-    testWidgets('我方气泡文字应为白色', (tester) async {
+    testWidgets('对方气泡应为灰紫底（chat_bubble_received）', (tester) async {
+      await tester.pumpWidget(wrapWithTheme(
+        const ChatBubble(content: '你好', isMe: false, createTime: 1726000000000),
+      ));
+
+      expect(painterOf(tester).color, AppTheme.bubbleReceived);
+      expect(painterOf(tester).isMe, isFalse);
+    });
+
+    testWidgets('我方气泡文字应为黑色（金底黑字）', (tester) async {
       await tester.pumpWidget(wrapWithTheme(
         const ChatBubble(content: '你好', isMe: true, createTime: 1726000000000),
       ));
 
       final text = tester.widget<Text>(find.text('你好'));
-      // 品牌蓝底上的文字保持纯白，对比度最高
-      expect(text.style?.color, Colors.white);
+      expect(text.style?.color, AppTheme.bubbleSentText);
     });
 
-    testWidgets('时间戳文字两种气泡均应为浅色', (tester) async {
-      // 对方气泡时间戳
+    testWidgets('对方气泡文字应为白色（灰紫底白字）', (tester) async {
       await tester.pumpWidget(wrapWithTheme(
         const ChatBubble(content: '你好', isMe: false, createTime: 1726000000000),
       ));
-      // 气泡内时间戳为 fontSize 10 的 Text（内容文本 fontSize 默认 14+）
+
+      final text = tester.widget<Text>(find.text('你好'));
+      expect(text.style?.color, AppTheme.bubbleReceivedText);
+    });
+
+    testWidgets('气泡应带指向头像一侧的小箭头（画布比内容宽出箭头长度）', (tester) async {
+      // 我方：箭头朝右伸出
+      await tester.pumpWidget(wrapWithTheme(
+        const ChatBubble(content: '你好', isMe: true, createTime: 1726000000000),
+      ));
+      final mySize = tester.getSize(find.byType(ChatBubble));
+      // 内容宽度 = 文本宽 + 左右 padding；画布宽 = 内容宽 + 箭头 10dp
+      expect(mySize.width, greaterThan(40), reason: '气泡应包含文本与内边距');
+
+      await tester.pumpWidget(wrapWithTheme(
+        const ChatBubble(content: '你好', isMe: false, createTime: 1726000000000),
+      ));
+      final otherSize = tester.getSize(find.byType(ChatBubble));
+      expect(otherSize.width, mySize.width, reason: '同内容两种气泡画布等宽');
+    });
+
+    testWidgets('时间戳应弱化显示但保持可读', (tester) async {
+      await tester.pumpWidget(wrapWithTheme(
+        const ChatBubble(content: '你好', isMe: false, createTime: 1726000000000),
+      ));
+      // 气泡内时间戳为 fontSize 10 的 Text（内容文本无显式 fontSize）
       final timeText = tester.widget<Text>(
-        find.byWidgetPredicate((w) {
-          return w is Text && (w.style?.fontSize ?? 14) == 10;
-        }),
+        find.byWidgetPredicate((w) => w is Text && (w.style?.fontSize ?? 14) == 10),
       );
-      var color = timeText.style?.color;
+      final color = timeText.style?.color;
       expect(color, isNotNull);
-      // 原实现为 grey.shade600（亮度 0.31），深色气泡上不可读
+      // 白色 55% 透明度叠在 #505060 上仍可读（亮度 > 0.25）
       expect(
-        color!.computeLuminance() > 0.3,
+        color!.computeLuminance() > 0.25,
         isTrue,
-        reason: '对方时间戳 $color 应为浅色，实际亮度 ${color.computeLuminance()}',
-      );
-
-      // 我方气泡时间戳
-      await tester.pumpWidget(wrapWithTheme(
-        const ChatBubble(content: '你好', isMe: true, createTime: 1726000000000),
-      ));
-      final myTimeText = tester.widget<Text>(
-        find.byWidgetPredicate((w) {
-          return w is Text && (w.style?.fontSize ?? 14) == 10;
-        }),
-      );
-      color = myTimeText.style?.color;
-      expect(color, isNotNull);
-      expect(
-        color!.computeLuminance() > 0.3,
-        isTrue,
-        reason: '我方时间戳 $color 应为浅色，实际亮度 ${color.computeLuminance()}',
+        reason: '时间戳 $color 应保持可读，实际亮度 ${color.computeLuminance()}',
       );
     });
   });

@@ -28,6 +28,9 @@ import '../../providers/chat_provider.dart';
 import '../widgets/message_delivery_status.dart';
 import '../widgets/message_action_sheet.dart';
 import '../widgets/forward_picker_sheet.dart';
+import '../widgets/avatar_widget.dart';
+import '../widgets/chat_bubble.dart';
+import '../../core/theme/app_theme.dart';
 import '../../services/contact_service.dart';
 import '../../services/chat_background_service.dart';
 import '../../core/utils/voice_content_codec.dart';
@@ -152,6 +155,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     _initMqtt();
     // 异步加载用户设置的聊天背景，不阻塞首帧
     _loadChatBackground();
+    // 监听输入内容变化：切换「发送」金色按钮与「+」附件按钮的显隐
+    _controller.addListener(_onInputChanged);
+  }
+
+  void _onInputChanged() {
+    if (mounted) setState(() {});
   }
 
   /// 从 ChatBackgroundService 读取聊天背景路径
@@ -1091,18 +1100,24 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   Widget _buildMessageBubble(_DisplayMessage msg, bool isMe, ThemeData theme) {
+    // 对标 win-chat：气泡箭头指向头像，头像侧需预留箭头伸出的宽度
+    final avatarGap = SizedBox(width: BubbleContainer.arrowLen + 2);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: [
           if (!isMe) ...[
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: theme.colorScheme.secondary,
-              child: Text(msg.content.isNotEmpty ? msg.content[0] : '?'),
+            AvatarWidget(
+              // 群聊/私聊对方头像：暂无好友目录数据，用会话名首字占位
+              initials: (widget.targetName?.isNotEmpty ?? false)
+                  ? widget.targetName![0]
+                  : '?',
+              size: 36,
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
+            avatarGap,
           ],
           Flexible(
             child: GestureDetector(
@@ -1112,11 +1127,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             ),
           ),
           if (isMe) ...[
-            const SizedBox(width: 8),
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: theme.colorScheme.secondary,
-              child: const Text('Y'),
+            avatarGap,
+            const SizedBox(width: 6),
+            AvatarWidget(
+              // 自己的头像用登录态里的真实头像，无头像时退回昵称首字
+              imageUrl: context.read<AuthProvider>().avatar,
+              initials: _myInitial(),
+              size: 36,
             ),
           ],
         ],
@@ -1124,16 +1141,23 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 
+  /// 自己的昵称首字（头像占位用），拿不到时用「我」
+  String _myInitial() {
+    final nickname = context.read<AuthProvider>().nickname;
+    return (nickname != null && nickname.isNotEmpty) ? nickname[0] : '我';
+  }
+
   Widget _buildMessageBubbleByType(_DisplayMessage msg, bool isMe, ThemeData theme) {
-    final bubbleColor = isMe ? theme.colorScheme.primary : Colors.grey.shade200;
-    final textColor = isMe ? Colors.white : Colors.black87;
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: bubbleColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: switch (msg.type) {
+    // 对标 win-chat 夜间主题：我方金底黑字、对方灰紫底白字；
+    // 图片/视频/大表情/撤回提示不走彩色气泡（参考项目这类消息不带底色）
+    final bool bubbleless = switch (msg.type) {
+      'image' || 'video' || 'emoji' || 'recall' => true,
+      _ => false,
+    };
+    final Color textColor = isMe
+        ? (bubbleless ? Colors.white : AppTheme.bubbleSentText)
+        : AppTheme.bubbleReceivedText;
+    final Widget content = switch (msg.type) {
         'image' => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1238,36 +1262,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               ],
             ],
           ),
+        // 文件传输助手消息（type=self）：内容就是普通文本，
+        // 与默认文本分支同样渲染（去掉旧版的绿色「TA」徽章）
         'self' => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.green.shade600,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Text(
-                      'TA',
-                      style: TextStyle(color: Colors.white, fontSize: 10),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Flexible(child: Text(msg.content, style: TextStyle(color: textColor))),
-                ],
-              ),
+              Text(msg.content, style: TextStyle(color: textColor)),
               if (msg.createTime != null) ...[
                 const SizedBox(height: 4),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      app_date.DateUtils.formatTime(msg.createTime),
-                      style: TextStyle(fontSize: 10, color: textColor.withOpacity(0.6)),
-                    ),
-                  ],
+                Text(
+                  app_date.DateUtils.formatTime(msg.createTime),
+                  style: TextStyle(fontSize: 10, color: textColor.withOpacity(0.6)),
                 ),
               ],
             ],
@@ -1318,10 +1323,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               ],
             ],
           ),
-      },
-    );
+    };
+    // 文本/语音/文件等走带箭头的彩色气泡；图片/视频/表情/撤回提示不带底色
+    if (bubbleless) return content;
+    return BubbleContainer(isMe: isMe, child: content);
   }
-
   Widget _fallbackPlaceholder(ThemeData theme, Color textColor, IconData icon) {
     return Container(
       width: 200,
@@ -1657,22 +1663,27 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   }
 
   Widget _buildInputBar(ThemeData theme, AppLocalizations l10n) {
+    // 对标 win-chat-android act_chat_layout：
+    // 工具栏 #1A1A1A、顶部 1px 分隔线；输入框同底色、圆角 14；
+    // 有文字时显示金色「发送」按钮（40x32、圆角 6），无文字时显示「+」附件
+    final hasText = _controller.text.trim().isNotEmpty;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         // 微信风格：表情面板从底部滑入，覆盖在输入栏上方
         if (_showEmojiPanel) _buildEmojiPanel(theme),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: theme.cardColor,
-            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, -2))],
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+          decoration: const BoxDecoration(
+            color: AppTheme.chatInputBar,
+            border: Border(top: BorderSide(color: AppTheme.chatDivider, width: 0.5)),
           ),
           child: Row(
             children: [
               // 语音/键盘切换按钮：切换"按住说话"与文本输入
               IconButton(
-                icon: Icon(_voiceMode ? Icons.keyboard : Icons.mic),
+                icon: Icon(_voiceMode ? Icons.keyboard : Icons.mic_none,
+                    color: Colors.white, size: 26),
                 tooltip: _voiceMode ? l10n.inputMessage : l10n.voice,
                 onPressed: () {
                   setState(() {
@@ -1696,21 +1707,31 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     : TextField(
                         controller: _controller,
                         focusNode: _inputFocusNode,
+                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                        cursorColor: AppTheme.accent,
                         decoration: InputDecoration(
                           hintText: l10n.inputMessage,
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
+                          hintStyle: const TextStyle(color: Color(0xFFB3B3B3), fontSize: 14),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide.none,
+                          ),
                           filled: true,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          fillColor: AppTheme.chatInputBar,
+                          isDense: true,
+                          contentPadding:
+                              const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                         ),
                         maxLines: null,
                         textCapitalization: TextCapitalization.none,
                         onSubmitted: (_) => _sendMessage(),
                       ),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 8),
               // 表情按钮
               IconButton(
-                icon: const Icon(Icons.emoji_emotions),
+                icon: const Icon(Icons.emoji_emotions_outlined,
+                    color: Colors.white, size: 26),
                 tooltip: l10n.emoji,
                 onPressed: () {
                   setState(() {
@@ -1727,10 +1748,30 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   });
                 },
               ),
-              // 附件按钮（语音模式下隐藏，避免误触；文本模式下显示）
-              if (!_voiceMode)
+              // 对标参考项目：输入框有文字时「发送」替换「+」附件按钮
+              if (!_voiceMode && hasText)
+                GestureDetector(
+                  onTap: _sendMessage,
+                  child: Container(
+                    margin: const EdgeInsets.only(left: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    constraints: const BoxConstraints(minWidth: 40, minHeight: 32),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppTheme.accent,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      l10n.send,
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                    ),
+                  ),
+                ),
+              // 附件按钮（语音模式或有文字时隐藏，避免误触）
+              if (!_voiceMode && !hasText)
                 PopupMenuButton<String>(
-                  icon: const Icon(Icons.attach_file),
+                  icon: const Icon(Icons.add_circle_outline,
+                      color: Colors.white, size: 28),
                   tooltip: l10n.attach,
                   itemBuilder: (_) => [
                     PopupMenuItem(value: 'image', child: Row(children: [const Icon(Icons.photo_library, size: 18), const SizedBox(width: 8), Text(l10n.image)])),
@@ -1744,14 +1785,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     });
                     _onAttachTap();
                   },
-                ),
-              // 发送按钮：仅在文本模式且输入框有内容时显示
-              if (!_voiceMode)
-                IconButton(
-                  icon: const Icon(Icons.send_rounded),
-                  color: theme.colorScheme.primary,
-                  tooltip: l10n.send,
-                  onPressed: _sendMessage,
                 ),
             ],
           ),
@@ -1780,20 +1813,20 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         if (_isRecording) _onRecordEnd();
       },
       child: Container(
-        height: 40,
+        height: 36,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           // 录音中按钮变色提示正在录音
           color: _isRecording
-              ? theme.colorScheme.primary.withValues(alpha: 0.25)
-              : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(24),
+              ? AppTheme.accent.withValues(alpha: 0.25)
+              : AppTheme.chatDivider,
+          borderRadius: BorderRadius.circular(14),
         ),
         child: Text(
           _isRecording ? l10n.releaseToSend : l10n.holdToTalk,
           style: TextStyle(
-            color: _isRecording ? theme.colorScheme.primary : Colors.white70,
-            fontSize: 15,
+            color: _isRecording ? AppTheme.accent : Colors.white70,
+            fontSize: 14,
             fontWeight: FontWeight.w500,
           ),
         ),
