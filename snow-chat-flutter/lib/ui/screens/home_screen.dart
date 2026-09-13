@@ -15,7 +15,6 @@ import '../../core/utils/message_utils.dart';
 import 'chat_list_tab.dart';
 import 'contact_tab.dart';
 import 'profile_tab.dart';
-import 'add_friend_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -59,18 +58,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   /// 个人中心图标（选中）：实心人像
   static const String _navProfileIconActive = 'assets/images/navigation/my_s.png';
-
-  /// 通讯录 tab 在底部导航中的索引
-  ///
-  /// ContactTab 自带 AppBar（标题「通讯录」+ 搜索/添加好友），若外层再叠加固定标题栏
-  /// 就会出现两个标题栏，故该索引下外层让位给页面自己的 AppBar。
-  static const int _contactsTabIndex = 1;
-
-  /// 个人中心 tab 在底部导航中的索引
-  ///
-  /// 该页为沉浸式布局（对标项目 win-chat-android 的「我的」页同样不带标题栏），
-  /// 外层标题栏在此让位，否则顶部会挂着一个与本页无关的「会话」标题。
-  static const int _profileTabIndex = 2;
 
   @override
   void initState() {
@@ -320,46 +307,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  /// 构建顶部标题栏（会话 / 通讯录 / 个人中心 三个 tab 共用）
-  ///
-  /// 通讯录 tab 返回 null，让位给 ContactTab 自带的 AppBar —— 该页的标题栏里
-  /// 还有「搜索」与「添加好友」两个动作，外层若再画一个就会出现两个标题栏。
-  /// 个人中心 tab 同样返回 null：该页是沉浸式布局，顶部不需要标题栏。
-  PreferredSizeWidget? _buildAppBar(AppLocalizations l10n) {
-    if (_currentIndex == _contactsTabIndex ||
-        _currentIndex == _profileTabIndex) {
-      return null;
-    }
-
-    return AppBar(
-      // 背景色与页面一致，保持深色主题连贯性
-      backgroundColor: AppTheme.background,
-      // 无阴影，扁平风格
-      elevation: 0,
-      title: Text(l10n.chatList),
-      centerTitle: false,
-      actions: [
-        // 添加联系人按钮
-        IconButton(
-          icon: const Icon(Icons.person_add),
-          tooltip: '添加联系人',
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const AddFriendScreen()),
-            );
-          },
-        ),
-        // 更多操作按钮
-        IconButton(
-          icon: const Icon(Icons.more_vert),
-          tooltip: '更多',
-          onPressed: () {},
-        ),
-      ],
-    );
-  }
-
   @override
   void dispose() {
     _tabController.removeListener(_onTabChanged);
@@ -380,13 +327,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final totalUnread = chatProvider.totalUnreadCount;
 
     return Scaffold(
-      // 顶部标题栏：通讯录与个人中心两个 tab 均返回 null ——
-      // 前者由 ContactTab 自带的 AppBar 承担，后者是沉浸式页面
-      appBar: _buildAppBar(l10n),
+      // 外层不再提供 AppBar：三个 tab 各自决定要不要标题栏。
+      //
+      // 之前外层按「当前索引」动态返回 AppBar 或 null，滑动切换时索引与动画
+      // 不同步，会出现两类肉眼可见的抖动：从通讯录左滑到会话时先缺标题栏再补上
+      // （样式错位），反向滑动时外层标题栏与 ContactTab 自带标题栏短暂并存
+      // （两个导航栏），都要等一会儿才恢复。标题栏交给各 tab 自己持有后，
+      // 布局在滑动全程保持稳定。
       body: TabBarView(
         controller: _tabController,
         children: [
-          const ChatListTab(),
+          ChatListTab(friendAcceptedNotifier: _friendAcceptedNotifier),
           ContactTab(friendAcceptedNotifier: _friendAcceptedNotifier),
           const ProfileTab(),
         ],

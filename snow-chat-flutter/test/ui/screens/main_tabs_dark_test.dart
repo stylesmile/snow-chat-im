@@ -22,6 +22,7 @@ import 'package:snow_chat/providers/chat_provider.dart';
 import 'package:snow_chat/providers/friend_request_provider.dart';
 import 'package:snow_chat/ui/screens/chat_list_tab.dart';
 import 'package:snow_chat/ui/screens/contact_tab.dart';
+import 'package:snow_chat/ui/widgets/avatar_widget.dart';
 
 void main() {
   late AuthProvider authProvider;
@@ -126,8 +127,9 @@ void main() {
       );
     });
 
-    testWidgets('头像应使用设计令牌色（好友=辅助绿）', (tester) async {
-      // 注入一条好友会话，验证头像背景使用设计稿辅助绿而非 Material 默认绿
+    testWidgets('好友会话头像应使用 AvatarWidget 展示真实头像', (tester) async {
+      // 注入一条好友会话：好友头像走 AvatarWidget（真实头像 + 首字占位），
+      // 不再是清一色的「友」字圆底，故这里断言组件类型而非底色令牌
       chatProvider.setConversations([
         Conversation(
           targetId: 100,
@@ -140,9 +142,10 @@ void main() {
       await tester.pumpWidget(makeTestableWidget(const ChatListTab()));
       await tester.pumpAndSettle();
 
-      final avatar = tester.widget<CircleAvatar>(find.byType(CircleAvatar).first);
-      // 好友会话头像：辅助绿 #549A78（设计稿"在线/成功"绿）
-      expect(avatar.backgroundColor, AppTheme.secondary);
+      expect(find.byType(AvatarWidget), findsOneWidget,
+          reason: '好友会话应使用 AvatarWidget 渲染头像');
+      expect(find.text('用户 100'), findsOneWidget,
+          reason: '好友目录为空时应回退为带 id 的占位名');
     });
 
     testWidgets('头像应使用设计令牌色（群组=品牌蓝）', (tester) async {

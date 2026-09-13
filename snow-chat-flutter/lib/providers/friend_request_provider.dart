@@ -13,6 +13,17 @@ import '../core/network/api_client.dart';
 /// 页清零后，下一次轮询会把同样的旧请求再次算成未读，红点永远消不掉。
 /// 水位按用户持久化到 SharedPreferences，重启 App 后也不会复活红点。
 class FriendRequestProvider extends ChangeNotifier {
+  /// 好友关系变化广播（加好友 / 通过申请 / 删除好友后自增）
+  ///
+  /// 通讯录与聊天列表都只持有 targetId，名字与头像全靠「好友目录」翻译。
+  /// 关系变化后若目录不刷新，就会出现"已经能聊天，但列表里还是『用户 1002』
+  /// 和占位头像"的怪象。这里用一个全局版本号广播，两个 tab 各自监听刷新，
+  /// 避免为了通知而层层透传 notifier。
+  static final ValueNotifier<int> friendListVersion = ValueNotifier<int>(0);
+
+  /// 广播一次「好友关系变化」
+  static void notifyFriendListChanged() => friendListVersion.value++;
+
   final ApiClient _apiClient;
   int _unreadCount = 0;
   Timer? _pollTimer;

@@ -4,15 +4,24 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../models/friend_model.dart';
 import '../../providers/chat_provider.dart';
+import '../../providers/friend_request_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/contact_service.dart';
 import '../../services/conversation_service.dart';
 import '../widgets/avatar_widget.dart';
+import 'add_friend_screen.dart';
 import 'chat_detail_screen.dart';
 import 'global_search_screen.dart';
+import 'scan_screen.dart';
 
 class ChatListTab extends StatefulWidget {
-  const ChatListTab({super.key});
+  /// 好友关系变化通知（加好友/通过申请后由外层自增），收到后刷新好友目录
+  ///
+  /// 用途：刚加上的好友在本地会话里只有一个 targetId，若目录不刷新，
+  /// 会话就会一直显示「用户 1002」和占位头像，而实际上已经能正常聊天了。
+  final ValueNotifier<int>? friendAcceptedNotifier;
+
+  const ChatListTab({super.key, this.friendAcceptedNotifier});
 
   @override
   State<ChatListTab> createState() => _ChatListTabState();
@@ -29,7 +38,12 @@ class _ChatListTabState extends State<ChatListTab> {
   void initState() {
     super.initState();
     _loadConversations();
+    widget.friendAcceptedNotifier?.addListener(_onFriendAccepted);
+    FriendRequestProvider.friendListVersion.addListener(_onFriendAccepted);
   }
+
+  /// 好友关系变化（新加好友 / 申请被通过）：重新拉好友目录并刷新会话列表
+  void _onFriendAccepted() => _loadConversations();
 
   /// 好友的会话显示名：有备注用备注、否则用昵称（与 ContactTab 的列表一致）
   static String _displayNameOf(FriendModel friend) =>
@@ -268,7 +282,9 @@ class _ChatListTabState extends State<ChatListTab> {
               ),
               trailing: Text(
                 _formatTime(conv.lastMsgTime),
-                style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                // 深色底上用 shade400（亮度 0.52）而非 shade500（0.34），
+                // 后者在 #111111 背景上几乎看不清
+                style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
               ),
               onTap: () {
                 Navigator.push(
@@ -289,10 +305,74 @@ class _ChatListTabState extends State<ChatListTab> {
       );
     }
 
-    // 顶部搜索条 + 下方会话内容
-    return Column(
-      children: [searchBar, Expanded(child: content)],
+    // 自带 Scaffold + AppBar，写法与 ContactTab 一致：
+    // 标题栏由本页持有，外层 HomeScreen 不再按 tab 索引动态增删 AppBar，
+    // 从而消除左右滑动切换 tab 时的布局抖动与双标题栏。
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(l10n.chatList),
+        centerTitle: true,
+        actions: [
+          // 搜索：进入全局搜索（检索联系人与聊天记录）
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: l10n.search,
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const GlobalSearchScreen()),
+              );
+            },
+          ),
+          // 更多：添加朋友 / 扫一扫
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.add_circle_outline),
+            tooltip: l10n.addFriend,
+            onSelected: (value) => _onMoreAction(value),
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'add_friend',
+                child: Row(children: [
+                  const Icon(Icons.person_add, size: 18),
+                  const SizedBox(width: 8),
+                  Text(l10n.addFriend),
+                ]),
+              ),
+              PopupMenuItem(
+                value: 'scan',
+                child: Row(children: [
+                  const Icon(Icons.qr_code_scanner, size: 18),
+                  const SizedBox(width: 8),
+                  Text(l10n.scan),
+                ]),
+              ),
+            ],
+          ),
+        ],
+      ),
+      // 顶部搜索条 + 下方会话内容
+      body: Column(
+        children: [searchBar, Expanded(child: content)],
+      ),
     );
+  }
+
+  /// 标题栏「+」菜单动作：添加朋友 / 扫一扫
+  void _onMoreAction(String value) {
+    switch (value) {
+      case 'add_friend':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AddFriendScreen()),
+        );
+        break;
+      case 'scan':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ScanScreen()),
+        );
+        break;
+    }
   }
 
   /// 长按会话弹出操作菜单：置顶/取消置顶、免打扰/取消免打扰、删除会话
@@ -380,5 +460,11 @@ class _ChatListTabState extends State<ChatListTab> {
         chatProvider.removeConversation(conv.targetId, conv.targetType);
         break;
     }
+  }
+
+  @override
+  void dispose() {
+    widget.friendAcceptedNotifier?.removeListener(_onFriendAccepted);
+    super.dispose();
   }
 }

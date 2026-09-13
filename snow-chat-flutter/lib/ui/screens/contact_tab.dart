@@ -40,6 +40,7 @@ class _ContactTabState extends State<ContactTab> {
     super.initState();
     _loadData();
     widget.friendAcceptedNotifier?.addListener(_onFriendAccepted);
+    FriendRequestProvider.friendListVersion.addListener(_onFriendAccepted);
   }
 
   void _onFriendAccepted() {
@@ -476,6 +477,7 @@ class _ContactTabState extends State<ContactTab> {
   @override
   void dispose() {
     widget.friendAcceptedNotifier?.removeListener(_onFriendAccepted);
+    FriendRequestProvider.friendListVersion.removeListener(_onFriendAccepted);
     _scrollController.dispose();
     super.dispose();
   }

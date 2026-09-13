@@ -3,6 +3,7 @@ import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/contact_service.dart';
+import '../../providers/friend_request_provider.dart';
 import '../../models/friend_model.dart';
 
 class AddFriendScreen extends StatefulWidget {
@@ -69,6 +70,9 @@ class _AddFriendScreenState extends State<AddFriendScreen> {
     if (!mounted) return;
     if (result['success'] == true) {
       setState(() => _addedUsers.add(user.id));
+      // 对方若也已向我发过申请，后端会双向直接建好友关系；无论哪种情况
+      // 都广播一次变化，让通讯录/聊天列表重新拉好友目录
+      FriendRequestProvider.notifyFriendListChanged();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.friendRequestSent)),
       );

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/contact_service.dart';
+import '../../providers/friend_request_provider.dart';
 import '../../models/friend_model.dart';
 import '../widgets/avatar_widget.dart';
 
@@ -79,6 +80,10 @@ class _UserPreviewScreenState extends State<UserPreviewScreen> {
       _sending = false;
       _requestSent = result['success'] == true;
     });
+    // 发送成功后广播好友关系变化，通讯录/聊天列表据此刷新好友目录
+    if (result['success'] == true) {
+      FriendRequestProvider.notifyFriendListChanged();
+    }
 
     // 弹出提示后回跳到扫码页（失败时展示后端返回的具体原因）
     final String tip = _requestSent
