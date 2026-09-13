@@ -106,6 +106,27 @@ void main() {
     return tester.widget<BottomNavigationBar>(find.byType(BottomNavigationBar)).items;
   }
 
+  /// 取出图标上叠加的角标控件（Positioned），无角标时返回 null
+  ///
+  /// `_buildNavItemIcon` 需要角标时返回 Stack（图标 + Positioned 角标），
+  /// 无角标时直接返回 Image。
+  Positioned? badgeOf(Widget widget) {
+    if (widget is! Stack) return null;
+    return widget.children.whereType<Positioned>().firstOrNull;
+  }
+
+  /// 断言角标是微信风格的"纯红点"（红色圆形、不带数字文本）
+  void expectWeChatStyleDot(Positioned? badge) {
+    expect(badge, isNotNull, reason: '有未读好友申请时应渲染红点');
+    final child = badge!.child;
+    expect(child, isA<Container>(), reason: '红点应为 Container 绘制的圆形');
+    final box = child as Container;
+    final decoration = box.decoration as BoxDecoration?;
+    expect(decoration?.color, Colors.red, reason: '红点应为红色（微信风格）');
+    expect(decoration?.shape, BoxShape.circle, reason: '红点应为圆形');
+    expect(box.child, isNull, reason: '纯红点不应带数字文本');
+  }
+
   group('底部导航图标（设计稿图形）', () {
     testWidgets('三个 tab 均使用 assets/images/navigation 下的设计稿 PNG', (tester) async {
       await tester.pumpWidget(makeTestableWidget());
@@ -231,6 +252,30 @@ void main() {
       final items = navItemsOf(tester);
       expect(rendersBadge(items[0].icon), isFalse, reason: '无未读时会话 tab 不应有角标');
       expect(rendersBadge(items[2].icon), isFalse, reason: '个人中心永远不应有角标');
+    });
+  });
+
+  group('通讯录 tab 好友申请红点', () {
+    testWidgets('有未读好友申请时，通讯录图标显示微信风格的纯红点（无数字）', (tester) async {
+      // 注入未读好友申请数（visibleForTesting，模拟轮询/MQTT 刷新后的状态）
+      friendRequestProvider.forceUnread(2);
+
+      await tester.pumpWidget(makeTestableWidget());
+      await tester.pumpAndSettle();
+
+      final contactsItem = navItemsOf(tester)[1];
+      // 红点在选中与未选中两种状态下都必须渲染（tab 可能在任意状态下收到申请）
+      expectWeChatStyleDot(badgeOf(contactsItem.icon));
+      expectWeChatStyleDot(badgeOf(contactsItem.activeIcon));
+    });
+
+    testWidgets('无未读好友申请时，通讯录图标不渲染红点', (tester) async {
+      await tester.pumpWidget(makeTestableWidget());
+      await tester.pumpAndSettle();
+
+      final contactsItem = navItemsOf(tester)[1];
+      expect(badgeOf(contactsItem.icon), isNull, reason: '无申请时通讯录不应有红点');
+      expect(badgeOf(contactsItem.activeIcon), isNull, reason: '无申请时通讯录不应有红点');
     });
   });
 }
