@@ -34,6 +34,32 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   MqttChatClient? _mqttClient;
   final ValueNotifier<int> _friendAcceptedNotifier = ValueNotifier<int>(0);
 
+  // ---------------------------------------------------------------------------
+  // 底部导航图标资源路径
+  //
+  // 图标取自对标项目 win-chat-android（wkuikit 模块 mipmap 下的 ic_chat/ic_contacts/ic_mine），
+  // 文件名后缀含义：_n = 未选中（描边）、_s = 选中（实心）。
+  // 集中定义为常量，避免同一路径在 icon 与 activeIcon 两处重复书写而写歪。
+  // ---------------------------------------------------------------------------
+
+  /// 会话图标（未选中）：描边对话框
+  static const String _navChatIcon = 'assets/images/navigation/chat.png';
+
+  /// 会话图标（选中）：实心对话框
+  static const String _navChatIconActive = 'assets/images/navigation/chat_s.png';
+
+  /// 通讯录图标（未选中）：描边人像 + 列表线
+  static const String _navContactsIcon = 'assets/images/navigation/contract.png';
+
+  /// 通讯录图标（选中）：实心人像 + 列表线
+  static const String _navContactsIconActive = 'assets/images/navigation/contract_s.png';
+
+  /// 个人中心图标（未选中）：描边人像
+  static const String _navProfileIcon = 'assets/images/navigation/my.png';
+
+  /// 个人中心图标（选中）：实心人像
+  static const String _navProfileIconActive = 'assets/images/navigation/my_s.png';
+
   @override
   void initState() {
     super.initState();
@@ -193,25 +219,56 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   /// 构建带角标的导航图标（未读数直接显示在图标右上角）
-  Widget _buildNavItemIcon(IconData outlined, IconData filled, bool hasBadge, int? count) {
+  /// 构建底部导航图标：以设计稿的 PNG 形状渲染，并按需叠加红色未读角标
+  ///
+  /// [assetPath] 图标资源路径。未选中态传入描边图（*_n），选中态传入实心图（*_s），
+  ///   形状随之由「描边」切换为「实心」，与对标项目（win-chat-android）的交互一致。
+  /// [color] 图标染色。资源本身自带颜色（灰/绿），这里用 [BlendMode.srcIn] 只取其
+  ///   透明度通道，从而使同一份资源能适配任意主题色——不必为每种颜色单独导出图片。
+  /// [hasBadge] 是否显示未读角标；[count] 为角标数字，超过 99 显示为 99+。
+  ///   两者都为真时才渲染角标（仅提示"有新内容"但无具体数量时可不传 count）。
+  Widget _buildNavItemIcon({
+    required String assetPath,
+    required Color color,
+    bool hasBadge = false,
+    int? count,
+  }) {
+    // 图标主体：24 逻辑像素见方，与 Flutter 底部导航的默认图标尺寸对齐
+    final icon = Image.asset(
+      assetPath,
+      width: 24,
+      height: 24,
+      color: color,
+      colorBlendMode: BlendMode.srcIn,
+      // 资源为高分辨率 PNG，显式指定高质量过滤可避免缩小渲染时描边发虚
+      filterQuality: FilterQuality.high,
+    );
+
+    // 无需角标时直接返回图标本身，省掉一层 Stack 布局
+    if (!hasBadge || count == null) {
+      return icon;
+    }
+
+    // 有未读数量时叠加角标；选中与未选中两种状态都要显示，故调用方需分别传入
     return Stack(
       children: [
-        Icon(hasBadge ? filled : outlined, color: Colors.white54),
-        if (hasBadge && count != null)
-          Positioned(
-            right: 0,
-            top: 0,
-            child: Container(
-              padding: const EdgeInsets.all(2),
-              decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-              constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
-              child: Text(
-                count > 99 ? '99+' : '$count',
-                style: const TextStyle(color: Colors.white, fontSize: 8),
-                textAlign: TextAlign.center,
-              ),
+        icon,
+        Positioned(
+          right: 0,
+          top: 0,
+          child: Container(
+            // 角标为红底白字圆形，尺寸随文字自适应并保证最小 14x14 可点面积
+            padding: const EdgeInsets.all(2),
+            decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+            constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
+            child: Text(
+              // 超过两位数的未读量收敛为 99+，避免角标横向撑开遮挡相邻图标
+              count > 99 ? '99+' : '$count',
+              style: const TextStyle(color: Colors.white, fontSize: 8),
+              textAlign: TextAlign.center,
             ),
           ),
+        ),
       ],
     );
   }
@@ -275,21 +332,55 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppTheme.primary,
-        unselectedItemColor: Colors.grey,
+        // 选中态用强调金（与登录页主按钮同色），替换此前遗留的品牌蓝 token；
+        // 该色同时作用于文字标签，必须与图标染色保持一致，否则会出现「金字蓝标」
+        selectedItemColor: AppTheme.accent,
+        // 未选中态用中灰，保证在近黑底（#111111）上仍可辨认
+        unselectedItemColor: AppTheme.navUnselected,
         items: [
+          // 会话：角标显示总未读数，选中/未选中两种状态都要带角标
           BottomNavigationBarItem(
-            icon: _buildNavItemIcon(Icons.chat_bubble_outline, Icons.chat_bubble, totalUnread > 0, totalUnread),
+            icon: _buildNavItemIcon(
+              assetPath: _navChatIcon,
+              color: AppTheme.navUnselected,
+              hasBadge: totalUnread > 0,
+              count: totalUnread,
+            ),
+            activeIcon: _buildNavItemIcon(
+              assetPath: _navChatIconActive,
+              color: AppTheme.accent,
+              hasBadge: totalUnread > 0,
+              count: totalUnread,
+            ),
             label: l10n.chat,
           ),
+          // 通讯录：角标仅提示"有新好友申请"，不带数量
           BottomNavigationBarItem(
-            icon: _buildNavItemIcon(Icons.people_outline, Icons.people, hasFriendRequest, null),
+            icon: _buildNavItemIcon(
+              assetPath: _navContactsIcon,
+              color: AppTheme.navUnselected,
+              hasBadge: hasFriendRequest,
+              count: null,
+            ),
+            activeIcon: _buildNavItemIcon(
+              assetPath: _navContactsIconActive,
+              color: AppTheme.accent,
+              hasBadge: hasFriendRequest,
+              count: null,
+            ),
             label: l10n.contacts,
           ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
-            label: '个人中心',
+          // 个人中心：无未读概念，不渲染角标
+          BottomNavigationBarItem(
+            icon: _buildNavItemIcon(
+              assetPath: _navProfileIcon,
+              color: AppTheme.navUnselected,
+            ),
+            activeIcon: _buildNavItemIcon(
+              assetPath: _navProfileIconActive,
+              color: AppTheme.accent,
+            ),
+            label: l10n.profile,
           ),
         ],
         onTap: (index) {
