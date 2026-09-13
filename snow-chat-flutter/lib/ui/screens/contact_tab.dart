@@ -10,6 +10,7 @@ import '../../core/utils/pinyin_helper.dart';
 import '../widgets/avatar_widget.dart';
 import 'add_friend_screen.dart';
 import 'chat_detail_screen.dart';
+import 'contact_search_screen.dart';
 import 'group_screen.dart';
 import 'friend_request_screen.dart';
 
@@ -147,10 +148,18 @@ class _ContactTabState extends State<ContactTab> {
     }
   }
 
+  /// 搜索通讯录内的好友。
+  ///
+  /// 这里此前跳的是「添加好友」页，与同排的 person_add 按钮完全重复，
+  /// 结果是在通讯录里搜自己的好友永远搜不到。搜索的语义应当是
+  /// 「在我已添加的好友里找」，故改为打开只检索本机好友的搜索页，
+  /// 并直接复用当前已加载的 [_friends]（本地缓存 + 服务端最新），不再重复请求。
   void _onSearchTap() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const AddFriendScreen()),
+      MaterialPageRoute(
+        builder: (_) => ContactSearchScreen(friends: _friends),
+      ),
     );
   }
 
