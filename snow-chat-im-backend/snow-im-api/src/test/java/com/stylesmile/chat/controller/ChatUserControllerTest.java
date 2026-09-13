@@ -50,7 +50,9 @@ class ChatUserControllerTest {
     void delegatesLoginAndRegister() {
         // 准备：登录/注册后返回的已注册用户
         ChatUser user = new ChatUser();
-        user.setId(1);
+        // 注意：ChatUser.id 为 Long 类型，字面量必须写 1L，
+        // 否则 int 无法自动装箱为 Long，会导致测试编译失败
+        user.setId(1L);
         user.setUsername("alice");
         when(chatUserService.login("alice", "secret")).thenReturn(Result.success(user));
         when(chatUserService.register("alice", "secret", "Alice", "alice@example.com", "123456"))
