@@ -87,6 +87,33 @@ class ContactService {
     }
   }
 
+  /// 按 userId 查询用户公开信息（扫码添加好友预览用）
+  ///
+  /// 调用后端 `GET /chat/user/infoById?userId=`；返回单个用户的公开资料，
+  /// 复用 [UserSearchResult] 承载 id/username/nickname/avatar，供扫码后的预览页展示。
+  /// 用户不存在、网络异常或 data 为 null 时返回 null（调用方据此提示）。
+  Future<UserSearchResult?> getUserById(int userId) async {
+    try {
+      final response = await apiClient.dio.get(
+        '/chat/user/infoById',
+        queryParameters: {'userId': userId},
+      );
+      // 后端 code 非 200（如用户不存在）时直接返回 null
+      if (response.data['code'] != '200') {
+        return null;
+      }
+      final data = response.data['data'] as Map<String, dynamic>?;
+      if (data == null) {
+        return null;
+      }
+      return UserSearchResult.fromJson(data);
+    } catch (e) {
+      // 网络/解析异常统一按"查无此人"处理，不让扫码流程崩溃
+      debugPrint('getUserById failed: $e');
+      return null;
+    }
+  }
+
   /// 发送好友请求，返回 {success, message}
   /// success=false 时 message 包含后端返回的具体原因（如"已发送过好友请求"）
   Future<Map<String, dynamic>> sendFriendRequest(int fromUserId, int toUserId, String remark) async {

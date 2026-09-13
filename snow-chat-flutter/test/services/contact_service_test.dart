@@ -114,6 +114,67 @@ void main() {
     });
   });
 
+  group('ContactService.getUserById', () {
+    test('should return scanned user info when request succeeds', () async {
+      // 准备：后端 /chat/user/infoById 返回单个用户 data map
+      mockApiClient.adapter.onGet(
+        '/chat/user/infoById',
+        (server) => server.reply(200, {
+          'code': '200',
+          'data': {
+            'id': 7,
+            'username': 'bob',
+            'nickname': 'Bob',
+            'avatar': 'https://img.example.com/avatar.png',
+          },
+        }),
+      );
+
+      // 执行：按 userId 拉取扫码用户资料
+      final result = await contactService.getUserById(7);
+
+      // 验证：字段正确映射为可预览的 UserSearchResult
+      expect(result, isNotNull);
+      expect(result!.id, equals(7));
+      expect(result.username, equals('bob'));
+      expect(result.nickname, equals('Bob'));
+      expect(result.avatar, equals('https://img.example.com/avatar.png'));
+    });
+
+    test('should return null when user not found', () async {
+      // 准备：后端返回"用户不存在"
+      mockApiClient.adapter.onGet(
+        '/chat/user/infoById',
+        (server) => server.reply(200, {'code': '500', 'msg': '用户不存在'}),
+      );
+
+      // 执行
+      final result = await contactService.getUserById(404);
+
+      // 验证：返回 null，调用方据此提示
+      expect(result, isNull);
+    });
+
+    test('should return null when request fails', () async {
+      // 准备：网络/接口异常
+      mockApiClient.adapter.onGet(
+        '/chat/user/infoById',
+        (server) => server.throws(
+          0,
+          DioException(
+            requestOptions: RequestOptions(path: '/chat/user/infoById'),
+          ),
+        ),
+      );
+
+      // 执行
+      final result = await contactService.getUserById(7);
+
+      // 验证：返回 null，不抛异常
+      expect(result, isNull);
+    });
+  });
+
   group('ContactService.sendFriendRequest', () {
     test('should return success map when request succeeds', () async {
       mockApiClient.adapter.onPost(

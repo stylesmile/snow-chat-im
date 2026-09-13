@@ -54,6 +54,12 @@ dependencies:
   # Pinyin
   lpinyin: ^2.0.3
 
+  # QR scanning (扫一扫添加好友)
+  mobile_scanner: ^6.0.0
+
+  # QR generation (我的二维码展示)
+  qr_flutter: ^4.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
