@@ -12,6 +12,7 @@ import '../helpers/mock_api_client.dart';
 /// 2. refreshProfile：委托 getUserProfile
 /// 3. updateProfile：成功/失败（PUT JSON body）
 /// 4. uploadAvatar：成功返回 UploadResult / 网络异常返回 null
+/// 5. fetchAvatarUrl：取当前用户头像的可访问 URL（key → URL 转换）
 void main() {
   late MockApiClient mockApiClient;
   late ProfileService profileService;
@@ -144,7 +145,10 @@ void main() {
     });
   });
 
-  /// uploadAvatar：POST /file/avatar multipart/form-data
+  /// uploadAvatar：POST /chat/user/avatar/upload multipart/form-data
+  ///
+  /// 必须打向「上传并落库」的端点；`/file/avatar` 只上传不写 DB，
+  /// 用它会导致重新登录后头像丢失（本地登录态被后端返回值覆盖）。
   group('ProfileService.uploadAvatar', () {
     late File tempFile;
 
@@ -166,7 +170,7 @@ void main() {
     test('should return UploadResult when upload succeeds', () async {
       // mock 后端返回 {code:200, data:{key, url}}
       mockApiClient.adapter.onPost(
-        '/file/avatar',
+        '/chat/user/avatar/upload',
         (server) => server.reply(200, {
           'code': '200',
           'data': {
@@ -185,11 +189,11 @@ void main() {
 
     test('should return null when upload fails with network error', () async {
       mockApiClient.adapter.onPost(
-        '/file/avatar',
+        '/chat/user/avatar/upload',
         (server) => server.throws(
           0,
           DioException(
-            requestOptions: RequestOptions(path: '/file/avatar'),
+            requestOptions: RequestOptions(path: '/chat/user/avatar/upload'),
           ),
         ),
       );
@@ -201,13 +205,63 @@ void main() {
 
     test('should return null when response data is null', () async {
       mockApiClient.adapter.onPost(
-        '/file/avatar',
+        '/chat/user/avatar/upload',
         (server) => server.reply(200, {'code': '500', 'data': null}),
       );
 
       final result = await profileService.uploadAvatar(tempFile);
 
       expect(result, isNull);
+    });
+  });
+
+  /// fetchAvatarUrl：GET /chat/user/info
+  ///
+  /// 该接口会把库里存的 storage key 转成可访问地址（公共读为直链、私有读为
+  /// 带签名的临时链接、本地 InMemory 为 base64 data URL），登录后用它补一次转换。
+  group('ProfileService.fetchAvatarUrl', () {
+    test('should return accessible url when request succeeds', () async {
+      mockApiClient.adapter.onGet(
+        '/chat/user/info',
+        (server) => server.reply(200, {
+          'code': '200',
+          'data': {
+            'id': 1,
+            'avatar': 'https://cdn.example.com/avatars/abc.jpg',
+          },
+        }),
+      );
+
+      final url = await profileService.fetchAvatarUrl();
+
+      expect(url, equals('https://cdn.example.com/avatars/abc.jpg'));
+    });
+
+    test('should return null when request fails', () async {
+      mockApiClient.adapter.onGet(
+        '/chat/user/info',
+        (server) => server.throws(
+          0,
+          DioException(
+            requestOptions: RequestOptions(path: '/chat/user/info'),
+          ),
+        ),
+      );
+
+      final url = await profileService.fetchAvatarUrl();
+
+      expect(url, isNull);
+    });
+
+    test('should return null when data is null', () async {
+      mockApiClient.adapter.onGet(
+        '/chat/user/info',
+        (server) => server.reply(200, {'code': '200', 'data': null}),
+      );
+
+      final url = await profileService.fetchAvatarUrl();
+
+      expect(url, isNull);
     });
   });
 }

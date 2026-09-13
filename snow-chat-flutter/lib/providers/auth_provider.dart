@@ -8,6 +8,12 @@ import '../core/cache/message_cache_manager.dart';
 ///
 /// 管理用户登录状态、token 及用户信息，持久化到 SharedPreferences。
 class AuthProvider extends ChangeNotifier {
+  /// 头像 storage key 的目录前缀。
+  ///
+  /// `chat_user.avatar` 存的是对象存储 key（如 `avatars/uuid.jpg`）而非可直接加载的
+  /// 地址，后端据此前缀判断是否需要实时转换成 URL（见 `GET /chat/user/info`）。
+  static const String _avatarKeyPrefix = 'avatars/';
+
   final String baseUrl;
   late final ApiClient _apiClient;
 
@@ -74,6 +80,8 @@ class AuthProvider extends ChangeNotifier {
         // 从后端响应中解析性别字段（可能为 int 或 String 类型）
         _gender = _parseGender(userData['gender']);
         _isLoggedIn = true;
+        // 头像在库里存的是 storage key，先换成可访问 URL 再持久化
+        await resolveAvatarUrlFromBackend();
         await _saveAuthState();
         // 确保当前用户的数据库表已创建
         if (_userId != null) {
@@ -133,6 +141,8 @@ class AuthProvider extends ChangeNotifier {
         // 从后端响应中解析性别字段（可能为 int 或 String 类型）
         _gender = _parseGender(userData['gender']);
         _isLoggedIn = true;
+        // 头像在库里存的是 storage key，先换成可访问 URL 再持久化
+        await resolveAvatarUrlFromBackend();
         await _saveAuthState();
         // 确保当前用户的数据库表已创建
         if (_userId != null) {
@@ -230,6 +240,32 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 头像若仍是对象存储 key（`avatars/...`），向后端换取可访问 URL 并持久化。
+  ///
+  /// 后端把头像的 storage key 存进 `chat_user.avatar`，只有 `GET /chat/user/info`
+  /// 会按存储访问策略把它转成可访问地址（公共读为直链、私有读为带签名的临时链接、
+  /// 本地开发用 InMemory 时为 base64 data URL）；登录/注册接口返回的是库里的原始
+  /// key。若不在登录后补一次转换，key 会被 `AvatarWidget` 当成网络地址去加载并失败，
+  /// 最终回落成首字母占位 —— 用户看到的现象就是「上传头像后重新登录，头像不显示了」。
+  ///
+  /// 头像已是 URL（`http...` / `data:image...`）或为空时直接返回，不发请求。
+  /// 转换失败时保留 key：不影响登录，下次启动/登录会重试。
+  @visibleForTesting
+  Future<void> resolveAvatarUrlFromBackend() async {
+    final avatar = _avatar;
+    if (avatar == null || !avatar.startsWith(_avatarKeyPrefix)) return;
+    try {
+      final response = await _apiClient.dio.get('/chat/user/info');
+      final data = response.data['data'] as Map<String, dynamic>?;
+      final url = data?['avatar'] as String?;
+      if (url == null || url.isEmpty) return;
+      _avatar = url;
+      await _saveAuthState();
+    } on Exception catch (e) {
+      if (kDebugMode) print('[AuthProvider] resolve avatar url failed: $e');
+    }
+  }
+
   /// 更新昵称并持久化
   Future<void> updateNickname(String newNickname) async {
     _nickname = newNickname;
@@ -311,6 +347,9 @@ class AuthProvider extends ChangeNotifier {
         _apiClient.token = _token;
       }
       _isLoggedIn = true;
+      // 本地缓存若残留 storage key（如上次转换失败时落盘），启动时补一次转换
+      // 已是 URL 或没有头像时本方法会直接返回，不产生额外请求
+      await resolveAvatarUrlFromBackend();
       // 确保已登录用户的数据库表已创建
       if (_userId != null && _userId! > 0) {
         await DatabaseHelper().ensureUserTables(_userId!);

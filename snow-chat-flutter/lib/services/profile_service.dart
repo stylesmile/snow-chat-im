@@ -9,6 +9,7 @@ import '../models/upload_result.dart';
 /// - [getUserProfile] / [refreshProfile]：查询用户资料（refreshProfile 为语义包装，用于刷新场景）
 /// - [updateProfile]：更新昵称/头像/签名（JSON body）
 /// - [uploadAvatar]：上传头像文件到对象存储，返回 {key, url}
+/// - [fetchAvatarUrl]：取当前登录用户头像的可访问 URL（key 由后端转 URL）
 class ProfileService {
   final ApiClient apiClient;
 
@@ -53,13 +54,16 @@ class ProfileService {
     }
   }
 
-  /// 上传头像文件（独立接口）
+  /// 上传头像文件
   ///
-  /// 调用 `POST /file/avatar`，仅完成上传到对象存储（MinIO / InMemory）：
-  /// - 返回 {key, url}，url 为可访问地址（InMemory 模式为 base64 data URL，MinIO 为 pre-signed URL）
-  /// - **不写 DB**，由调用方（ProfileTab）负责后续头像回显
+  /// 调用 `POST /chat/user/avatar/upload`：后端除了把文件写入对象存储
+  /// （key 形如 `avatars/{uuid}.{ext}`），还会把该 key **持久化到
+  /// `chat_user.avatar` 字段**，并返回 {key, url}。
   ///
-  /// [url] 可直接用于前端头像展示。
+  /// 注意不要改用 `POST /file/avatar`：那个端点只上传、不落库，一旦用户
+  /// 重新登录（本地登录态被后端返回值覆盖）头像就会丢失。
+  ///
+  /// [url] 可直接用于前端头像展示；[key] 为库中持久化的值。
   Future<UploadResult?> uploadAvatar(File imageFile) async {
     try {
       // 读取文件字节
@@ -69,11 +73,11 @@ class ProfileService {
       final formData = FormData.fromMap({
         'file': MultipartFile.fromBytes(bytes, filename: fileName),
       });
-      // 发送 POST 请求到独立头像上传接口
+      // 发送 POST 请求到「上传头像并落库」接口
       // 注意：必须显式设置 Options(contentType) 覆盖全局 application/json header，
       // 否则 multipart 边界会被破坏导致上传失败
       final response = await apiClient.dio.post(
-        '/file/avatar',
+        '/chat/user/avatar/upload',
         data: formData,
         options: Options(contentType: Headers.multipartFormDataContentType),
       );
@@ -86,6 +90,25 @@ class ProfileService {
     } catch (e) {
       // 输出详细错误信息，便于排查上传失败原因
       print('[ProfileService] uploadAvatar failed: $e');
+      return null;
+    }
+  }
+
+  /// 获取当前登录用户头像的可访问 URL
+  ///
+  /// `chat_user.avatar` 存的是对象存储 key（如 `avatars/uuid.jpg`），不是可直接
+  /// 加载的地址。后端只有 `GET /chat/user/info` 会把 key 转换成 URL（公共读为直链、
+  /// 私有读为带签名链接），登录/注册接口返回的是库里的原始 key，因此登录后需通过
+  /// 本方法补一次转换。
+  ///
+  /// 返回 null 表示请求失败或用户没有头像。
+  Future<String?> fetchAvatarUrl() async {
+    try {
+      final response = await apiClient.dio.get('/chat/user/info');
+      final data = response.data['data'] as Map<String, dynamic>?;
+      return data?['avatar'] as String?;
+    } catch (e) {
+      print('[ProfileService] fetchAvatarUrl failed: $e');
       return null;
     }
   }
