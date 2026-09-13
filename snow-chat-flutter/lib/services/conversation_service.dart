@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:sqflite/sqflite.dart';
 import '../core/database/database_helper.dart';
 import '../core/database/tables.dart';
 import '../providers/chat_provider.dart';
@@ -17,6 +16,9 @@ class ConversationService {
   }
 
   /// 保存或更新会话记录（支持置顶/免打扰状态持久化）
+  ///
+  /// [isPinned] / [isMuted] 为 **null 表示保持该会话已有的值**：进入聊天页、收到新消息
+  /// 这类调用只关心「最后一条消息/时间/未读数」，不该顺手把用户设的置顶、免打扰清掉。
   Future<void> saveSession({
     required BuildContext context,
     required int targetId,
@@ -24,29 +26,54 @@ class ConversationService {
     String lastMsg = '',
     int lastMsgTime = 0,
     int unreadCount = 0,
-    bool isPinned = false,
-    bool isMuted = false,
+    bool? isPinned,
+    bool? isMuted,
   }) async {
     final userId = _getUserId(context);
     final db = await _dbHelper.database;
     final table = Tables.sessionsTable(userId);
     final now = DateTime.now().millisecondsSinceEpoch;
-    // 插入会话记录，冲突时整体替换（upsert），保留最新的置顶/免打扰标记
-    await db.insert(
-      table,
-      {
+
+    // 调用方没传标记时沿用库里已有的值，避免一次普通写入把置顶/免打扰重置
+    var pinned = isPinned;
+    var muted = isMuted;
+    if (pinned == null || muted == null) {
+      final existing = await db.query(
+        table,
+        columns: ['is_pinned', 'is_muted'],
+        where: 'user_id = ? AND target_id = ? AND target_type = ?',
+        whereArgs: [userId, targetId, targetType],
+        limit: 1,
+      );
+      if (existing.isNotEmpty) {
+        pinned ??= (existing.first['is_pinned'] as int? ?? 0) == 1;
+        muted ??= (existing.first['is_muted'] as int? ?? 0) == 1;
+      }
+    }
+
+    // 先删除同一会话的旧行再插入。
+    // 不能只靠 ConflictAlgorithm.replace：它依赖唯一约束，而早期版本建出的
+    // sessions 表没有 UNIQUE(user_id,target_id,target_type)，且 CREATE TABLE IF NOT
+    // EXISTS 不会补约束 —— 那种库上 replace 等同于新增，于是「从通讯录再进一次同一好友」
+    // 就会攒出一行重复会话。显式先删后插与约束无关，任何库上都是同键只留一行。
+    await db.transaction((txn) async {
+      await txn.delete(
+        table,
+        where: 'user_id = ? AND target_id = ? AND target_type = ?',
+        whereArgs: [userId, targetId, targetType],
+      );
+      await txn.insert(table, {
         'user_id': userId,
         'target_id': targetId,
         'target_type': targetType,
         'last_msg': lastMsg,
         'last_msg_time': lastMsgTime,
         'unread_count': unreadCount,
-        'is_muted': isMuted ? 1 : 0,
-        'is_pinned': isPinned ? 1 : 0,
+        'is_muted': (muted ?? false) ? 1 : 0,
+        'is_pinned': (pinned ?? false) ? 1 : 0,
         'update_time': now,
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+      });
+    });
   }
 
   /// 加载当前用户的所有会话，按最后消息时间倒序，去重（防止重复记录）
@@ -54,14 +81,16 @@ class ConversationService {
     final userId = _getUserId(context);
     final db = await _dbHelper.database;
     final table = Tables.sessionsTable(userId);
-    // 使用 DISTINCT 防止同一 target_id+target_type 出现重复行
+    // 每个会话只取 id 最大的一行（最后一次写入的状态）：
+    // 老库里同一会话可能残留多行（缺 UNIQUE 约束的历史数据），
+    // 单纯 GROUP BY 会「随机」挑一行、拿不到最新状态，所以用 MAX(id) 精确定位。
     final rows = await db.rawQuery('''
       SELECT target_id, target_type, last_msg, last_msg_time, unread_count, is_muted, is_pinned
       FROM $table
       WHERE user_id = ?
-      GROUP BY target_id, target_type
+        AND id IN (SELECT MAX(id) FROM $table WHERE user_id = ? GROUP BY target_id, target_type)
       ORDER BY last_msg_time DESC
-    ''', [userId]);
+    ''', [userId, userId]);
     return rows.map((row) {
       // 从数据库行还原会话对象，包含置顶/免打扰状态
       return Conversation(
@@ -115,6 +144,26 @@ class ConversationService {
       {'unread_count': unreadCount},
       where: 'target_id = ? AND target_type = ?',
       whereArgs: [targetId, targetType],
+    );
+  }
+
+  /// 进入会话时清零未读数。
+  ///
+  /// 与 [saveSession] 的区别：**会话不存在时什么都不做**，不会凭空造出一条空会话。
+  /// 这样「从通讯录点进某人的聊天再返回」不会往聊天列表里多塞条目。
+  Future<void> clearUnread({
+    required BuildContext context,
+    required int targetId,
+    required String targetType,
+  }) async {
+    final userId = _getUserId(context);
+    final db = await _dbHelper.database;
+    final table = Tables.sessionsTable(userId);
+    await db.update(
+      table,
+      {'unread_count': 0},
+      where: 'user_id = ? AND target_id = ? AND target_type = ?',
+      whereArgs: [userId, targetId, targetType],
     );
   }
 

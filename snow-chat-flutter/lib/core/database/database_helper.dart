@@ -21,7 +21,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 5, // 升级到v5，为旧会话表补齐 is_pinned 列
+      version: 6, // 升级到v6，为旧会话表补齐「同一会话只留一行」的唯一索引
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -67,6 +67,46 @@ class DatabaseHelper {
       // 对库中所有按用户分表的会话表补齐 is_pinned 列（兼容更早版本建的表）
       await _ensureAllSessionsPinned(db);
     }
+    if (oldVersion < 6) {
+      // v6: 会话去重 —— 为早期没有 UNIQUE 约束的会话表补唯一索引，
+      // 否则同一好友每进一次聊天就多一行（聊天列表看起来重复）
+      await _ensureAllSessionsUnique(db);
+    }
+  }
+
+  /// 遍历库中所有按用户分表的会话表，为其补建「同一会话只留一行」的唯一索引
+  /// SQL 注入安全：表名来自 sqlite_master 且已按固定的 sessions_ 前缀过滤
+  Future<void> _ensureAllSessionsUnique(Database db) async {
+    final rows = await db.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'sessions_%'",
+    );
+    for (final row in rows) {
+      await DatabaseHelper.ensureSessionsUniqueIndex(db, row['name'] as String);
+    }
+  }
+
+  /// 幂等地为会话表补唯一索引，返回是否合并过历史重复行
+  ///
+  /// 1. `PRAGMA index_list` 判断是否已有唯一索引（建表语句里的 `UNIQUE(...)` 会生成
+  ///    一个 `sqlite_autoindex_*`，同样算命中）→ 有则直接返回，不重复建；
+  /// 2. 合并重复行：同一 `(user_id, target_id, target_type)` 只保留 `id` 最大的一行
+  ///    （即最后一次写入的状态），其余删除；
+  /// 3. 显式建唯一索引，让「同键只留一行」从此由数据库强制保证。
+  static Future<bool> ensureSessionsUniqueIndex(Database db, String table) async {
+    final indexes = await db.rawQuery('PRAGMA index_list($table)');
+    final hasUnique = indexes.any((row) => (row['unique'] as int? ?? 0) == 1);
+    if (hasUnique) return false;
+
+    // 先合并历史重复行，否则第 3 步建唯一索引会直接失败
+    final removed = await db.delete(
+      table,
+      where: 'id NOT IN (SELECT MAX(id) FROM $table GROUP BY user_id, target_id, target_type)',
+    );
+    await db.execute(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_${table}_uniq '
+      'ON $table(user_id, target_id, target_type)',
+    );
+    return removed > 0;
   }
 
   /// 遍历库中所有按用户分表的会话表，为其补齐 is_pinned 列

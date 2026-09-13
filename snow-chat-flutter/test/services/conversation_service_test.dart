@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:snow_chat/core/database/database_helper.dart';
 import 'package:snow_chat/core/database/tables.dart';
 
 void main() {
@@ -351,6 +354,136 @@ void main() {
       final rows = await db.query(table);
       expect(rows.length, equals(1));
       expect(rows[0]['last_msg'], equals('Keep me'));
+    });
+  });
+
+  // 会话重复的根因修复：早期版本建出的 sessions 表没有
+  // UNIQUE(user_id,target_id,target_type)，而 CREATE TABLE IF NOT EXISTS 不会补约束，
+  // 于是「先删后插」失效、同一好友攒出多行（聊天列表看起来重复）。
+  // 迁移负责：先合并重复行（保留 id 最大的一行），再补唯一索引。
+  group('DatabaseHelper.ensureSessionsUniqueIndex（会话去重迁移）', () {
+    /// 建一张"早期版本"的会话表：结构一致但没有 UNIQUE 约束。
+    ///
+    /// 用独立的临时**文件**库，不能用 `inMemoryDatabasePath`：sqflite 会把同名内存库
+    /// 复用成 setUp 里那张带 UNIQUE 约束的表，测出来就不是"老库"了（会被唯一约束直接拦下）。
+    Future<Database> openLegacyDb() async {
+      final dir = Directory.systemTemp.createTempSync('sessions_dedup_');
+      final path = '${dir.path}/legacy.db';
+      addTearDown(() async {
+        await databaseFactory.deleteDatabase(path);
+        if (dir.existsSync()) dir.deleteSync(recursive: true);
+      });
+      return databaseFactory.openDatabase(
+        path,
+        options: OpenDatabaseOptions(
+          version: 1,
+          onCreate: (db, version) async {
+            await db.execute('''
+              CREATE TABLE ${Tables.sessionsTable(testUserId)} (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                target_id INTEGER NOT NULL,
+                target_type TEXT NOT NULL,
+                last_msg TEXT DEFAULT '',
+                last_msg_time INTEGER,
+                unread_count INTEGER DEFAULT 0,
+                is_muted INTEGER DEFAULT 0,
+                is_pinned INTEGER DEFAULT 0,
+                update_time INTEGER
+              )
+            ''');
+          },
+        ),
+      );
+    }
+
+    test('合并历史重复行并补上唯一索引', () async {
+      final legacy = await openLegacyDb();
+      final table = Tables.sessionsTable(testUserId);
+
+      // 同一会话写入 3 次：老表没有唯一约束 → 攒下 3 行
+      for (var i = 0; i < 3; i++) {
+        await legacy.insert(table, {
+          'user_id': testUserId,
+          'target_id': 2,
+          'target_type': 'friend',
+          'last_msg': 'msg$i',
+          'last_msg_time': 1700000000000 + i,
+          'unread_count': 0,
+          'update_time': 1700000000000 + i,
+        });
+      }
+      expect((await legacy.query(table)).length, equals(3));
+
+      final merged = await DatabaseHelper.ensureSessionsUniqueIndex(legacy, table);
+
+      expect(merged, isTrue, reason: '应报告合并过重复行');
+      final rows = await legacy.query(table);
+      expect(rows.length, equals(1), reason: '同一会话只应保留一行');
+      expect(rows.first['last_msg'], equals('msg2'), reason: '保留最后一次写入的状态');
+
+      // 唯一索引生效：再插同键会直接被数据库拦下（而不是新增一行）
+      await expectLater(
+        legacy.insert(table, {
+          'user_id': testUserId,
+          'target_id': 2,
+          'target_type': 'friend',
+          'last_msg': 'dup',
+        }),
+        throwsA(isA<DatabaseException>()),
+      );
+      expect((await legacy.query(table)).length, equals(1));
+
+      await legacy.close();
+    });
+
+    test('不同好友/不同会话类型的记录不会被误合并', () async {
+      final legacy = await openLegacyDb();
+      final table = Tables.sessionsTable(testUserId);
+
+      await legacy.insert(table, {
+        'user_id': testUserId,
+        'target_id': 2,
+        'target_type': 'friend',
+        'last_msg': 'a',
+      });
+      await legacy.insert(table, {
+        'user_id': testUserId,
+        'target_id': 3,
+        'target_type': 'friend',
+        'last_msg': 'b',
+      });
+      // 同一个 id 但是群聊：属于另一个会话，不应与好友会话合并
+      await legacy.insert(table, {
+        'user_id': testUserId,
+        'target_id': 2,
+        'target_type': 'group',
+        'last_msg': 'c',
+      });
+
+      await DatabaseHelper.ensureSessionsUniqueIndex(legacy, table);
+
+      expect((await legacy.query(table)).length, equals(3));
+      await legacy.close();
+    });
+
+    test('已带 UNIQUE 约束的表会被识别为无需迁移', () async {
+      // 生产建表语句本身带 UNIQUE(...)，SQLite 会生成 sqlite_autoindex 唯一索引
+      final fresh = await openDatabase(
+        inMemoryDatabasePath,
+        version: 1,
+        onCreate: (db, version) async {
+          await db.execute(Tables.createSessionsTable(testUserId));
+        },
+      );
+
+      final merged = await DatabaseHelper.ensureSessionsUniqueIndex(
+        fresh,
+        Tables.sessionsTable(testUserId),
+      );
+
+      expect(merged, isFalse);
+      await fresh.close();
     });
   });
 }

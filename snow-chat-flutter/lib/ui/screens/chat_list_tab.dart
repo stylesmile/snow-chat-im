@@ -1,15 +1,15 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../models/friend_model.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/contact_service.dart';
 import '../../services/conversation_service.dart';
+import '../widgets/avatar_widget.dart';
 import 'chat_detail_screen.dart';
 import 'global_search_screen.dart';
-import 'login_screen.dart';
 
 class ChatListTab extends StatefulWidget {
   const ChatListTab({super.key});
@@ -20,13 +20,50 @@ class ChatListTab extends StatefulWidget {
 
 class _ChatListTabState extends State<ChatListTab> {
   bool _isLoading = true;
-  /// 好友 userId -> 昵称 映射，从本地缓存加载（与通讯录保持一致）
+  /// 好友 userId -> 会话显示名（**备注优先，其次昵称**，与通讯录列表口径一致）
   final Map<int, String> _friendNames = {};
+  /// 好友 userId -> 头像地址，用于在会话列表里展示真实头像
+  final Map<int, String> _friendAvatars = {};
 
   @override
   void initState() {
     super.initState();
     _loadConversations();
+  }
+
+  /// 好友的会话显示名：有备注用备注、否则用昵称（与 ContactTab 的列表一致）
+  static String _displayNameOf(FriendModel friend) =>
+      friend.remark.isNotEmpty ? friend.remark : friend.nickname;
+
+  /// 拉取「好友目录」（userId → 显示名 / 头像）
+  ///
+  /// 会话本身只存了 `targetId`，列表上的名字和头像全靠这份目录翻译。
+  /// 优先走后端（唯一可信数据源），拿不到时回退本地 SQLite 缓存 ——
+  /// 否则后端未启动时会满屏「用户 1002」和清一色的占位头像。
+  Future<void> _loadFriendDirectory() async {
+    final auth = context.read<AuthProvider>();
+    if (auth.userId == null) return;
+    final contactService = ContactService(auth.apiClient);
+
+    var friends = await contactService.getFriends(auth.userId!);
+    if (!mounted) return;
+    if (friends.isEmpty) {
+      // 后端不可用（或还没加过好友）时用上次同步的缓存兜底
+      friends = await contactService.getLocalFriends(context);
+    } else {
+      // 顺带刷新本地缓存，供下次离线展示
+      await contactService.saveLocalFriends(context, friends);
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _friendNames
+        ..clear()
+        ..addAll({for (final f in friends) f.userId: _displayNameOf(f)});
+      _friendAvatars
+        ..clear()
+        ..addAll({for (final f in friends) f.userId: f.avatar});
+    });
   }
 
   Future<void> _loadConversations() async {
@@ -36,43 +73,17 @@ class _ChatListTabState extends State<ChatListTab> {
       return;
     }
 
-    final contactService = ContactService(auth.apiClient);
-
-    // 优先从后端 API 拉取好友列表（含 nickname），这是唯一可信的数据源
-    final friends = await contactService.getFriends(auth.userId!);
-    if (kDebugMode) {
-      print('[ChatList] getFriends returned ${friends.length} friends: ${friends.map((f) => '\${f.userId}(\${f.nickname})').join(', ')}');
-    }
-
-    _friendNames
-      ..clear()
-      ..addAll({for (final f in friends) f.userId: f.nickname});
-
-    // API 为空时，回退到本地 SQLite 缓存（与通讯录保持一致）
-    if (_friendNames.isEmpty || _friendNames.values.every((n) => n.isEmpty)) {
-      final localFriends = await contactService.getLocalFriends(context);
-      if (kDebugMode) {
-        print('[ChatList] API returned empty, fallback to local friends: ${localFriends.length}');
-      }
-      _friendNames
-        ..clear()
-        ..addAll({for (final f in localFriends) f.userId: f.nickname});
-    }
-
-    // 同时更新本地 SQLite 缓存
-    if (friends.isNotEmpty) {
-      await contactService.saveLocalFriends(context, friends);
-    }
+    await _loadFriendDirectory();
+    if (!mounted) return;
 
     final conversations = await ConversationService().loadSessions(context);
-
     if (!mounted) return;
 
     context.read<ChatProvider>().setConversations(conversations);
     setState(() => _isLoading = false);
   }
 
-  /// 显示会话标题：从好友映射查昵称，查不到才显示用户ID
+  /// 显示会话标题：按 targetId 查好友目录，查不到才回退带 id 的占位名
   String _displayName(Conversation conv) {
     if (conv.targetType == 'group') {
       return '群组 ${conv.targetId}';
@@ -82,15 +93,27 @@ class _ChatListTabState extends State<ChatListTab> {
   }
 
   /// 构建带未读数角标的头像（类似微信）
+  ///
+  /// 好友用**真实头像**（无头像时退回名字首字占位），群聊仍用「群」字圆底。
   Widget _buildAvatar(Conversation conv) {
+    final name = _displayName(conv);
+    final avatar = _friendAvatars[conv.targetId] ?? '';
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        CircleAvatar(
-          // 头像底色使用设计令牌：群组=品牌蓝，好友=辅助绿
-          backgroundColor: conv.targetType == 'group' ? AppTheme.primary : AppTheme.secondary,
-          child: Text(conv.targetType == 'group' ? '群' : '友'),
-        ),
+        if (conv.targetType == 'group')
+          const CircleAvatar(
+            // 群聊头像底色使用设计令牌：品牌蓝
+            backgroundColor: AppTheme.primary,
+            child: Text('群'),
+          )
+        else
+          AvatarWidget(
+            imageUrl: avatar,
+            // 没有头像图时显示名字首字，而不是一个与本人无关的「友」字
+            initials: name.isNotEmpty ? name[0] : '?',
+            size: 40,
+          ),
         // 未读数角标：显示在头像右上角
         if (conv.unreadCount > 0)
           Positioned(
@@ -192,46 +215,50 @@ class _ChatListTabState extends State<ChatListTab> {
         ),
       );
     } else {
-      // 会话列表
-      content = ListView.separated(
-        padding: const EdgeInsets.only(top: 8),
-        itemCount: conversations.length,
-        separatorBuilder: (_, __) => const Divider(height: 1, indent: 72),
-        itemBuilder: (context, index) {
-          final conv = conversations[index];
-          return ListTile(
-            leading: _buildAvatar(conv),
-            title: Text(
-              _displayName(conv),
-              style: const TextStyle(fontSize: 16),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(
-              conv.lastMsg.isNotEmpty ? conv.lastMsg : l10n.noMessages,
-              style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            trailing: Text(
-              _formatTime(conv.lastMsgTime),
-              style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
-            ),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ChatDetailScreen(
-                    targetId: conv.targetId,
-                    targetType: conv.targetType,
-                    targetName: _displayName(conv),
+      // 会话列表（支持下拉刷新：重新拉好友目录 + 重新读本地会话，
+      // 后端恢复后不必重启 app 就能把「用户 1002」刷新成真实昵称与头像）
+      content = RefreshIndicator(
+        onRefresh: _loadConversations,
+        child: ListView.separated(
+          padding: const EdgeInsets.only(top: 8),
+          itemCount: conversations.length,
+          separatorBuilder: (_, __) => const Divider(height: 1, indent: 72),
+          itemBuilder: (context, index) {
+            final conv = conversations[index];
+            return ListTile(
+              leading: _buildAvatar(conv),
+              title: Text(
+                _displayName(conv),
+                style: const TextStyle(fontSize: 16),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(
+                conv.lastMsg.isNotEmpty ? conv.lastMsg : l10n.noMessages,
+                style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: Text(
+                _formatTime(conv.lastMsgTime),
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+              ),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ChatDetailScreen(
+                      targetId: conv.targetId,
+                      targetType: conv.targetType,
+                      targetName: _displayName(conv),
+                    ),
                   ),
-                ),
-              );
-            },
-            onLongPress: () => _showConversationActions(conv),
-          );
-        },
+                );
+              },
+              onLongPress: () => _showConversationActions(conv),
+            );
+          },
+        ),
       );
     }
 

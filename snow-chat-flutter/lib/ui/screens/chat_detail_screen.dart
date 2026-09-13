@@ -147,7 +147,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _ensureConversationSaved();
+    _markConversationRead();
     _initCache();
     _initMqtt();
     // 异步加载用户设置的聊天背景，不阻塞首帧
@@ -185,31 +185,28 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     super.dispose();
   }
 
-  /// 进入聊天页时把该对话保存到本地会话列表，并清空未读数。
-  Future<void> _ensureConversationSaved() async {
+  /// 进入聊天页时把该会话标记为已读。
+  ///
+  /// 这里**不再新建会话记录**：原先每进一次聊天就写一条会话（还把对方名字当
+  /// 最后一条消息存进去），从通讯录反复进入就会让聊天列表出现「同名重复」的条目，
+  /// 并且每进一次都把该会话顶到列表最前，像是"新打开了一条数据"。
+  /// 会话记录统一由「真的发出/收到消息」时创建；这里只清未读，
+  /// 既不动最后消息与时间，也不会覆盖用户设置的置顶/免打扰。
+  Future<void> _markConversationRead() async {
     final auth = context.read<AuthProvider>();
     if (auth.userId == null) return;
-    final now = DateTime.now().millisecondsSinceEpoch;
-    await ConversationService().saveSession(
+
+    // 本地：清掉该会话的未读计数（会话不存在则什么也不做，不新建）
+    await ConversationService().clearUnread(
       context: context,
       targetId: widget.targetId,
       targetType: widget.targetType,
-      lastMsg: widget.targetName ?? '',
-      lastMsgTime: now,
-      unreadCount: 0,
     );
-    final service = ChatService(auth.apiClient);
-    service.markAsRead(auth.userId!, widget.targetId, widget.targetType);
+    // 服务端：同步已读回执
+    ChatService(auth.apiClient).markAsRead(auth.userId!, widget.targetId, widget.targetType);
+
     if (!mounted) return;
-    context.read<ChatProvider>().updateConversation(
-      Conversation(
-        targetId: widget.targetId,
-        targetType: widget.targetType,
-        lastMsg: widget.targetName ?? '',
-        lastMsgTime: now,
-        unreadCount: 0,
-      ),
-    );
+    context.read<ChatProvider>().clearUnread(widget.targetId, widget.targetType);
   }
 
   Future<void> _initCache() async {

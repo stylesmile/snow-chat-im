@@ -6,6 +6,7 @@ import com.stylesmile.chat.entity.ChatFriend;
 import com.stylesmile.chat.entity.ChatFriendRequest;
 import com.stylesmile.chat.service.ChatFriendRequestService;
 import com.stylesmile.chat.service.ChatFriendService;
+import com.stylesmile.chat.service.FileStorageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -31,6 +32,9 @@ public class ChatFriendController {
     @Resource
     private ChatFriendRequestService chatFriendRequestService;
 
+    @Resource
+    private FileStorageService fileStorageService;
+
     /**
      * 获取好友列表
      */
@@ -40,6 +44,16 @@ public class ChatFriendController {
     public Result<List<ChatFriend>> list(
             @Parameter(description = "用户ID", required = true) @RequestParam Long userId) {
         List<ChatFriend> friends = chatFriendService.getFriendsByUserId(userId);
+        // 好友的 avatar 在库里存的是 **storage key**（形如 avatars/xxx.png），
+        // 直接把 key 丢给前端会被当成 URL 去加载、必然失败，头像只能回落成占位图。
+        // 这里与 /chat/user/info 保持同一套转换（公共读=直链、私有读=签名链接、
+        // local=base64 data URL），这样聊天列表 / 通讯录才能显示真实头像。
+        for (ChatFriend friend : friends) {
+            String avatar = friend.getAvatar();
+            if (avatar != null && avatar.startsWith("avatars/")) {
+                friend.setAvatar(fileStorageService.generateAvatarUrl(avatar));
+            }
+        }
         return Result.success(friends);
     }
 

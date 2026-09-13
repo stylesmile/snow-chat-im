@@ -86,4 +86,80 @@ void main() {
       expect(provider.conversations.first.targetId, 2);
     });
   });
+
+  // 聊天列表重复的防线：不同来源（本地库 / 服务端推送 / 通讯录跳转）都可能
+  // 带进同一会话的多条记录，渲染前必须按 (targetType, targetId) 合并成一条。
+  group('ChatProvider.setConversations 按会话 ID 去重', () {
+    test('同一会话只保留最后消息时间最新的一条', () {
+      final provider = ChatProvider();
+      provider.setConversations([
+        Conversation(targetId: 2, targetType: 'friend', lastMsg: 'old', lastMsgTime: 100),
+        Conversation(targetId: 2, targetType: 'friend', lastMsg: 'new', lastMsgTime: 200),
+      ]);
+
+      expect(provider.conversations.length, 1);
+      expect(provider.conversations.first.lastMsg, 'new');
+      expect(provider.conversations.first.lastMsgTime, 200);
+    });
+
+    test('去重时保留置顶与免打扰标记（取并集，不丢用户设置）', () {
+      final provider = ChatProvider();
+      provider.setConversations([
+        Conversation(targetId: 2, targetType: 'friend', lastMsgTime: 200, isPinned: true),
+        Conversation(targetId: 2, targetType: 'friend', lastMsgTime: 100, isMuted: true),
+      ]);
+
+      final conv = provider.conversations.single;
+      expect(conv.lastMsgTime, 200);
+      expect(conv.isPinned, isTrue);
+      expect(conv.isMuted, isTrue);
+    });
+
+    test('相同 id 但类型不同（好友/群）不合并', () {
+      final provider = ChatProvider();
+      provider.setConversations([
+        Conversation(targetId: 2, targetType: 'friend'),
+        Conversation(targetId: 2, targetType: 'group'),
+      ]);
+
+      expect(provider.conversations.length, 2);
+    });
+  });
+
+  // 进入聊天页只清未读：不新建会话、不动最后消息与时间 ——
+  // 这样「从通讯录点进某人的聊天再返回」不会让列表多出一条（也没有"新打开一条数据"的观感）。
+  group('ChatProvider.clearUnread', () {
+    test('只清未读数，不改最后消息与时间', () {
+      final provider = ChatProvider();
+      provider.setConversations([
+        Conversation(
+          targetId: 2,
+          targetType: 'friend',
+          lastMsg: 'hello',
+          lastMsgTime: 100,
+          unreadCount: 5,
+        ),
+      ]);
+
+      provider.clearUnread(2, 'friend');
+
+      final conv = provider.conversations.single;
+      expect(conv.unreadCount, 0);
+      expect(conv.lastMsg, 'hello');
+      expect(conv.lastMsgTime, 100);
+      expect(provider.conversations.length, 1);
+    });
+
+    test('会话不存在时什么也不做（不会凭空新建会话）', () {
+      final provider = ChatProvider();
+      provider.setConversations([
+        Conversation(targetId: 2, targetType: 'friend'),
+      ]);
+
+      provider.clearUnread(99, 'friend');
+
+      expect(provider.conversations.length, 1);
+      expect(provider.conversations.first.targetId, 2);
+    });
+  });
 }

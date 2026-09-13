@@ -99,6 +99,20 @@ class Tables {
     )
   ''';
 
+  /// 会话表唯一索引名：同一 (user_id, target_id, target_type) 只允许一行
+  static String sessionsUniqueIndexName(int userId) => 'idx_${sessionsTable(userId)}_uniq';
+
+  /// 为会话表补建唯一索引（幂等）
+  ///
+  /// 早期版本的 [createSessionsTable] 没有 `UNIQUE(user_id, target_id, target_type)`，
+  /// 而 `CREATE TABLE IF NOT EXISTS` **不会给已存在的表补约束** —— 于是那些老库上
+  /// 「同一个会话只保留一行」的语义失效，每进一次聊天就攒一行，聊天列表看起来重复。
+  /// 这里用唯一索引把语义补回来（建索引前必须先合并历史重复行，否则会建失败）。
+  static String createSessionsUniqueIndex(int userId) => '''
+    CREATE UNIQUE INDEX IF NOT EXISTS ${sessionsUniqueIndexName(userId)}
+    ON ${sessionsTable(userId)}(user_id, target_id, target_type)
+  ''';
+
   /// 生成收藏表建表SQL（带用户ID前缀）
   /// message_id 加 UNIQUE 约束，保证同一消息只能收藏一次（去重）
   static String createFavoritesTable(int userId) => '''

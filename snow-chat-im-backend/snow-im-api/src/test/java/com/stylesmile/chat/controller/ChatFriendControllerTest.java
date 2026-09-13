@@ -5,6 +5,7 @@ import com.stylesmile.chat.entity.ChatFriend;
 import com.stylesmile.chat.entity.ChatFriendRequest;
 import com.stylesmile.chat.service.ChatFriendRequestService;
 import com.stylesmile.chat.service.ChatFriendService;
+import com.stylesmile.chat.service.FileStorageService;
 import com.stylesmile.common.util.Result;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,6 +28,9 @@ class ChatFriendControllerTest {
     @Mock
     private ChatFriendRequestService chatFriendRequestService;
 
+    @Mock
+    private FileStorageService fileStorageService;
+
     @InjectMocks
     private ChatFriendController controller;
 
@@ -40,6 +44,28 @@ class ChatFriendControllerTest {
         assertSuccess(result);
         assertEquals(friends, result.getData());
         verify(chatFriendService).getFriendsByUserId(7L);
+    }
+
+    @Test
+    void convertsFriendAvatarStorageKeyToAccessibleUrl() {
+        // 库里存的是 storage key（avatars/xxx.png），接口必须换成可访问地址，
+        // 否则前端会把 key 当 URL 加载 → 头像永远是占位图
+        ChatFriend withKey = new ChatFriend();
+        withKey.setAvatar("avatars/uuid.png");
+        ChatFriend withoutAvatar = new ChatFriend();
+        withoutAvatar.setAvatar("");
+
+        when(chatFriendService.getFriendsByUserId(7L)).thenReturn(List.of(withKey, withoutAvatar));
+        when(fileStorageService.generateAvatarUrl("avatars/uuid.png"))
+                .thenReturn("http://cdn.example.com/avatars/uuid.png");
+
+        Result<List<ChatFriend>> result = controller.list(7L);
+
+        assertSuccess(result);
+        assertEquals("http://cdn.example.com/avatars/uuid.png", withKey.getAvatar());
+        // 空头像原样返回，不触发转换
+        assertEquals("", withoutAvatar.getAvatar());
+        verify(fileStorageService).generateAvatarUrl("avatars/uuid.png");
     }
 
     @Test
