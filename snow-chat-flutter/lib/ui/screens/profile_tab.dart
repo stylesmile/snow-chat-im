@@ -1,15 +1,15 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
-import '../../services/profile_service.dart';
 import '../widgets/avatar_widget.dart';
 import 'settings_screen.dart';
 import 'gender_select_screen.dart';
 import 'favorites_screen.dart';
+import 'personal_info_screen.dart';
+import 'my_qr_screen.dart';
+import 'scan_screen.dart';
 
 /// 个人中心 Tab（参考 WINCHAT 设计稿）
 ///
@@ -34,14 +34,18 @@ class ProfileTab extends StatefulWidget {
 /// [iconSize] 图标绘制尺寸，对标项目里收藏/朋友圈为 28，其余为 24；
 /// [label] 主文案；[subtitle] 副文案（可为空）
 class ProfileMenuItem {
-  final String iconAsset;
+  /// 图标资源路径（金色单色 PNG，渲染时按主题色染色）；与 [icon] 二选一
+  final String? iconAsset;
+  /// Material 内置图标；项目没有对应 PNG 资源时使用（如扫一扫）
+  final IconData? icon;
   final double iconSize;
   final String label;
   final String subtitle;
   final VoidCallback? onTap;
 
   const ProfileMenuItem({
-    required this.iconAsset,
+    this.iconAsset,
+    this.icon,
     this.iconSize = 24,
     required this.label,
     this.subtitle = '',
@@ -50,9 +54,6 @@ class ProfileMenuItem {
 }
 
 class _ProfileTabState extends State<ProfileTab> {
-  bool _isUploading = false;
-  // wechat_assets_picker 选图用；不再依赖 image_picker
-
   // 背景色（与 AppTheme.background 一致）
   static const Color _bgColor = Color(0xFF111111);
   // 卡片背景色（与 AppTheme.surface 一致）
@@ -94,8 +95,18 @@ class _ProfileTabState extends State<ProfileTab> {
             _buildGenderEntry(context, auth, l10n),
             const SizedBox(height: 12),
 
-            // === 收藏 & 朋友圈 ===
+            // === 收藏 & 朋友圈 & 扫一扫 ===
             _buildMenuCard([
+              ProfileMenuItem(
+                icon: Icons.qr_code_scanner,
+                label: l10n.scan,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ScanScreen()),
+                  );
+                },
+              ),
               ProfileMenuItem(
                 iconAsset: _iconCollect,
                 iconSize: 28,
@@ -138,7 +149,14 @@ class _ProfileTabState extends State<ProfileTab> {
     if (auth.userId == null) return const SizedBox.shrink();
 
     return InkWell(
-      onTap: _showAvatarPickerSheet,
+      // 点击整块用户信息区进入「个人信息」页（改昵称/用户名、二维码、扫一扫都在这里）。
+      // 之前这里直接弹头像选择面板，导致二维码页面根本没有入口可进。
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const PersonalInfoScreen()),
+        );
+      },
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -148,36 +166,12 @@ class _ProfileTabState extends State<ProfileTab> {
         ),
         child: Row(
           children: [
-            // 圆形头像（64x64，上传中叠加 loading）
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                AvatarWidget(
-                  imageUrl: auth.avatar,
-                  initials: initials,
-                  size: 64,
-                ),
-                if (_isUploading) ...[
-                  // 上传中：半透明遮罩
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.4),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  // 白色旋转进度指示器
-                  const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 2,
-                    ),
-                  ),
-                ],
-              ],
+            // 圆形头像（64x64）。上传交互已搬到「个人信息」页，
+            // 这里只做展示，不再维护上传中状态
+            AvatarWidget(
+              imageUrl: auth.avatar,
+              initials: initials,
+              size: 64,
             ),
             const SizedBox(width: 14),
             // 昵称 + 用户ID
@@ -209,8 +203,16 @@ class _ProfileTabState extends State<ProfileTab> {
                 ],
               ),
             ),
-            // 二维码 + 箭头
-            const Icon(Icons.qr_code_2, color: Colors.grey, size: 24),
+            // 二维码图标：单独可点，进入「我的二维码」页
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const MyQrScreen()),
+                );
+              },
+              child: const Icon(Icons.qr_code_2, color: Colors.grey, size: 24),
+            ),
             const SizedBox(width: 4),
             const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
           ],
@@ -323,7 +325,13 @@ class _ProfileTabState extends State<ProfileTab> {
   Widget _buildIconMenuItem(ProfileMenuItem item) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      leading: _buildMenuIcon(item.iconAsset, item.iconSize),
+      leading: item.iconAsset != null
+          ? _buildMenuIcon(item.iconAsset!, item.iconSize)
+          : SizedBox(
+              width: 32,
+              height: 32,
+              child: Icon(item.icon, color: AppTheme.accent, size: item.iconSize),
+            ),
       title: Text(
         item.label,
         style: const TextStyle(color: Colors.white, fontSize: 16),
@@ -390,96 +398,6 @@ class _ProfileTabState extends State<ProfileTab> {
           );
         },
       ),
-    );
-  }
-
-  // ===========================================================================
-  // 头像选择与上传逻辑
-  // ===========================================================================
-
-  /// 显示底部选图弹窗（从相册选择 / 取消）
-  void _showAvatarPickerSheet() {
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.photo_library),
-                title: const Text('从相册选择'),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _pickAndUploadAvatar();
-                },
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.close),
-                title: const Text('取消'),
-                onTap: () => Navigator.pop(sheetContext),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  /// 使用 wechat_assets_picker 选择图片并上传头像
-  Future<void> _pickAndUploadAvatar() async {
-    final results = await AssetPicker.pickAssets(
-      context,
-      pickerConfig: AssetPickerConfig(
-        requestType: RequestType.image,
-        maxAssets: 1,
-        themeColor: Theme.of(context).colorScheme.primary,
-        textDelegate: AssetPickerTextDelegate(),
-      ),
-    );
-    if (results == null || results.isEmpty) return;
-    final file = await results.first.file;
-    if (file == null) return;
-    _doUploadAvatar(file);
-  }
-
-  /// 执行头像上传：上传 → 更新本地状态
-  Future<void> _doUploadAvatar(File imageFile) async {
-    setState(() => _isUploading = true);
-
-    try {
-      final profileService = context.read<ProfileService>();
-      final auth = context.read<AuthProvider>();
-
-      final result = await profileService.uploadAvatar(imageFile);
-      if (result == null) {
-        _showErrorSnackBar('头像上传失败，请重试');
-        return;
-      }
-
-      // 后端独立接口已完成上传，直接更新本地头像 URL
-      await auth.updateAvatar(result.url);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('头像更新成功')),
-        );
-      }
-    } catch (e) {
-      _showErrorSnackBar('头像更新失败：$e');
-    } finally {
-      if (mounted) {
-        setState(() => _isUploading = false);
-      }
-    }
-  }
-
-  /// 显示错误 SnackBar
-  void _showErrorSnackBar(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
     );
   }
 }

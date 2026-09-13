@@ -12,6 +12,8 @@ import 'package:snow_chat/providers/auth_provider.dart';
 import 'package:snow_chat/providers/settings_provider.dart';
 import 'package:snow_chat/services/profile_service.dart';
 import 'package:snow_chat/ui/screens/profile_tab.dart';
+import 'package:snow_chat/ui/screens/personal_info_screen.dart';
+import 'package:snow_chat/ui/screens/my_qr_screen.dart';
 import 'package:snow_chat/ui/widgets/avatar_widget.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:sqflite/sqflite.dart';
@@ -34,8 +36,9 @@ void main() {
   late _FakeProfileService fakeProfileService;
 
   setUp(() {
-    // 初始化 SharedPreferences mock
-    SharedPreferences.setMockInitialValues({});
+    // 注意：不要在 setUp 里再调一次 setMockInitialValues —— 每个用例内部
+    // 已经按需调用。重复调用会让 SharedPreferences 的通道 mock 处于未完成
+    // 状态，随后的 AuthProvider.init() 会永远挂住（表现为用例 10 分钟超时）。
     // 构造已登录的 AuthProvider
     authProvider = AuthProvider('http://localhost:8091');
     settingsProvider = SettingsProvider();
@@ -81,16 +84,28 @@ void main() {
 
   group('ProfileTab 微信风格布局', () {
     testWidgets('应显示 AvatarWidget 加载真实头像', (WidgetTester tester) async {
-      // 预设头像 URL 和 userId（header 区域要求 userId 不为 null）
-      await authProvider.updateAvatar('https://example.com/avatar.jpg');
-      await authProvider.updateNickname('Alice');
+      // 先装好 SharedPreferences mock 再动 AuthProvider：
+      // updateAvatar / updateNickname 内部会写 SharedPreferences，
+      // 若在装 mock 之前调用，通道无响应会一直挂住（用例 10 分钟超时）。
       SharedPreferences.setMockInitialValues({
         'userId': 1,
         'isLoggedIn': true,
       });
-      await authProvider.init();
+      // 真实 I/O（SharedPreferences 通道 + sqflite 建表）必须跑在真实异步区，
+      // 否则在 fake-async 的 widget 测试里会永久挂起
+      await tester.runAsync(() => authProvider.init());
+      // 头像用 1x1 PNG 的 data URI 而非外网地址：测试环境里
+      // flutter_cache_manager 的下载任务不会结束，pumpAndSettle 会一直等。
+      // data URI 走的同样是 AvatarWidget 的「有头像 URL」分支。
+      await authProvider.updateAvatar(
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8AAAwAB/wFbgn0AAAAASUVORK5CYII=',
+      );
+      await authProvider.updateNickname('Alice');
 
       await tester.pumpWidget(makeTestableWidget());
+      // 只泵一帧：头像 URL 指向外网，测试环境里 flutter_cache_manager 的
+      // 下载任务不会结束，pumpAndSettle 会一直等到 10 分钟超时。
+      // 断言的是 AvatarWidget 的渲染契约，首帧足够。
       await tester.pumpAndSettle();
 
       // 验证：AvatarWidget 存在
@@ -103,7 +118,9 @@ void main() {
         'userId': 1,
         'isLoggedIn': true,
       });
-      await authProvider.init();
+      // 真实 I/O（SharedPreferences 通道 + sqflite 建表）必须跑在真实异步区，
+      // 否则在 fake-async 的 widget 测试里会永久挂起
+      await tester.runAsync(() => authProvider.init());
       await authProvider.updateNickname('Alice');
       // 不设置头像 URL，避免 cached_network_image 在测试环境报错
       await authProvider.updateAvatar('');
@@ -121,7 +138,9 @@ void main() {
         'userId': 1,
         'isLoggedIn': true,
       });
-      await authProvider.init();
+      // 真实 I/O（SharedPreferences 通道 + sqflite 建表）必须跑在真实异步区，
+      // 否则在 fake-async 的 widget 测试里会永久挂起
+      await tester.runAsync(() => authProvider.init());
 
       await tester.pumpWidget(makeTestableWidget());
       await tester.pumpAndSettle();
@@ -136,13 +155,15 @@ void main() {
         'userId': 1,
         'isLoggedIn': true,
       });
-      await authProvider.init();
+      // 真实 I/O（SharedPreferences 通道 + sqflite 建表）必须跑在真实异步区，
+      // 否则在 fake-async 的 widget 测试里会永久挂起
+      await tester.runAsync(() => authProvider.init());
       await authProvider.updateAvatar('');
 
       // 这里刻意用 pump 而非 pumpAndSettle：本文件里 ProfileTab 的
       // pumpAndSettle 会一直不 settle（既有问题），但图标断言只需 build 跑过一次
       await tester.pumpWidget(makeTestableWidget());
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       // 收藏 / 朋友圈 / 设置三项均改用 assets/icons/profile 下的对标图标
       final assetNames = tester
@@ -167,7 +188,9 @@ void main() {
         'userId': 1,
         'isLoggedIn': true,
       });
-      await authProvider.init();
+      // 真实 I/O（SharedPreferences 通道 + sqflite 建表）必须跑在真实异步区，
+      // 否则在 fake-async 的 widget 测试里会永久挂起
+      await tester.runAsync(() => authProvider.init());
 
       await tester.pumpWidget(makeTestableWidget());
       await tester.pumpAndSettle();
@@ -179,18 +202,21 @@ void main() {
   });
 
   // ====================================================================
-  // Commit 7：头像选择与上传交互测试（TDD）
+  // 个人信息入口：头像行 → 个人信息页；二维码图标 → 我的二维码
+  //
+  // 头像上传整体搬到 PersonalInfoScreen 之后，个人中心顶部不再直接弹选图菜单，
+  // 这里改为锁定两个入口的跳转契约（此前二维码页没有任何入口可进）。
   // ====================================================================
-  group('ProfileTab 头像选择交互', () {
-    testWidgets('点击头像行应弹出底部选图菜单（拍照/相册/取消）',
-        (WidgetTester tester) async {
-      // 预设昵称和 userId，确保头像区域可点击
+  group('ProfileTab 个人信息入口', () {
+    testWidgets('点击头像行应进入个人信息页', (WidgetTester tester) async {
       await authProvider.updateNickname('Alice');
       SharedPreferences.setMockInitialValues({
         'userId': 1,
         'isLoggedIn': true,
       });
-      await authProvider.init();
+      // 真实 I/O（SharedPreferences 通道 + sqflite 建表）必须跑在真实异步区，
+      // 否则在 fake-async 的 widget 测试里会永久挂起
+      await tester.runAsync(() => authProvider.init());
 
       await tester.pumpWidget(makeTestableWidget());
       await tester.pumpAndSettle();
@@ -199,145 +225,29 @@ void main() {
       await tester.tap(find.byType(AvatarWidget));
       await tester.pumpAndSettle();
 
-      // 验证：底部弹窗显示三个选项
-      expect(find.text('拍照'), findsOneWidget);
-      expect(find.text('从相册选择'), findsOneWidget);
-      expect(find.text('取消'), findsOneWidget);
+      expect(find.byType(PersonalInfoScreen), findsOneWidget,
+          reason: '点击用户信息卡片应进入「个人信息」页');
     });
 
-    testWidgets('点击"取消"应关闭底部选图菜单', (WidgetTester tester) async {
+    testWidgets('点击二维码图标应进入我的二维码页', (WidgetTester tester) async {
       await authProvider.updateNickname('Alice');
       SharedPreferences.setMockInitialValues({
         'userId': 1,
         'isLoggedIn': true,
       });
-      await authProvider.init();
+      // 真实 I/O（SharedPreferences 通道 + sqflite 建表）必须跑在真实异步区，
+      // 否则在 fake-async 的 widget 测试里会永久挂起
+      await tester.runAsync(() => authProvider.init());
 
       await tester.pumpWidget(makeTestableWidget());
       await tester.pumpAndSettle();
 
-      // 打开底部弹窗
-      await tester.tap(find.byType(AvatarWidget));
-      await tester.pumpAndSettle();
-      expect(find.text('取消'), findsOneWidget);
-
-      // 点击"取消"
-      await tester.tap(find.text('取消'));
+      // 点击用户信息卡片右侧的二维码图标
+      await tester.tap(find.byIcon(Icons.qr_code_2));
       await tester.pumpAndSettle();
 
-      // 验证：底部弹窗已关闭
-      expect(find.text('拍照'), findsNothing);
-      expect(find.text('从相册选择'), findsNothing);
-    });
-
-    testWidgets('完整上传流程：从相册选择 → 上传 → 更新 AuthProvider.avatar',
-        (WidgetTester tester) async {
-      // --- 准备：mock image_picker 平台通道，返回临时图片文件路径 ---
-      final tempFile = File(
-        '${Directory.systemTemp.path}/test_avatar_upload_${DateTime.now().millisecondsSinceEpoch}.jpg',
-      )..writeAsBytesSync([0xFF, 0xD8, 0xFF, 0xE0]); // JPEG 文件头
-      const imagePickerChannel = MethodChannel('plugins.flutter.io/image_picker');
-      imagePickerChannel.setMockMethodCallHandler((call) async {
-        if (call.method == 'pickImage') {
-          return tempFile.path; // 返回临时文件路径
-        }
-        return null;
-      });
-
-      // fake ProfileService 配置为上传成功
-      fakeProfileService.uploadResult = const UploadResult(
-        key: 'avatars/test-uuid.jpg',
-        url: 'https://presigned.example.com/avatars/test-uuid.jpg',
-      );
-
-      // 设置已登录状态（含 userId），让 _pickAndUpload 的 userId 检查通过
-      SharedPreferences.setMockInitialValues({
-        'isLoggedIn': true,
-        'userId': 1,
-        'username': 'alice',
-        'nickname': 'Alice',
-        'avatar': '',
-      });
-      await authProvider.init(); // 从 SharedPreferences 恢复登录态
-
-      await tester.pumpWidget(makeTestableWidget());
-      await tester.pumpAndSettle();
-
-      // 点击头像行打开底部弹窗
-      await tester.tap(find.byType(AvatarWidget));
-      await tester.pumpAndSettle();
-
-      // 点击"从相册选择"触发 onTap（关闭弹窗 + 启动 _pickAndUpload 异步链）
-      await tester.tap(find.text('从相册选择'));
-      await tester.pump(); // 触发 tap 回调 + 关闭弹窗
-      // 用 runAsync 等待真实异步链（pickImage 通道 + fake 上传 + AuthProvider 持久化）跑完
-      await tester.runAsync(() async {
-        await Future<void>.delayed(const Duration(milliseconds: 500));
-      });
-      await tester.pump(); // 刷新 UI
-
-      // 验证：ProfileService.uploadAvatar 被调用
-      expect(fakeProfileService.uploadCallCount, equals(1));
-      // 验证：AuthProvider.avatar 已更新为 fake 返回的 URL
-      expect(
-        authProvider.avatar,
-        equals('https://presigned.example.com/avatars/test-uuid.jpg'),
-      );
-
-      // --- 清理 ---
-      imagePickerChannel.setMockMethodCallHandler(null);
-      if (tempFile.existsSync()) {
-        tempFile.deleteSync();
-      }
-    });
-
-    testWidgets('上传失败时应显示错误 SnackBar', (WidgetTester tester) async {
-      // --- 准备：mock image_picker 返回临时文件 ---
-      final tempFile = File(
-        '${Directory.systemTemp.path}/test_avatar_fail_${DateTime.now().millisecondsSinceEpoch}.jpg',
-      )..writeAsBytesSync([0xFF, 0xD8, 0xFF, 0xE0]);
-      const imagePickerChannel = MethodChannel('plugins.flutter.io/image_picker');
-      imagePickerChannel.setMockMethodCallHandler((call) async {
-        if (call.method == 'pickImage') {
-          return tempFile.path;
-        }
-        return null;
-      });
-
-      // fake 配置为上传失败（uploadAvatar 返回 null）
-      fakeProfileService.uploadResult = null;
-
-      await authProvider.updateNickname('Alice');
-      SharedPreferences.setMockInitialValues({
-        'userId': 1,
-        'isLoggedIn': true,
-      });
-      await authProvider.init();
-
-      await tester.pumpWidget(makeTestableWidget());
-      await tester.pumpAndSettle();
-
-      // 点击头像行打开底部弹窗
-      await tester.tap(find.byType(AvatarWidget));
-      await tester.pumpAndSettle();
-
-      // 点击"从相册选择"触发 onTap（启动 _pickAndUpload 异步链，fake 上传返回 null）
-      await tester.tap(find.text('从相册选择'));
-      await tester.pump(); // 触发 tap 回调 + 关闭弹窗
-      await tester.runAsync(() async {
-        await Future<void>.delayed(const Duration(milliseconds: 500));
-      });
-      await tester.pump(); // 刷新 UI 显示 SnackBar
-
-      // 验证：显示错误 SnackBar
-      final snackBarFinder = find.byType(SnackBar);
-      expect(snackBarFinder, findsOneWidget);
-
-      // --- 清理 ---
-      imagePickerChannel.setMockMethodCallHandler(null);
-      if (tempFile.existsSync()) {
-        tempFile.deleteSync();
-      }
+      expect(find.byType(MyQrScreen), findsOneWidget,
+          reason: '点击二维码图标应进入「我的二维码」页');
     });
   });
 }
@@ -369,7 +279,11 @@ class _FakeProfileService extends ProfileService {
 
   @override
   Future<bool> updateProfile(int userId,
-      {String? nickname, String? avatar, String? signature}) async {
+      {String? nickname,
+      String? username,
+      String? avatar,
+      String? signature,
+      int? gender}) async {
     updateProfileCallCount++;
     lastUpdateProfileAvatar = avatar;
     return updateProfileResult;

@@ -36,20 +36,34 @@ class ProfileService {
 
   /// 更新个人资料
   ///
-  /// 向 `PUT /chat/user/profile` 发送 JSON body（与后端 @RequestBody UpdateProfileDTO 对齐）。
-  /// 任意字段为 null 表示不更新该字段。
-  /// 成功返回 true，失败返回 false。
-  Future<bool> updateProfile(int userId,
-      {String? nickname, String? avatar, String? signature}) async {
+  /// 向 `PUT /chat/user/update` 发送 JSON body（与后端 @RequestBody UpdateProfileDTO 对齐）。
+  ///
+  /// ⚠️ 此前请求的是 `/chat/user/profile`——后端**根本没有这个端点**，
+  /// 于是任何资料修改都静默失败（接口返回 404，被 catch 吞成 false）。
+  /// 后端实际路径是 `/chat/user/update`。
+  ///
+  /// 任意字段为 null 表示不更新该字段。成功返回 true，失败返回 false。
+  Future<bool> updateProfile(
+    int userId, {
+    String? nickname,
+    String? username,
+    String? avatar,
+    String? signature,
+    int? gender,
+  }) async {
     try {
-      await apiClient.dio.put('/chat/user/profile', data: {
+      final response = await apiClient.dio.put('/chat/user/update', data: {
         'userId': userId,
         'nickname': nickname,
+        'username': username,
         'avatar': avatar,
         'signature': signature,
+        'gender': gender,
       });
-      return true;
+      // 后端统一返回 code='200' 表示成功
+      return response.data?['code'] == '200' || response.data?['code'] == 200;
     } catch (e) {
+      print('[ProfileService] updateProfile failed: $e');
       return false;
     }
   }

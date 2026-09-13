@@ -114,7 +114,7 @@ void main() {
   group('ProfileService.updateProfile', () {
     test('should return true when update succeeds', () async {
       mockApiClient.adapter.onPut(
-        '/chat/user/profile',
+        '/chat/user/update',
         (server) => server.reply(200, {'code': '200'}),
       );
 
@@ -130,11 +130,11 @@ void main() {
 
     test('should return false when update fails', () async {
       mockApiClient.adapter.onPut(
-        '/chat/user/profile',
+        '/chat/user/update',
         (server) => server.throws(
           0,
           DioException(
-            requestOptions: RequestOptions(path: '/chat/user/profile'),
+            requestOptions: RequestOptions(path: '/chat/user/update'),
           ),
         ),
       );

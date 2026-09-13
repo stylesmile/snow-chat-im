@@ -240,6 +240,23 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 就地更新个人资料（昵称 / 用户名 / 性别），并持久化到本地登录态。
+  ///
+  /// 只覆盖非 null 的字段：调用方传什么就改什么，其余保持原值。
+  /// 用于「个人信息」页与性别选择页在后端写入成功后同步内存状态，
+  /// 避免用户改完昵称返回个人中心还看到旧值。
+  Future<void> updateProfile({
+    String? nickname,
+    String? username,
+    int? gender,
+  }) async {
+    if (nickname != null) _nickname = nickname;
+    if (username != null) _username = username;
+    if (gender != null) _gender = gender;
+    await _saveAuthState();
+    notifyListeners();
+  }
+
   /// 头像若仍是对象存储 key（`avatars/...`），向后端换取可访问 URL 并持久化。
   ///
   /// 后端把头像的 storage key 存进 `chat_user.avatar`，只有 `GET /chat/user/info`
