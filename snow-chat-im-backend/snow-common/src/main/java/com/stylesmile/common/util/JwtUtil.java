@@ -54,14 +54,14 @@ public class JwtUtil {
      * @param token JWT 字符串（不含 Bearer 前缀）
      * @return 用户 ID，无效时返回 null
      */
-    public static Integer getUserId(String token) {
+    public static Long getUserId(String token) {
         try {
             Claims claims = Jwts.parser()
                     .verifyWith(KEY)
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
-            return Integer.parseInt(claims.getSubject());
+            return Long.parseLong(claims.getSubject());
         } catch (Exception e) {
             return null;
         }

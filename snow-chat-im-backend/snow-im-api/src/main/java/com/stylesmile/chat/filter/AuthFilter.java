@@ -57,7 +57,7 @@ public class AuthFilter implements Filter {
 
         // 3. 去掉 Bearer 前缀，解析 token 获取 userId
         String token = authHeader.substring(JwtUtil.PREFIX.length());
-        Integer userId = JwtUtil.getUserId(token);
+        Long userId = JwtUtil.getUserId(token);
         if (userId == null) {
             sendUnauthorized(httpResp);
             return;
