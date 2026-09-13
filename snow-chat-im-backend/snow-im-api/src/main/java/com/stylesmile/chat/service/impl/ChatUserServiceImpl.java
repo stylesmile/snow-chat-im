@@ -31,7 +31,7 @@ public class ChatUserServiceImpl extends BaseServiceImpl<ChatUserMapper, ChatUse
     }
 
     @Override
-    public ChatUser getUserById(Integer userId) {
+    public ChatUser getUserById(Long userId) {
         return getById(userId);
     }
 

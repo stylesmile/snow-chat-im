@@ -28,7 +28,7 @@ public class MqttOfflineMessageDeliver {
      * 用户上线时投递离线消息
      */
     public void deliverOfflineMessages(String clientId) {
-        Integer userId = parseUserId(clientId);
+        Long userId = parseUserId(clientId);
         if (userId == null) {
             return;
         }
@@ -47,7 +47,7 @@ public class MqttOfflineMessageDeliver {
         }
     }
 
-    private Integer parseUserId(String clientId) {
+    private Long parseUserId(String clientId) {
         if (clientId == null || clientId.isEmpty()) {
             return null;
         }
@@ -57,9 +57,9 @@ public class MqttOfflineMessageDeliver {
                 String rest = clientId.substring(5);
                 int underscoreIdx = rest.indexOf('_');
                 String idPart = underscoreIdx > 0 ? rest.substring(0, underscoreIdx) : rest;
-                return Integer.parseInt(idPart);
+                return Long.parseLong(idPart);
             }
-            return Integer.parseInt(clientId);
+            return Long.parseLong(clientId);
         } catch (NumberFormatException e) {
             log.warn("Cannot parse userId from clientId: {}", clientId);
             return null;

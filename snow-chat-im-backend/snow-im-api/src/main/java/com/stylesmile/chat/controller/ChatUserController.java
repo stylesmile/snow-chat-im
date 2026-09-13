@@ -102,7 +102,7 @@ public class ChatUserController {
     public Result<Map<String, String>> uploadAvatar(@RequestParam("file") MultipartFile file,
                                                      HttpServletRequest request) {
         // 1. 从 token 获取当前用户 ID（AuthFilter 已设置）
-        Integer userId = get_currentUserId(request);
+        Long userId = get_currentUserId(request);
         if (userId == null) {
             return Result.failMessage("未登录");
         }
@@ -158,7 +158,7 @@ public class ChatUserController {
     @ApiResponse(responseCode = "401", description = "未登录")
     @GetMapping("/info")
     public Result<ChatUser> info(HttpServletRequest request) {
-        Integer userId = get_currentUserId(request);
+        Long userId = get_currentUserId(request);
         if (userId == null) {
             return Result.failMessage("未登录");
         }
@@ -191,7 +191,9 @@ public class ChatUserController {
     @ApiResponse(responseCode = "200", description = "查询成功")
     @ApiResponse(responseCode = "500", description = "用户不存在")
     @GetMapping("/infoById")
-    public Result<ChatUser> infoById(@RequestParam Integer userId, HttpServletRequest request) {
+    // 参数用 Long：雪花 ID 超出 int 范围时，Integer 会在参数绑定阶段就失败（400），
+    // 扫码添加这类用户将直接查不到人
+    public Result<ChatUser> infoById(@RequestParam Long userId, HttpServletRequest request) {
         ChatUser user = chatUserService.getUserById(userId);
         if (user == null) {
             return Result.failMessage("用户不存在");
@@ -214,7 +216,7 @@ public class ChatUserController {
     @PutMapping("/update")
     public Result<Void> updateProfile(@RequestBody UpdateProfileDTO body,
                                        HttpServletRequest request) {
-        Integer userId = get_currentUserId(request);
+        Long userId = get_currentUserId(request);
         if (userId == null) {
             return Result.failMessage("未登录");
         }
@@ -320,9 +322,12 @@ public class ChatUserController {
      * 从请求属性中获取当前登录用户 ID（由 AuthFilter 设置）
      * 若未设置则返回 null（表示未登录）
      */
-    private Integer get_currentUserId(HttpServletRequest request) {
+    private Long get_currentUserId(HttpServletRequest request) {
+        // AuthFilter 写入的是 Long（用户 ID 由雪花算法生成，可能超出 int 范围），
+        // 这里必须按 Number 取值，否则旧写法 `attr instanceof Integer` 恒为 false，
+        // 所有已登录用户都会被判成"未登录"，/user/info、头像上传、资料更新全部失效。
         Object attr = request.getAttribute("currentUserId");
-        return attr instanceof Integer ? (Integer) attr : null;
+        return attr instanceof Number ? ((Number) attr).longValue() : null;
     }
 
     // -------------------------------------------------------------------------

@@ -106,7 +106,8 @@ public class ChatGroupServiceImpl extends BaseServiceImpl<ChatGroupMapper, ChatG
      */
     private String getUserName(Long userId) {
         try {
-            var user = chatUserService.getUserById(userId.intValue());
+            // 直接传 Long：intValue() 会把超过 int 范围的用户 ID 截断成错误值，导致查无此人
+            var user = chatUserService.getUserById(userId);
             if (user != null) {
                 String nickname = user.getNickname();
                 return (nickname != null && !nickname.isEmpty()) ? nickname : "用户" + userId;

@@ -28,7 +28,8 @@ public interface ChatUserService extends BaseService<ChatUser> {
      * @param userId 用户ID
      * @return ChatUser
      */
-    ChatUser getUserById(Integer userId);
+    // 参数用 Long：用户 ID 由雪花算法生成，可能超出 int 范围（如 2091818653023719424）
+    ChatUser getUserById(Long userId);
 
     /**
      * 通过邮箱查询用户

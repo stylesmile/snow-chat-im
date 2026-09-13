@@ -94,7 +94,7 @@ class ChatUserControllerTest {
         // 准备：请求属性携带当前用户 ID
         loginAs(request, 4);
         ChatUser user = new ChatUser();
-        when(chatUserService.getUserById(eq(4))).thenReturn(user);
+        when(chatUserService.getUserById(eq(4L))).thenReturn(user);
 
         // 执行
         Result<ChatUser> result = controller.info(request);
@@ -113,7 +113,7 @@ class ChatUserControllerTest {
         loginAs(request, 4);
         ChatUser user = new ChatUser();
         user.setAvatar("avatars/uuid.jpg");
-        when(chatUserService.getUserById(eq(4))).thenReturn(user);
+        when(chatUserService.getUserById(eq(4L))).thenReturn(user);
         when(fileStorageService.generateAvatarUrl("avatars/uuid.jpg"))
                 .thenReturn("https://img.example.com/avatars/uuid.jpg");
 
@@ -132,7 +132,7 @@ class ChatUserControllerTest {
         loginAs(request, 4);
         ChatUser user = new ChatUser();
         user.setAvatar("https://legacy.example.com/old.png");
-        when(chatUserService.getUserById(eq(4))).thenReturn(user);
+        when(chatUserService.getUserById(eq(4L))).thenReturn(user);
 
         Result<ChatUser> result = controller.info(request);
 
@@ -145,7 +145,7 @@ class ChatUserControllerTest {
         loginAs(request, 4);
         ChatUser user = new ChatUser();
         user.setAvatar(null);
-        when(chatUserService.getUserById(eq(4))).thenReturn(user);
+        when(chatUserService.getUserById(eq(4L))).thenReturn(user);
 
         Result<ChatUser> result = controller.info(request);
 
@@ -178,7 +178,7 @@ class ChatUserControllerTest {
         user.setNickname("old");
         user.setAvatar("old.png");
         user.setSignature("old signature");
-        when(chatUserService.getUserById(eq(4))).thenReturn(user);
+        when(chatUserService.getUserById(eq(4L))).thenReturn(user);
         // 构造 DTO：只传昵称、签名（avatar 为 null 表示不更新）
         ChatUserController.UpdateProfileDTO dto = new ChatUserController.UpdateProfileDTO();
         dto.setNickname("new");
@@ -210,10 +210,10 @@ class ChatUserControllerTest {
         user.setId(7L);
         user.setUsername("bob");
         user.setNickname("Bob");
-        when(chatUserService.getUserById(eq(7))).thenReturn(user);
+        when(chatUserService.getUserById(eq(7L))).thenReturn(user);
 
         // 执行：按 userId 查询（不传入 request 令牌）
-        Result<ChatUser> result = controller.infoById(7, null);
+        Result<ChatUser> result = controller.infoById(7L, null);
 
         // 验证：成功且返回该用户
         assertSuccess(result);
@@ -229,12 +229,12 @@ class ChatUserControllerTest {
         ChatUser user = new ChatUser();
         user.setId(9L);
         user.setAvatar("avatars/uuid9.jpg");
-        when(chatUserService.getUserById(eq(9))).thenReturn(user);
+        when(chatUserService.getUserById(eq(9L))).thenReturn(user);
         when(fileStorageService.generateAvatarUrl("avatars/uuid9.jpg"))
                 .thenReturn("https://img.example.com/avatars/uuid9.jpg");
 
         // 执行
-        Result<ChatUser> result = controller.infoById(9, null);
+        Result<ChatUser> result = controller.infoById(9L, null);
 
         // 验证：avatar 已转换为可访问 URL
         assertEquals("https://img.example.com/avatars/uuid9.jpg", result.getData().getAvatar());
@@ -248,9 +248,9 @@ class ChatUserControllerTest {
         ChatUser user = new ChatUser();
         user.setId(10L);
         user.setAvatar("https://legacy.example.com/old.png");
-        when(chatUserService.getUserById(eq(10))).thenReturn(user);
+        when(chatUserService.getUserById(eq(10L))).thenReturn(user);
 
-        Result<ChatUser> result = controller.infoById(10, null);
+        Result<ChatUser> result = controller.infoById(10L, null);
 
         assertEquals("https://legacy.example.com/old.png", result.getData().getAvatar());
         verify(fileStorageService, never()).generateAvatarUrl(any());
@@ -262,10 +262,10 @@ class ChatUserControllerTest {
     @Test
     void infoByIdReturnsFailWhenUserMissing() {
         // 准备：该 userId 无对应用户
-        when(chatUserService.getUserById(eq(404))).thenReturn(null);
+        when(chatUserService.getUserById(eq(404L))).thenReturn(null);
 
         // 执行
-        Result<ChatUser> result = controller.infoById(404, null);
+        Result<ChatUser> result = controller.infoById(404L, null);
 
         // 验证：非 200 成功码
         assertEquals("500", result.getCode());
@@ -278,7 +278,7 @@ class ChatUserControllerTest {
     void doesNotUpdateMissingUser() {
         // 准备：request 携带的当前用户不存在
         loginAs(request, 404);
-        when(chatUserService.getUserById(eq(404))).thenReturn(null);
+        when(chatUserService.getUserById(eq(404L))).thenReturn(null);
         ChatUserController.UpdateProfileDTO dto = new ChatUserController.UpdateProfileDTO();
         dto.setNickname("name");
         dto.setAvatar("avatar");

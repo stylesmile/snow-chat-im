@@ -16,10 +16,10 @@ public interface ChatOfflineMessageMapper extends BaseMapper<ChatOfflineMessage>
     /**
      * 查询接收方的离线消息
      */
-    List<ChatOfflineMessage> findByToUserId(@Param("toUserId") Integer toUserId);
+    List<ChatOfflineMessage> findByToUserId(@Param("toUserId") Long toUserId);
 
     /**
      * 删除接收方的离线消息
      */
-    void deleteByToUserId(@Param("toUserId") Integer toUserId);
+    void deleteByToUserId(@Param("toUserId") Long toUserId);
 }
