@@ -70,21 +70,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildHeaderSection(context, auth, initials, nickname),
             const SizedBox(height: 16),
 
-            // === 钱包 & WIN卡 ===
-            _buildMenuCard([
-              ProfileMenuItem(
-                iconColor: const Color(0xFF00C8E8),
-                label: l10n.wallet,
-                subtitle: l10n.encryptedAssets,
-              ),
-              ProfileMenuItem(
-                iconColor: const Color(0xFF3B82F6),
-                label: l10n.winCard,
-                subtitle: l10n.usdtExchange,
-              ),
-            ]),
-            const SizedBox(height: 12),
-
             // === 性别入口（点击跳转到性别选择页面）===
             _buildGenderEntry(context, auth, l10n),
             const SizedBox(height: 12),

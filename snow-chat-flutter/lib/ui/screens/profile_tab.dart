@@ -15,7 +15,7 @@ import 'favorites_screen.dart';
 /// 布局结构：
 /// 1. 无 AppBar，整体沉浸式深色背景
 /// 2. 顶部用户信息区：圆形头像 + 昵称 + @用户ID + 二维码按钮
-/// 3. 分组卡片菜单：钱包、收藏/朋友圈、设置
+/// 3. 分组卡片菜单：收藏/朋友圈、设置
 /// 4. 退出登录（红色，单独放置）
 class ProfileTab extends StatefulWidget {
   const ProfileTab({super.key});
@@ -70,21 +70,6 @@ class _ProfileTabState extends State<ProfileTab> {
             // === 顶部用户信息区 ===
             _buildHeaderSection(context, auth, initials, nickname),
             const SizedBox(height: 16),
-
-            // === 钱包 & WIN卡 ===
-            _buildMenuCard([
-              ProfileMenuItem(
-                iconColor: const Color(0xFF00C8E8),
-                label: l10n.wallet,
-                subtitle: l10n.encryptedAssets,
-              ),
-              ProfileMenuItem(
-                iconColor: const Color(0xFF3B82F6),
-                label: l10n.winCard,
-                subtitle: l10n.usdtExchange,
-              ),
-            ]),
-            const SizedBox(height: 12),
 
             // === 性别入口（点击跳转到性别选择页面）===
             _buildGenderEntry(context, auth, l10n),
