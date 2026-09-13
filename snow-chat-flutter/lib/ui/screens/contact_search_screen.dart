@@ -133,7 +133,10 @@ class _ContactSearchScreenState extends State<ContactSearchScreen> {
               textInputAction: TextInputAction.search,
               onChanged: (value) => setState(() => _keyword = value),
               decoration: InputDecoration(
-                hintText: l10n.searchHint,
+                // 用「搜索」而不是全局搜索页的「请输入用户名或昵称」：
+                // 后者会引导用户去输用户名，而本页只在好友的昵称/备注/拼音里找，
+                // 按用户名搜是本页不支持的能力，提示词不该这么写。
+                hintText: l10n.search,
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _keyword.isEmpty
                     ? null
