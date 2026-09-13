@@ -20,7 +20,8 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * SeaweedFS 文件存储实现。
- * 当 seaweedfs.enabled=true 时启用，优先级高于 minio.enabled。
+ * 当 {@code storage.type=seaweedfs} 时启用（装配条件统一由 {@link StorageType} 驱动，
+ * {@code seaweedfs.enabled} 已不再参与 Bean 装配，仅作为兼容字段保留）。
  *
  * <p>工作原理：
  * <ul>
@@ -39,9 +40,10 @@ import java.util.concurrent.TimeUnit;
  * @author mmm
  * @see FileStorage
  * @see SeaweedfsProperties
+ * @see StorageType
  */
 @Component
-@ConditionalOnProperty(name = "seaweedfs.enabled", havingValue = "true", matchIfMissing = false)
+@ConditionalOnProperty(prefix = "storage", name = "type", havingValue = "seaweedfs")
 public class SeaweedfsFileStorage implements FileStorage {
 
     private static final Logger log = LoggerFactory.getLogger(SeaweedfsFileStorage.class); // 日志器

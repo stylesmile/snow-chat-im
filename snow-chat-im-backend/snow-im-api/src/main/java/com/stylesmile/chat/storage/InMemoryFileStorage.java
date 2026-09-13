@@ -10,7 +10,12 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 内存文件存储降级实现。
- * 当 minio.enabled=false 或未配置时启用，用于本地开发与单元测试。
+ * 当 {@code storage.type} 未配置或配置为 {@code local} 时启用，用于本地开发与单元测试。
+ *
+ * <p>装配条件使用 {@code matchIfMissing = true}：即使完全没写 {@code storage.type}
+ * 也能把应用拉起来（避免因漏配导致启动失败）。但 {@code storage.type} 一旦配成
+ * {@code minio}/{@code seaweedfs}/{@code aliyun-oss}，本实现就不会被装配，
+ * 因此不会与其它实现产生"同一接口多个 Bean"的冲突。
  *
  * <p>注意：应用重启后所有文件丢失；upload 返回对象 key（与接口契约一致），
  * generatePresignedUrl 返回 base64 data URL（内嵌图片数据，永久有效，无需签名）。
@@ -18,9 +23,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * @author mmm
  * @see FileStorage
  * @see MinioFileStorage
+ * @see AliyunOssFileStorage
+ * @see StorageType
  */
 @Component
-@ConditionalOnProperty(name = "minio.enabled", havingValue = "false", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "storage", name = "type", havingValue = "local", matchIfMissing = true)
 public class InMemoryFileStorage implements FileStorage {
 
     // 内存存储：key → 文件字节

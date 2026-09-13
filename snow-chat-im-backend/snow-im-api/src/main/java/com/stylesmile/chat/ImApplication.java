@@ -1,8 +1,10 @@
 package com.stylesmile.chat;
 
 import com.stylesmile.chat.filter.AuthFilter;
+import com.stylesmile.chat.storage.AliyunOssProperties;
 import com.stylesmile.chat.storage.MinioProperties;
 import com.stylesmile.chat.storage.SeaweedfsProperties;
+import com.stylesmile.chat.storage.StorageProperties;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -12,13 +14,24 @@ import org.springframework.context.annotation.Bean;
 
 /**
  * IM 应用主入口。
- * 启用 MinioProperties 配置绑定，使 minio.* 配置可注入到 Bean。
+ *
+ * <p>显式注册文件存储相关的配置属性类（minio / seaweedfs / aliyun-oss）。
+ * 这些类都是 record，没有 {@code @Component}，必须在此注册才能完成配置绑定，
+ * 否则存储 Bean 注入配置时会因找不到对应 Bean 而启动失败。
+ *
+ * <p>具体启用哪一种存储由配置项 {@code storage.type} 决定，见
+ * {@link com.stylesmile.chat.storage.StorageType}。
  *
  * @author mmm
  */
 @MapperScan("com.stylesmile.chat.mapper")
 @SpringBootApplication
-@EnableConfigurationProperties(MinioProperties.class)
+@EnableConfigurationProperties({
+        StorageProperties.class,    // 存储类型解析（storage.type），非法值启动期快速失败
+        MinioProperties.class,      // MinIO 配置绑定（storage.type=minio）
+        SeaweedfsProperties.class,  // SeaweedFS 配置绑定（storage.type=seaweedfs）
+        AliyunOssProperties.class   // 阿里云 OSS 配置绑定（storage.type=aliyun-oss）
+})
 public class ImApplication {
     public static void main(String[] args) {
         SpringApplication.run(ImApplication.class, args);

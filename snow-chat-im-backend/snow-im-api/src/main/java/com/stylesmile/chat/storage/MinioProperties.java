@@ -12,7 +12,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *   <li>bucket 为空 → {@code snow-chat}</li>
  * </ul>
  *
- * @param enabled          是否启用 MinIO（false 时降级到 InMemoryFileStorage）
+ * @param enabled          兼容字段：是否启用 MinIO。**已不再参与 Bean 装配**，
+ *                         实际启用与否由 {@code storage.type=minio} 决定（见 {@link StorageType}）；
+ *                         保留该字段仅为兼容历史配置文件，避免旧配置解析报错。
  * @param endpoint         MinIO 服务端点 URL，如 http://localhost:9000
  * @param accessKey        访问密钥
  * @param secretKey        秘密密钥
@@ -24,7 +26,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  */
 @ConfigurationProperties(prefix = "minio")
 public record MinioProperties(
-        boolean enabled,          // 是否启用 MinIO
+        boolean enabled,          // 兼容字段：是否启用 MinIO（装配由 storage.type 决定）
         String endpoint,          // MinIO 端点 URL
         String accessKey,         // 访问密钥
         String secretKey,         // 秘密密钥

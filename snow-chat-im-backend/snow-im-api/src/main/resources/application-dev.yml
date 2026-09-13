@@ -58,12 +58,20 @@ logging:
   level:
     com.stylesmile: debug
 
-# 文件存储类型配置
-# local   - InMemoryFileStorage（内存降级，应用重启后文件丢失，适合本地开发）
-# minio   - MinioFileStorage（基于 S3 协议的对象存储，需单独部署 MinIO）
-# seaweedfs - SeaweedfsFileStorage（基于 SeaweedFS REST API 的对象存储，需单独部署 SeaweedFS）
+# ============================================================
+# 文件存储配置：由 storage.type 统一决定启用哪一个实现
+#   local      - InMemoryFileStorage（内存降级，重启即丢失，仅本地开发/测试）
+#   minio      - MinioFileStorage（S3 协议，需自行部署 MinIO）
+#   seaweedfs  - SeaweedfsFileStorage（SeaweedFS REST API，需自行部署 SeaweedFS）
+#   aliyun-oss - AliyunOssFileStorage（阿里云 OSS，无需自建服务）
+# 注意：storage.type 是唯一开关，各段中的 enabled 字段仅保留兼容，不再参与装配
+# ============================================================
 storage:
-  type: local                         # 默认 local，启用其他类型需同时配置对应服务端点
+  type: local                         # 本地开发默认内存存储；改为 aliyun-oss 即可切到阿里云 OSS
+
+local:
+  endpoint: http://127.0.0.1:8888
+  path: ~/snow-file
 
 # MinIO 对象存储配置（私有 + Pre-signed URL 策略）
 # storage.type=minio 时生效；enabled=false 时降级到 InMemoryFileStorage（本地开发/测试）
@@ -82,11 +90,24 @@ minio:
 # storage.type=seaweedfs 时生效；需先启动 SeaweedFS（docker compose up -d seaweedfs）
 # 公共读模式：文件通过 endpoint/filename 直接访问，数据库存完整 URL
 seaweedfs:
-  enabled: false                              # 默认关闭，避免无 SeaweedFS 时启动失败
+  enabled: false                              # 兼容字段，已不参与装配（实际由 storage.type 决定）
   endpoint: http://127.0.0.1:8888             # SeaweedFS Master 服务地址
   upload-path: /1                             # 上传目标 volume 路径（由 SeaweedFS volume id 决定）
   public-read: true                           # 公共读策略：true 时数据库存完整可访问 URL
   public-base-url: ""                         # 外部 CDN 或公网前缀；为空时使用 endpoint 作为访问前缀
+
+# 阿里云 OSS 对象存储配置
+# storage.type=aliyun-oss 时生效
+# 安全建议：使用 RAM 子账号 AccessKey 并仅授予该 bucket 的读写权限，
+#          凭据请通过环境变量或配置中心注入，不要提交真实 ak/sk 到版本库
+aliyun-oss:
+  endpoint: https://oss-cn-hangzhou.aliyuncs.com  # OSS 区域端点（须与 bucket 所在地域一致）
+  access-key-id: ""                               # AccessKey ID（生产环境用环境变量覆盖）
+  access-key-secret: ""                           # AccessKey Secret
+  bucket: snow-chat                               # bucket 名称
+  public-base-url: ""                             # 自定义域名/CDN 前缀；留空则按 {bucket}.{endpoint} 推导
+  public-read: true                               # true=公共读（返回直链）；false=私有读（返回签名 URL）
+  presign-expiration-minutes: 10080               # 私有读签名有效期（分钟），默认 7 天
 
 # 邮箱发送配置（用于验证码、找回密码等场景）
 email:

@@ -21,7 +21,8 @@ import java.time.Duration;
 
 /**
  * MinIO 文件存储实现（基于 AWS S3 SDK v2）。
- * 当 minio.enabled=true 时启用。
+ * 当 {@code storage.type=minio} 时启用（装配条件统一由 {@link StorageType} 驱动，
+ * {@code minio.enabled} 已不再参与 Bean 装配，仅作为兼容字段保留）。
  *
  * <p>支持两种访问策略：
  * <ul>
@@ -33,9 +34,10 @@ import java.time.Duration;
  * @see FileStorage
  * @see InMemoryFileStorage
  * @see MinioConfig
+ * @see StorageType
  */
 @Component
-@ConditionalOnProperty(name = "minio.enabled", havingValue = "true", matchIfMissing = false)
+@ConditionalOnProperty(prefix = "storage", name = "type", havingValue = "minio")
 public class MinioFileStorage implements FileStorage {
 
     private static final Logger log = LoggerFactory.getLogger(MinioFileStorage.class); // 日志器

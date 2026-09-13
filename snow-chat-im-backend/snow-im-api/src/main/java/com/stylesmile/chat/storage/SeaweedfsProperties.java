@@ -11,23 +11,24 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *
  * <p>字段说明：
  * <ul>
- *   <li>{@code enabled}：是否启用 SeaweedFS 存储（true 时覆盖 minio.enabled）；</li>
+ *   <li>{@code enabled}：兼容字段，**已不再参与 Bean 装配**，实际启用与否由 {@code storage.type=seaweedfs} 决定；</li>
  *   <li>{@code endpoint}：SeaweedFS master 服务地址，如 http://localhost:8888；</li>
  *   <li>{@code uploadPath}：上传目标路径，格式为 /{volume_id}（如 /1）；</li>
  *   <li>{@code publicRead}：是否公共读（true 时文件可通过 endpoint/filename 直接访问，无需签名）；</li>
  *   <li>{@code publicBaseUrl}：公共读时的外部访问前缀（如 http://cdn.example.com）；为空时使用 endpoint。</li>
  * </ul>
  *
- * @param enabled         是否启用 SeaweedFS（false 时降级到本地存储或 MinIO）
+ * @param enabled         兼容字段：是否启用 SeaweedFS（装配由 storage.type 决定）
  * @param endpoint        SeaweedFS Master 服务地址，如 http://localhost:8888
  * @param uploadPath      上传到的 volume 路径，格式为 /{volumeId}，如 /1
  * @param publicRead      是否设置公共读（true 时 generateUrl 返回完整可直接访问的 URL）
  * @param publicBaseUrl   外部可访问的 CDN 或公网前缀；为空时使用 endpoint
  * @author mmm
+ * @see StorageType
  */
 @ConfigurationProperties(prefix = "seaweedfs")
 public record SeaweedfsProperties(
-        boolean enabled,          // 是否启用 SeaweedFS
+        boolean enabled,          // 兼容字段：是否启用 SeaweedFS（装配由 storage.type 决定）
         String endpoint,          // SeaweedFS Master 端点，如 http://localhost:8888
         String uploadPath,        // 上传体积路径，如 /1
         boolean publicRead,       // 公共读策略（true 时返回完整 URL，数据库存储完整地址）

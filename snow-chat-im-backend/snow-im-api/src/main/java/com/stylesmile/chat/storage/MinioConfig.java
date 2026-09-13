@@ -13,15 +13,16 @@ import java.net.URI;
 
 /**
  * MinIO Spring 配置类。
- * 仅当 minio.enabled=true 时生效，注册 S3Client 与 S3Presigner Bean。
+ * 仅当 {@code storage.type=minio} 时生效，注册 S3Client 与 S3Presigner Bean。
  *
  * <p>MinIO 要求 path-style 访问，故 S3Client 强制设置 forcePathStyle(true)。
  *
  * @author mmm
  * @see MinioFileStorage
+ * @see StorageType
  */
 @Configuration
-@ConditionalOnProperty(name = "minio.enabled", havingValue = "true", matchIfMissing = false)
+@ConditionalOnProperty(prefix = "storage", name = "type", havingValue = "minio")
 public class MinioConfig {
 
     /**
