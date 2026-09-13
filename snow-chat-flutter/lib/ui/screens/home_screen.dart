@@ -271,8 +271,29 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
 
     // 无需角标时直接返回图标本身，省掉一层 Stack 布局
-    if (!hasBadge || count == null) {
+    if (!hasBadge) {
       return icon;
+    }
+
+    // 纯红点（不带数字）：用于"有未读但不便计数的场景"，如好友申请。
+    // 此前 hasBadge=true 且 count=null 会命中下方 count==null 的判断提前返回，
+    // 导致通讯录 tab 的红点永远渲染不出来——这里在计数角标之前单独处理。
+    if (count == null) {
+      return Stack(
+        children: [
+          icon,
+          // 微信风格：图标右上角一个实心小红点，不显示具体数量
+          Positioned(
+            right: 0,
+            top: 0,
+            child: Container(
+              width: 10,
+              height: 10,
+              decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+            ),
+          ),
+        ],
+      );
     }
 
     // 有未读数量时叠加角标；选中与未选中两种状态都要显示，故调用方需分别传入
