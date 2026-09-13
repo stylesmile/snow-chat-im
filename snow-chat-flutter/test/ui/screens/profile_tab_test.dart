@@ -130,6 +130,36 @@ void main() {
       expect(find.text('设置'), findsOneWidget);
     });
 
+    testWidgets('菜单图标使用对标项目的金色图标资源',
+        (WidgetTester tester) async {
+      SharedPreferences.setMockInitialValues({
+        'userId': 1,
+        'isLoggedIn': true,
+      });
+      await authProvider.init();
+      await authProvider.updateAvatar('');
+
+      // 这里刻意用 pump 而非 pumpAndSettle：本文件里 ProfileTab 的
+      // pumpAndSettle 会一直不 settle（既有问题），但图标断言只需 build 跑过一次
+      await tester.pumpWidget(makeTestableWidget());
+      await tester.pump();
+
+      // 收藏 / 朋友圈 / 设置三项均改用 assets/icons/profile 下的对标图标
+      final assetNames = tester
+          .widgetList<Image>(find.byType(Image))
+          .map((w) => w.image)
+          .whereType<AssetImage>()
+          .map((a) => a.assetName)
+          .toSet();
+
+      expect(assetNames, contains('assets/icons/profile/collect.png'));
+      expect(assetNames, contains('assets/icons/profile/moments.png'));
+      expect(assetNames, contains('assets/icons/profile/settings.png'));
+
+      // 旧的彩色方块图标（统一用 Icons.apps）已不再使用
+      expect(find.byIcon(Icons.apps), findsNothing);
+    });
+
     testWidgets('应显示二维码与右箭头图标（微信风格头部行）',
         (WidgetTester tester) async {
       await authProvider.updateNickname('Alice');

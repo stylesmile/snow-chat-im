@@ -66,6 +66,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   /// 就会出现两个标题栏，故该索引下外层让位给页面自己的 AppBar。
   static const int _contactsTabIndex = 1;
 
+  /// 个人中心 tab 在底部导航中的索引
+  ///
+  /// 该页为沉浸式布局（对标项目 win-chat-android 的「我的」页同样不带标题栏），
+  /// 外层标题栏在此让位，否则顶部会挂着一个与本页无关的「会话」标题。
+  static const int _profileTabIndex = 2;
+
   @override
   void initState() {
     super.initState();
@@ -286,8 +292,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   ///
   /// 通讯录 tab 返回 null，让位给 ContactTab 自带的 AppBar —— 该页的标题栏里
   /// 还有「搜索」与「添加好友」两个动作，外层若再画一个就会出现两个标题栏。
+  /// 个人中心 tab 同样返回 null：该页是沉浸式布局，顶部不需要标题栏。
   PreferredSizeWidget? _buildAppBar(AppLocalizations l10n) {
-    if (_currentIndex == _contactsTabIndex) return null;
+    if (_currentIndex == _contactsTabIndex ||
+        _currentIndex == _profileTabIndex) {
+      return null;
+    }
 
     return AppBar(
       // 背景色与页面一致，保持深色主题连贯性
@@ -338,7 +348,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final totalUnread = chatProvider.totalUnreadCount;
 
     return Scaffold(
-      // 顶部标题栏：通讯录 tab 由 ContactTab 自带的 AppBar 承担，此处返回 null
+      // 顶部标题栏：通讯录与个人中心两个 tab 均返回 null ——
+      // 前者由 ContactTab 自带的 AppBar 承担，后者是沉浸式页面
       appBar: _buildAppBar(l10n),
       body: TabBarView(
         controller: _tabController,

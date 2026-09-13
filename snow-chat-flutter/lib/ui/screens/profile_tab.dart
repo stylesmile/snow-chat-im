@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
+import '../../core/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -13,9 +14,10 @@ import 'favorites_screen.dart';
 /// 个人中心 Tab（参考 WINCHAT 设计稿）
 ///
 /// 布局结构：
-/// 1. 无 AppBar，整体沉浸式深色背景
+/// 1. 无 AppBar，整体沉浸式深色背景（外层 HomeScreen 在该 tab 也不画标题栏）
 /// 2. 顶部用户信息区：圆形头像 + 昵称 + @用户ID + 二维码按钮
-/// 3. 分组卡片菜单：收藏/朋友圈、设置
+/// 3. 分组卡片菜单：收藏/朋友圈、设置，图标取自对标项目 win-chat-android
+///    的金色单色图标
 /// 4. 退出登录（红色，单独放置）
 class ProfileTab extends StatefulWidget {
   const ProfileTab({super.key});
@@ -28,15 +30,19 @@ class ProfileTab extends StatefulWidget {
 // 菜单数据结构
 // ---------------------------------------------------------------------------
 /// 菜单项数据模型
-/// [iconColor] 图标的彩色背景色；[label] 主文案；[subtitle] 副文案（可为空）
+/// [iconAsset] 图标资源路径（金色单色 PNG，渲染时按主题色染色）；
+/// [iconSize] 图标绘制尺寸，对标项目里收藏/朋友圈为 28，其余为 24；
+/// [label] 主文案；[subtitle] 副文案（可为空）
 class ProfileMenuItem {
-  final Color iconColor;
+  final String iconAsset;
+  final double iconSize;
   final String label;
   final String subtitle;
   final VoidCallback? onTap;
 
   const ProfileMenuItem({
-    required this.iconColor,
+    required this.iconAsset,
+    this.iconSize = 24,
     required this.label,
     this.subtitle = '',
     this.onTap,
@@ -51,6 +57,19 @@ class _ProfileTabState extends State<ProfileTab> {
   static const Color _bgColor = Color(0xFF111111);
   // 卡片背景色（与 AppTheme.surface 一致）
   static const Color _cardColor = Color(0xFF1E1E1E);
+
+  // ===========================================================================
+  // 菜单图标（形状取自对标项目 win-chat-android 的「我的」页）
+  // ===========================================================================
+
+  /// 收藏：五角星
+  static const String _iconCollect = 'assets/icons/profile/collect.png';
+
+  /// 朋友圈：相机
+  static const String _iconMoments = 'assets/icons/profile/moments.png';
+
+  /// 设置：齿轮
+  static const String _iconSettings = 'assets/icons/profile/settings.png';
 
   @override
   Widget build(BuildContext context) {
@@ -78,7 +97,8 @@ class _ProfileTabState extends State<ProfileTab> {
             // === 收藏 & 朋友圈 ===
             _buildMenuCard([
               ProfileMenuItem(
-                iconColor: const Color(0xFFFFB800),
+                iconAsset: _iconCollect,
+                iconSize: 28,
                 label: l10n.favorites,
                 // 点击"收藏"跳转到"我的收藏"页面
                 onTap: () {
@@ -89,7 +109,8 @@ class _ProfileTabState extends State<ProfileTab> {
                 },
               ),
               ProfileMenuItem(
-                iconColor: const Color(0xFFEA580C),
+                iconAsset: _iconMoments,
+                iconSize: 28,
                 label: l10n.moments,
               ),
             ]),
@@ -302,7 +323,7 @@ class _ProfileTabState extends State<ProfileTab> {
   Widget _buildIconMenuItem(ProfileMenuItem item) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      leading: _buildColoredIcon(item.iconColor),
+      leading: _buildMenuIcon(item.iconAsset, item.iconSize),
       title: Text(
         item.label,
         style: const TextStyle(color: Colors.white, fontSize: 16),
@@ -324,16 +345,25 @@ class _ProfileTabState extends State<ProfileTab> {
     );
   }
 
-  /// 纯色背景圆角方块图标
-  Widget _buildColoredIcon(Color color) {
-    return Container(
+  /// 菜单图标（对标项目风格的单色图标，无彩色底块）
+  ///
+  /// 用 [BlendMode.srcIn] 只取 PNG 的透明度通道并染成 [AppTheme.accent]，
+  /// 因此换主题色只需改令牌，不必重新导出图片；与底部导航选中态同色。
+  /// 外层固定 32x32 容器，保证「图标—文字」间距与分隔线缩进（64）保持稳定。
+  Widget _buildMenuIcon(String assetPath, double size) {
+    return SizedBox(
       width: 32,
       height: 32,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(8),
+      child: Center(
+        child: Image.asset(
+          assetPath,
+          width: size,
+          height: size,
+          color: AppTheme.accent,
+          colorBlendMode: BlendMode.srcIn,
+          filterQuality: FilterQuality.high,
+        ),
       ),
-      child: const Icon(Icons.apps, color: Colors.white, size: 18),
     );
   }
 
@@ -347,7 +377,7 @@ class _ProfileTabState extends State<ProfileTab> {
       ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        leading: _buildColoredIcon(const Color(0xFF6B7280)),
+        leading: _buildMenuIcon(_iconSettings, 24),
         title: Text(
           l10n.settingsMenu,
           style: const TextStyle(color: Colors.white, fontSize: 16),
