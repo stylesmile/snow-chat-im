@@ -35,6 +35,7 @@ class StorageTypeSwitchingTest {
             .withUserConfiguration(
                     StorageDependencyConfig.class,   // 提供各实现所需的配置属性与客户端 mock
                     InMemoryFileStorage.class,       // local
+                    LocalDiskFileStorage.class,      // disk
                     MinioFileStorage.class,          // minio
                     SeaweedfsFileStorage.class,      // seaweedfs
                     AliyunOssFileStorage.class       // aliyun-oss
@@ -60,6 +61,17 @@ class StorageTypeSwitchingTest {
         runner.withPropertyValues("storage.type=local").run(context -> {
             assertThat(context).hasSingleBean(FileStorage.class);
             assertThat(context.getBean(FileStorage.class)).isInstanceOf(InMemoryFileStorage.class);
+        });
+    }
+
+    /**
+     * storage.type=disk 时只装配本地磁盘实现。
+     */
+    @Test
+    void assemblesOnlyDiskWhenTypeIsDisk() {
+        runner.withPropertyValues("storage.type=disk").run(context -> {
+            assertThat(context).hasSingleBean(FileStorage.class);
+            assertThat(context.getBean(FileStorage.class)).isInstanceOf(LocalDiskFileStorage.class);
         });
     }
 
@@ -115,6 +127,14 @@ class StorageTypeSwitchingTest {
      */
     @Configuration
     static class StorageDependencyConfig {
+
+        /**
+         * 本地磁盘配置（指向 target 下的临时目录，避免测试污染真实 ~/snow-file）。
+         */
+        @Bean
+        DiskProperties diskProperties() {
+            return new DiskProperties("target/test-disk-storage", "http://127.0.0.1:8091");
+        }
 
         /**
          * MinIO 配置（字段值本身不影响装配条件，仅保证 Bean 可创建）。

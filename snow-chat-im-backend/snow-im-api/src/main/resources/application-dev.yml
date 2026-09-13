@@ -64,13 +64,21 @@ logging:
 # ============================================================
 # 文件存储配置：由 storage.type 统一决定启用哪一个实现
 #   local      - InMemoryFileStorage（内存降级，重启即丢失，仅本地开发/测试）
+#   disk       - LocalDiskFileStorage（落盘 + /file/raw/** 真实 HTTP 地址，重启不丢）
 #   minio      - MinioFileStorage（S3 协议，需自行部署 MinIO）
 #   seaweedfs  - SeaweedfsFileStorage（SeaweedFS REST API，需自行部署 SeaweedFS）
 #   aliyun-oss - AliyunOssFileStorage（阿里云 OSS，无需自建服务）
 # 注意：storage.type 是唯一开关，各段中的 enabled 字段仅保留兼容，不再参与装配
 # ============================================================
 storage:
-  type: local                         # 本地开发默认内存存储；改为 aliyun-oss 即可切到阿里云 OSS
+  type: disk                          # 本地联调落盘存储：文件存盘且对外是真实 URL（非 base64）
+
+# 本地磁盘存储（storage.type=disk 时生效）
+# public-url 必须是「前端设备真正能访问到后端」的地址：
+# 真机/模拟器上 127.0.0.1 指向手机自己，故这里填本机局域网 IP
+disk:
+  path: ~/snow-file                       # 落盘根目录（支持 ~ 展开）
+  public-url: http://192.168.0.100:8091   # 外部访问前缀，拼接成 /file/raw/{key}
 
 local:
   endpoint: http://127.0.0.1:8888

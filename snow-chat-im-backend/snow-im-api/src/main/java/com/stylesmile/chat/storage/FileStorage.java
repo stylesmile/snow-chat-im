@@ -54,6 +54,20 @@ public interface FileStorage {
     String generatePresignedUrl(String fileName, int expirationMinutes);
 
     /**
+     * 读取对象内容，供本地磁盘存储（{@code storage.type=disk}）的
+     * {@code GET /file/raw/**} 下载端点使用。
+     *
+     * <p>默认实现返回 null（对象存储实现改为 generatePresignedUrl 直链即可，
+     * 不需要由本服务中转字节流）；仅本地实现需要覆盖。
+     *
+     * @param fileName 对象 key
+     * @return 文件输入流；对象不存在或实现不支持时返回 null
+     */
+    default InputStream load(String fileName) {
+        return null;
+    }
+
+    /**
      * 生成可直接访问的完整 URL（公共读存储模式专用）。
      *
      * <p>对于公共读存储（如 SeaweedFS publicRead=true、MinIO publicRead=true），

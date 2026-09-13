@@ -25,6 +25,16 @@ public enum StorageType {
     LOCAL("local"),
 
     /**
+     * 本地磁盘存储（LocalDiskFileStorage）。
+     *
+     * <p>文件落盘到 {@code disk.path}（默认 {@code ~/snow-file}）并通过
+     * {@code GET /file/raw/**} 提供真实 HTTP 访问地址。相比 {@link #LOCAL}
+     * 的「内存 + base64 data URL」，它重启不丢文件、消息体只存 URL，
+     * 本地联调（尤其真机）时用这个。
+     */
+    DISK("disk"),
+
+    /**
      * MinIO 对象存储（MinioFileStorage），基于 AWS S3 协议。
      */
     MINIO("minio"),
@@ -85,6 +95,6 @@ public enum StorageType {
         }
         // 未匹配到任何类型：快速失败，附带可选值提示便于排查
         throw new IllegalArgumentException(
-                "未知的文件存储类型: " + raw + "，可选值: local / minio / seaweedfs / aliyun-oss");
+                "未知的文件存储类型: " + raw + "，可选值: local / disk / minio / seaweedfs / aliyun-oss");
     }
 }

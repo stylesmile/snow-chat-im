@@ -230,6 +230,10 @@ public class ChatUserController {
         if (body.getAvatar() != null) {
             user.setAvatar(body.getAvatar());
         }
+        // 用户名（登录账号）：空白值不覆盖，避免前端传空串把账号清空
+        if (body.getUsername() != null && !body.getUsername().isBlank()) {
+            user.setUsername(body.getUsername().trim());
+        }
         if (body.getSignature() != null) {
             user.setSignature(body.getSignature());
         }
@@ -371,6 +375,8 @@ public class ChatUserController {
         private String nickname;
         @Schema(description = "头像URL", example = "https://example.com/avatar.jpg")
         private String avatar;
+        @Schema(description = "用户名（登录账号）", example = "zhangsan")
+        private String username;
         @Schema(description = "个性签名", example = "Hello World")
         private String signature;
         @Schema(description = "性别：0=未设置,1=男,2=女", example = "1")
@@ -378,6 +384,8 @@ public class ChatUserController {
         public String getNickname() { return nickname; }
         public void setNickname(String nickname) { this.nickname = nickname; }
         public String getAvatar() { return avatar; }
+        public String getUsername() { return username; }
+        public void setUsername(String username) { this.username = username; }
         public void setAvatar(String avatar) { this.avatar = avatar; }
         public String getSignature() { return signature; }
         public void setSignature(String signature) { this.signature = signature; }

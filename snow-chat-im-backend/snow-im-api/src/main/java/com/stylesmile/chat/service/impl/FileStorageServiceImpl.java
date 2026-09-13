@@ -145,6 +145,14 @@ public class FileStorageServiceImpl implements FileStorageService {
     }
 
     /**
+     * 读取已存储对象的字节流（仅本地磁盘存储支持）。
+     */
+    @Override
+    public InputStream load(String key) {
+        return fileStorage.load(key);
+    }
+
+    /**
      * 为已存储的头像 key 实时生成可访问 URL。
      *
      * <p>公共读模式：直接返回完整 URL；私有读模式：生成带签名的下载链接。

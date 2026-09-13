@@ -86,6 +86,7 @@ class StorageTypeTest {
     void configValueMatchesConditionLiterals() {
         // 逐个断言四个枚举的配置值
         assertEquals("local", StorageType.LOCAL.configValue(), "local 配置值应为 local");
+        assertEquals("disk", StorageType.DISK.configValue(), "disk 配置值应为 disk");
         assertEquals("minio", StorageType.MINIO.configValue(), "minio 配置值应为 minio");
         assertEquals("seaweedfs", StorageType.SEAWEEDFS.configValue(), "seaweedfs 配置值应为 seaweedfs");
         assertEquals("aliyun-oss", StorageType.ALIYUN_OSS.configValue(),

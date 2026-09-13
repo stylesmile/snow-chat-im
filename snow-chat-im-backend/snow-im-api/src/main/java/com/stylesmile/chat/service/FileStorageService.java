@@ -3,6 +3,8 @@ package com.stylesmile.chat.service;
 import com.stylesmile.chat.dto.UploadResult;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.InputStream;
+
 /**
  * 文件存储服务接口。
  *
@@ -49,6 +51,17 @@ public interface FileStorageService {
      * @throws IllegalArgumentException 当 mediaType 不在允许集合中时抛出
      */
     UploadResult uploadAndSign(MultipartFile file, String mediaType);
+
+    /**
+     * 读取已存储对象的字节流，供本地磁盘存储对外提供下载端点。
+     *
+     * <p>对象存储（MinIO / SeaweedFS / OSS）走 generatePresignedUrl 直链，
+     * 不需要经本服务中转，因此只有 {@code storage.type=disk} 的实现会真正返回内容。
+     *
+     * @param key 对象 key，如 {@code images/uuid.jpg}
+     * @return 文件输入流；不存在或实现不支持时返回 null
+     */
+    InputStream load(String key);
 
     /**
      * 为已存储的头像 key 实时生成可访问 URL。

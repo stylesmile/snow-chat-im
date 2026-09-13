@@ -10,9 +10,20 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import jakarta.servlet.http.HttpServletRequest;
+
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.servlet.HandlerMapping;
 
 import javax.annotation.Resource;
+import java.io.InputStream;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * 文件上传控制器
@@ -32,8 +43,80 @@ public class FileController {
      */
     private static final Set<String> ALLOWED_MEDIA_TYPES = Set.of("image", "video", "file", "voice");
 
+    /**
+     * 允许通过 /file/raw/** 下载的对象 key 白名单。
+     *
+     * <p>只放行五大业务目录，且文件名只允许字母数字与 . _ -，
+     * 从入口处阻断 {@code ..} 之类的路径穿越与目录探测。
+     */
+    private static final Pattern RAW_KEY_PATTERN =
+            Pattern.compile("^(avatars|images|videos|files|voices)/[A-Za-z0-9._-]+$");
+
     @Resource
     private FileStorageService fileStorageService;
+
+    /**
+     * 读取文件内容（本地磁盘存储 {@code storage.type=disk} 的下载端点）。
+     *
+     * <p>上传接口返回的地址形如 {@code {disk.public-url}/file/raw/images/uuid.jpg}，
+     * 前端（含真机）直接用它加载图片/视频/语音，因此这里必须能匿名访问，
+     * 故未纳入 AuthFilter 的 /chat/* 拦截范围。
+     *
+     * @param request 用于取出 {@code /raw/} 之后的对象 key
+     * @return 文件字节流；key 非法或文件不存在时返回 404
+     */
+    @Operation(summary = "读取文件", description = "按对象 key 返回文件内容（本地磁盘存储模式）")
+    @ApiResponse(responseCode = "200", description = "文件存在")
+    @ApiResponse(responseCode = "404", description = "key 非法或文件不存在")
+    @GetMapping("/raw/**")
+    public ResponseEntity<InputStreamResource> raw(
+            @Parameter(hidden = true) HttpServletRequest request) {
+        // 取出 /file/raw/ 之后的完整路径并做 URL 解码
+        String fullPath = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
+        if (fullPath == null || !fullPath.startsWith("/raw/")) {
+            return ResponseEntity.notFound().build();
+        }
+        String key = URLDecoder.decode(fullPath.substring("/raw/".length()), StandardCharsets.UTF_8);
+        // 白名单校验：只放行业务目录 + 安全文件名
+        if (!RAW_KEY_PATTERN.matcher(key).matches()) {
+            return ResponseEntity.notFound().build();
+        }
+        // 读取字节流（对象存储实现返回 null，本端点仅服务本地磁盘存储）
+        InputStream stream = fileStorageService.load(key);
+        if (stream == null) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(inferContentType(key)))
+                .body(new InputStreamResource(stream));
+    }
+
+    /**
+     * 按文件扩展名推断 Content-Type，未知类型回退 application/octet-stream。
+     *
+     * @param key 对象 key
+     * @return MIME 类型字符串
+     */
+    private static String inferContentType(String key) {
+        int dot = key.lastIndexOf('.');
+        if (dot < 0) {
+            return MediaType.APPLICATION_OCTET_STREAM_VALUE;
+        }
+        String ext = key.substring(dot + 1).toLowerCase(Locale.ROOT);
+        return switch (ext) {
+            case "jpg", "jpeg" -> "image/jpeg";
+            case "png" -> "image/png";
+            case "gif" -> "image/gif";
+            case "webp" -> "image/webp";
+            case "mp4" -> "video/mp4";
+            case "mov" -> "video/quicktime";
+            case "m4a" -> "audio/mp4";
+            case "mp3" -> "audio/mpeg";
+            case "wav" -> "audio/wav";
+            case "aac" -> "audio/aac";
+            default -> MediaType.APPLICATION_OCTET_STREAM_VALUE;
+        };
+    }
 
     /**
      * 通用文件上传
