@@ -191,12 +191,11 @@ class _ContactTabState extends State<ContactTab> {
           color: Color(0xFF07C160),
           borderRadius: BorderRadius.all(Radius.circular(6)),
         ),
-        // 使用文件传输助手自定义图标替代系统图标
+        // 使用文件传输助手自定义图标，不设置 color 保持原图颜色
         child: Image.asset(
           'assets/images/file_transfer.png',
           width: 22,
           height: 22,
-          color: Colors.white,
         ),
       ),
       title: Text(l10n.fileHelper, style: const TextStyle(fontSize: 16)),
