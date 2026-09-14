@@ -8,7 +8,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockMultipartFile;
+
+import java.io.ByteArrayInputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -213,5 +220,61 @@ class FileControllerTest {
         // 验证：失败返回，code=500，且不委托 service
         assertEquals("500", result.getCode());
         assertNull(result.getData());
+    }
+
+    // ==================== GET /file/raw/** ====================
+
+    /**
+     * 构造一个请求 /file/raw/{key} 的 mock request。
+     *
+     * <p>注意这里显式设置 requestURI：早期实现从
+     * {@code HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE} 取路径，
+     * 该属性在真实 MVC 调用链下为 null，导致所有下载一律 404，
+     * 而纯 Mockito 单测又覆盖不到。下面的用例即用来锁死按 URI 解析的行为。
+     */
+    private static MockHttpServletRequest rawRequest(String key) {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/file/raw/" + key);
+        request.setRequestURI("/file/raw/" + key);
+        return request;
+    }
+
+    @Test
+    void rawReturnsFileStreamForValidKey() throws Exception {
+        // 准备：service 能读到字节流
+        when(fileStorageService.load("images/uuid.png"))
+                .thenReturn(new ByteArrayInputStream("png-bytes".getBytes()));
+
+        // 执行
+        ResponseEntity<InputStreamResource> response = controller.raw(rawRequest("images/uuid.png"));
+
+        // 验证：200 + 按扩展名推断的 Content-Type
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(MediaType.IMAGE_PNG, response.getHeaders().getContentType());
+        assertNotNull(response.getBody());
+        assertEquals("png-bytes", new String(response.getBody().getInputStream().readAllBytes()));
+    }
+
+    @Test
+    void rawReturns404WhenFileMissing() {
+        // 准备：service 读不到（文件不存在）
+        when(fileStorageService.load("images/missing.png")).thenReturn(null);
+
+        // 执行
+        ResponseEntity<InputStreamResource> response = controller.raw(rawRequest("images/missing.png"));
+
+        // 验证
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+    }
+
+    @Test
+    void rawReturns404ForKeyOutsideWhitelist() {
+        // 准备：非业务目录 / 含路径穿越的 key —— 都不应落到 service
+        ResponseEntity<InputStreamResource> outside = controller.raw(rawRequest("secret/key.png"));
+        ResponseEntity<InputStreamResource> traversal = controller.raw(rawRequest("images/../../etc/passwd"));
+
+        // 验证：一律 404，且不查询 service（避免任意文件读取）
+        assertEquals(HttpStatus.NOT_FOUND, outside.getStatusCode());
+        assertEquals(HttpStatus.NOT_FOUND, traversal.getStatusCode());
+        verify(fileStorageService, org.mockito.Mockito.never()).load(org.mockito.ArgumentMatchers.contains(".."));
     }
 }

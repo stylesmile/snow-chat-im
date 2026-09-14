@@ -15,7 +15,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.servlet.HandlerMapping;
 
 import javax.annotation.Resource;
 import java.io.InputStream;
@@ -71,12 +70,22 @@ public class FileController {
     @GetMapping("/raw/**")
     public ResponseEntity<InputStreamResource> raw(
             @Parameter(hidden = true) HttpServletRequest request) {
-        // 取出 /file/raw/ 之后的完整路径并做 URL 解码
-        String fullPath = (String) request.getAttribute(HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
-        if (fullPath == null || !fullPath.startsWith("/raw/")) {
+        // 取 /file/raw/ 之后的完整路径并做 URL 解码。
+        //
+        // 这里不用 HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE：该属性只在
+        // 部分 HandlerMapping 实现下才被填充，实测 Spring Boot 3.5 的
+        // RequestMappingHandlerMapping 取到 null，导致所有下载一律 404。
+        // 直接按请求 URI 定位 /raw/ 更稳妥，且与 servlet 上下文路径无关。
+        String uri = request.getRequestURI();
+        String path = uri.startsWith(request.getContextPath())
+                ? uri.substring(request.getContextPath().length())
+                : uri;
+        int rawIndex = path.indexOf("/raw/");
+        if (rawIndex < 0) {
             return ResponseEntity.notFound().build();
         }
-        String key = URLDecoder.decode(fullPath.substring("/raw/".length()), StandardCharsets.UTF_8);
+        String key = URLDecoder.decode(
+                path.substring(rawIndex + "/raw/".length()), StandardCharsets.UTF_8);
         // 白名单校验：只放行业务目录 + 安全文件名
         if (!RAW_KEY_PATTERN.matcher(key).matches()) {
             return ResponseEntity.notFound().build();
