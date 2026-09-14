@@ -93,7 +93,8 @@ class BubbleContainer extends StatelessWidget {
     );
   }
 
-  Color get _bubbleColor => isMe ? AppTheme.bubbleSent : AppTheme.bubbleReceived;
+  Color get _bubbleColor =>
+      isMe ? AppTheme.bubbleSent : AppTheme.bubbleReceived;
 }
 
 /// 聊天文本消息气泡组件
@@ -143,7 +144,7 @@ class ChatBubble extends StatelessWidget {
                 app_date.DateUtils.formatTime(createTime),
                 // 时间戳弱化显示：跟随文字色做半透明
                 style: TextStyle(
-                    fontSize: 10, color: textColor.withOpacity(0.55)),
+                    fontSize: 10, color: textColor.withValues(alpha: 0.55)),
               ),
               // 发送中的消息在时间旁显示小加载圈，给出"正在发送"反馈
               if (status == 'sending') ...[

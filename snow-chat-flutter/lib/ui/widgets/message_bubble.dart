@@ -27,7 +27,8 @@ class MessageBubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
-        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment:
+            isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: [
           if (!isMe) ...[
             CircleAvatar(
@@ -60,7 +61,8 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
-  Widget _buildContent(String type, String content, ThemeData theme, Color textColor) {
+  Widget _buildContent(
+      String type, String content, ThemeData theme, Color textColor) {
     switch (type) {
       case 'text':
         return Column(
@@ -74,14 +76,17 @@ class MessageBubble extends StatelessWidget {
                 children: [
                   Text(
                     app_date.DateUtils.formatTime(createTime),
-                    style: TextStyle(fontSize: 10, color: textColor.withOpacity(0.6)),
+                    style: TextStyle(
+                        fontSize: 10, color: textColor.withValues(alpha: 0.6)),
                   ),
                   if (status != null) ...[
                     const SizedBox(width: 4),
                     Icon(
                       status == 'read' ? Icons.done_all : Icons.done,
                       size: 12,
-                      color: status == 'read' ? Colors.blueAccent : textColor.withOpacity(0.6),
+                      color: status == 'read'
+                          ? Colors.blueAccent
+                          : textColor.withValues(alpha: 0.6),
                     ),
                   ],
                 ],
@@ -99,17 +104,18 @@ class MessageBubble extends StatelessWidget {
                 imageUrl: content,
                 width: 200,
                 fit: BoxFit.cover,
-                placeholder: (_, __) =>
-                    Container(width: 200, height: 150, color: Colors.grey.shade300),
-                errorWidget: (_, __, ___) =>
-                    Container(width: 200, height: 150, color: Colors.grey.shade300),
+                placeholder: (_, __) => Container(
+                    width: 200, height: 150, color: Colors.grey.shade300),
+                errorWidget: (_, __, ___) => Container(
+                    width: 200, height: 150, color: Colors.grey.shade300),
               ),
             ),
             if (createTime != null) ...[
               const SizedBox(height: 4),
               Text(
                 app_date.DateUtils.formatTime(createTime),
-                style: TextStyle(fontSize: 10, color: textColor.withOpacity(0.6)),
+                style: TextStyle(
+                    fontSize: 10, color: textColor.withValues(alpha: 0.6)),
               ),
             ],
           ],
@@ -126,14 +132,16 @@ class MessageBubble extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Center(
-                child: Icon(Icons.play_circle_outline, size: 48, color: textColor),
+                child:
+                    Icon(Icons.play_circle_outline, size: 48, color: textColor),
               ),
             ),
             if (createTime != null) ...[
               const SizedBox(height: 4),
               Text(
                 app_date.DateUtils.formatTime(createTime),
-                style: TextStyle(fontSize: 10, color: textColor.withOpacity(0.6)),
+                style: TextStyle(
+                    fontSize: 10, color: textColor.withValues(alpha: 0.6)),
               ),
             ],
           ],
@@ -142,7 +150,7 @@ class MessageBubble extends StatelessWidget {
         return Text(
           content,
           style: TextStyle(
-            color: textColor.withOpacity(0.7),
+            color: textColor.withValues(alpha: 0.7),
             fontStyle: FontStyle.italic,
           ),
         );

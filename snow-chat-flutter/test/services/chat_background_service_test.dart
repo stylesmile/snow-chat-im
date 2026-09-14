@@ -46,7 +46,7 @@ void main() {
     expect(savedPath, isNotNull);
     expect(savedPath.startsWith('${tempDir.path}/chat_background'), isTrue);
     // 目标文件确实被复制（内容一致）
-    final copied = File(savedPath!);
+    final copied = File(savedPath);
     expect(await copied.exists(), isTrue);
     expect(await copied.readAsBytes(), [0x89, 0x50, 0x4e, 0x47]);
     // 路径已持久化到 SharedPreferences
@@ -77,7 +77,8 @@ void main() {
 
   test('getBackgroundPath 能从 SharedPreferences 恢复已持久化的设置（重启场景）', () async {
     // 模拟上次运行已保存路径：直接往 prefs 写入
-    SharedPreferences.setMockInitialValues({'chat_background_path': '${tempDir.path}/chat_background/old_bg.png'});
+    SharedPreferences.setMockInitialValues(
+        {'chat_background_path': '${tempDir.path}/chat_background/old_bg.png'});
     final service = makeService();
 
     final path = await service.getBackgroundPath();
@@ -90,7 +91,7 @@ void main() {
     final service = makeService();
     final source = await makeSourceImage();
     final savedPath = await service.setBackground(source);
-    expect(File(savedPath!).existsSync(), isTrue);
+    expect(File(savedPath).existsSync(), isTrue);
 
     await service.reset();
 
