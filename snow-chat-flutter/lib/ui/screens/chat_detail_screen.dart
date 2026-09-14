@@ -1316,6 +1316,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         return;
       }
     }
+    // 视频初始化是异步操作，期间页面可能已被关闭；
+    // 用 mounted 判空再使用 context 导航，避免对已销毁组件导航导致异常
+    if (!mounted) return;
     await Navigator.push(
       context,
       MaterialPageRoute(

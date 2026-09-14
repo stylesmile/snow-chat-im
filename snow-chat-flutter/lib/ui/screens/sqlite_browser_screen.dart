@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:sqflite/sqflite.dart';
 import '../../core/database/database_helper.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -193,7 +192,7 @@ class _TableDetailScreenState extends State<_TableDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    // 计算总页数：向上取整，避免最后一页数据被漏掉
     final totalPages = (_totalRows + _pageSize - 1) ~/ _pageSize;
 
     return Scaffold(

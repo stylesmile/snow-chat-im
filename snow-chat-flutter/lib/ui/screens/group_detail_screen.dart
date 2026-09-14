@@ -42,6 +42,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
     // 获取群成员列表（带昵称）
     final memberIds = await service.getGroupMembers(widget.groupId);
+    // 网络请求期间页面可能已关闭，再进行 context 相关操作前先判空
+    if (!mounted) return;
     final contactService = ContactService(auth.apiClient);
     final friends = await contactService.getLocalFriends(context);
     final friendMap = {for (final f in friends) f.userId: f};
@@ -128,6 +130,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
 
     if (confirmed != true) return;
 
+    // 对话框关闭期间页面可能已被销毁，用 mounted 判空后再读取 auth
+    if (!mounted) return;
     final auth = context.read<AuthProvider>();
     if (auth.userId == null) return;
 
