@@ -20,6 +20,7 @@ import '../../config/config.dart';
 import '../../core/utils/message_status_parser.dart';
 import '../../core/utils/message_delivery_state.dart';
 import '../../core/utils/message_utils.dart';
+import '../../core/utils/emoji_text_editing.dart';
 import '../../models/message_model.dart';
 import '../../core/cache/message_cache_manager.dart';
 import '../../core/cache/favorite_cache_manager.dart';
@@ -80,52 +81,75 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   // 表情面板状态
   bool _showEmojiPanel = false;
+  // 当前选中的表情分类（底部 tab 切换）
+  String _emojiGroup = '表情';
+  // 表情面板删除键的长按连删计时器
+  Timer? _emojiDeleteTimer;
   // 微信风格附件面板状态：点「+」后在输入栏上方展开图片/视频/文件
   bool _showAttachPanel = false;
-  // 丰富的表情列表（参考微信表情）
-  static const List<String> _emojiList = [
-    '😀','😃','😄','😁','😆','😅','🤣','😂',
-    '🙂','😊','😇','🥰','😍','🤩','😘','😗',
-    '😚','😙','🥲','😋','😛','😜','🤪','😝',
-    '🤑','🤗','🤭','🫢','🤫','🤔','🫡','🤐',
-    '🤨','😐','😑','😶','🫥','😏','😒','🙄',
-    '😬','🤥','😌','😔','😪','🤤','😴','😷',
-    '🤒','🤕','🤢','🤮','🥵','🥶','🥴','😵',
-    '🤯','🤠','🥳','🥸','😎','🤓','🧐','😕',
-    '🫤','😟','🙁','☹️','😮','😯','😲','😳',
-    '🥺','🥹','😦','😧','😨','😰','😥','😢',
-    '😭','😱','😖','😣','😞','😓','😩','😫',
-    '🥱','😤','😡','😠','🤬','😈','👿','💀',
-    '☠️','💩','🤡','👹','👺','👻','👽','👾',
-    '🤖','😺','😸','😹','😻','😼','😽','🙀',
-    '😿','😾','🙈','🙉','🙊','💋','👋','🤚',
-    '🖐','✋','🖖','🫱','🫲','🫳','🫴','👌',
-    '🤌','🤏','✌️','🤞','🫰','🤟','🤘','🤙',
-    '👈','👉','👆','🖕','👇','☝️','�指','👍',
-    '👎','✊','👊','🤛','🤜','👏','🙌','🫰',
-    '👐','🤲','🤝','🙏','✍️','💅','🤳','💪',
-    '🦾','🦿','🦵','🦶','👂','🦻','👃','🧠',
-    '🫀','🫁','🦷','🦴','👀','👁','👅','👄',
-    '👶','🧒','👦','👧','🧑','👱','👨','🧔',
-    '👩','🧓','👴','👵','🙍','🙎','🙅','🙆',
-    '💁','🙋','🧏','🙇','🤦','🤷','👮','🕵️',
-    '💂','🥷','👷','🤴','👸','👳','👲','🧕',
-    '🤵','👰','🤰','🤱','👼','🎅','🤶','🦸',
-    '🦹','🧙','🧚','🧛','🧜','🧝','🧞','🧟',
-    '💆','💇','🚶','🧍','🧎','🏃','💃','🕺',
-    '👯','🧖','🧗','🤸','⛹️','🏋️','🚴','🚵',
-    '🤼','🤽','🤾','🤺','⛷','🏂','🏄','🏊',
-    '🤺','⛹️','🏋️','🚴','🚵','🤸','⛷','🏂',
-    '🏄','🏊','🤽','🤾','🤺','🏇','🧘','🛀',
-    '🛌','👭','👫','👬','💏','💑','🔥','⭐',
-    '🌟','✨','💫','💥','🔆','🔅','☀️','🌤',
-    '⛅','🌥','☁️','🌦','🌈','☔','⚡','❄️',
-    '🔥','💧','🌊','🎉','🎊','🎈','🎁','🏆',
-    '🥇','🥈','🥉','⚽','🏀','🏈','⚾','🥎',
-    '🎾','🏐','🏉','🥏','🎱','🪀','🏓','🏸',
-    '🏒','🥍','🏏','🪃','🥅','⛳','🏹','🎣',
-    '🤿','🎽','🛹','🛼','🥾','👑','💎',
-  ];
+
+  /// 表情表：按分类拆分，底部 tab 切换。
+  ///
+  /// 原先是把 400+ 个表情平铺进一个 8 列的网格里（`crossAxisCount: 8` +
+  /// `childAspectRatio: 1.3` + 行间距 4），格子偏扁、行距又小，emoji 字形几乎
+  /// 顶到格子上下边，看起来全糊在一起；同时列表里混着重复项和一个乱码字符
+  /// （`'�指'`），这里一并清理并按分类归位。
+  static const Map<String, List<String>> _emojiGroups = {
+    '表情': [
+      '😀','😃','😄','😁','😆','😅','🤣','😂',
+      '🙂','😊','😇','🥰','😍','🤩','😘','😗',
+      '😚','😙','🥲','😋','😛','😜','🤪','😝',
+      '🤑','🤗','🤭','🫢','🤫','🤔','🫡','🤐',
+      '🤨','😐','😑','😶','🫥','😏','😒','🙄',
+      '😬','🤥','😌','😔','😪','🤤','😴','😷',
+      '🤒','🤕','🤢','🤮','🥵','🥶','🥴','😵',
+      '🤯','🤠','🥳','🥸','😎','🤓','🧐','😕',
+      '🫤','😟','🙁','☹️','😮','😯','😲','😳',
+      '🥺','🥹','😦','😧','😨','😰','😥','😢',
+      '😭','😱','😖','😣','😞','😓','😩','😫',
+      '🥱','😤','😡','😠','🤬','😈','👿','💀',
+      '☠️','💩','🤡','👹','👺','👻','👽','👾',
+      '🤖',
+    ],
+    '手势': [
+      '👋','🤚','🖐','✋','🖖','🫱','🫲','🫳',
+      '🫴','👌','🤌','🤏','✌️','🤞','🫰','🤟',
+      '🤘','🤙','👈','👉','👆','🖕','👇','☝️',
+      '👍','👎','✊','👊','🤛','🤜','👏','🙌',
+      '👐','🤲','🤝','🙏','✍️','💅','🤳','💪',
+      '🦾','🦿','🦵','🦶','👂','🦻','👃','🧠',
+      '🫀','🫁','🦷','🦴','👀','👁','👅','👄',
+      '💋',
+    ],
+    '人物': [
+      '👶','🧒','👦','👧','🧑','👱','👨','🧔',
+      '👩','🧓','👴','👵','🙍','🙎','🙅','🙆',
+      '💁','🙋','🧏','🙇','🤦','🤷','👮','🕵️',
+      '💂','🥷','👷','🤴','👸','👳','👲','🧕',
+      '🤵','👰','🤰','🤱','👼','🎅','🤶','🦸',
+      '🦹','🧙','🧚','🧛','🧜','🧝','🧞','🧟',
+      '💆','💇','🚶','🧍','🧎','🏃','💃','🕺',
+      '👯','🧖','🧗','🤸','⛹️','🏋️','🚴','🚵',
+      '🤼','🤽','🤾','🤺','⛷','🏂','🏄','🏊',
+      '🏇','🧘','🛀','🛌','👭','👫','👬','💏',
+      '💑',
+    ],
+    '动物': [
+      '😺','😸','😹','😻','😼','😽','🙀','😿',
+      '😾','🙈','🙉','🙊',
+    ],
+    '自然': [
+      '🔥','⭐','🌟','✨','💫','💥','🔆','🔅',
+      '☀️','🌤','⛅','🌥','☁️','🌦','🌈','☔',
+      '⚡','❄️','💧','🌊','🎉','🎊','🎈','🎁',
+    ],
+    '运动': [
+      '🏆','🥇','🥈','🥉','⚽','🏀','🏈','⚾',
+      '🥎','🎾','🏐','🏉','🥏','🎱','🪀','🏓',
+      '🏸','🏒','🥍','🏏','🪃','🥅','⛳','🏹',
+      '🎣','🤿','🎽','🛹','🛼','🥾','👑','💎',
+    ],
+  };
 
   // 视频播放器控制器（每个视频消息独立持有）
   final Map<int, VideoPlayerController> _videoPlayers = {};
@@ -1666,7 +1690,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       mainAxisSize: MainAxisSize.min,
       children: [
         // 微信风格：表情面板 / 附件面板都从底部滑入，覆盖在输入栏上方
-        if (_showEmojiPanel) _buildEmojiPanel(theme),
+        if (_showEmojiPanel) _buildEmojiPanel(),
         if (_showAttachPanel) _buildAttachPanel(l10n),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
@@ -1720,6 +1744,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                         ),
                         maxLines: null,
                         textCapitalization: TextCapitalization.none,
+                        // 点输入框时先收起表情面板：否则键盘与面板同时顶起，
+                        // 聊天内容区被压到几乎看不见
+                        onTap: () {
+                          if (_showEmojiPanel || _showAttachPanel) {
+                            setState(() {
+                              _showEmojiPanel = false;
+                              _showAttachPanel = false;
+                            });
+                          }
+                        },
                         onSubmitted: (_) => _sendMessage(),
                       ),
               ),
@@ -1951,65 +1985,64 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 
-  /// 构建微信风格的底部表情面板，从底部向上滑入
-  Widget _buildEmojiPanel(ThemeData theme) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeOutCubic,
-      // 面板高度约为屏幕的 60%
-      height: MediaQuery.of(context).size.height * 0.6,
-      color: Colors.grey[900] ?? const Color(0xFF1A1A1A),
+  /// 构建微信风格的底部表情面板
+  ///
+  /// 布局自上而下：表情网格（占满剩余高度）→ 底部固定栏（左侧分类 tab、
+  /// 右侧删除键）。底部栏固定不滚动，删除键始终停在右下角拇指区。
+  Widget _buildEmojiPanel() {
+    final groups = _emojiGroups.keys.toList();
+    final emojis = _emojiGroups[_emojiGroup] ?? const <String>[];
+    return Container(
+      // 面板高度约为屏幕的 42%：再高就把聊天内容区挤没了
+      height: MediaQuery.of(context).size.height * 0.42,
+      decoration: const BoxDecoration(
+        // 与输入栏同色（#1A1A1A），上下连成一体
+        color: AppTheme.chatInputBar,
+        border: Border(top: BorderSide(color: AppTheme.chatDivider, width: 0.5)),
+      ),
       child: Column(
         children: [
-          // 顶部工具栏：关闭按钮 + 提示文字
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  '表情',
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
-                ),
-                // 右下角删除按钮（微信风格）
-                GestureDetector(
-                  onTap: () {
-                    // 删除输入框最后一个字符
-                    if (_controller.text.isNotEmpty) {
-                      final text = _controller.text;
-                      // 处理 UTF-16 surrogate pair（某些 emoji 占两个 char）
-                      final lastCharLen = _getCharLength(text);
-                      setState(() {
-                        _controller.text = text.substring(0, text.length - lastCharLen);
-                      });
-                    }
-                  },
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[700],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.backspace, color: Colors.white70, size: 22),
-                  ),
-                ),
-              ],
+          // 表情网格：正方形格子（crossAxisCount 与 aspectRatio 都不再压缩高度），
+          // 让 emoji 四周留出足够空白，不再互相贴在一起
+          Expanded(
+            child: GridView.builder(
+              // 换分类时重建，否则会沿用上一组的滚动偏移：
+              // 从 96 个表情的「表情」切到只剩 12 个的「动物」会停在偏移外显示空白
+              key: ValueKey('emoji-grid-$_emojiGroup'),
+              padding: const EdgeInsets.fromLTRB(10, 12, 10, 10),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 8,
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+              ),
+              physics: const BouncingScrollPhysics(),
+              itemCount: emojis.length,
+              itemBuilder: (context, index) => _buildEmojiCell(emojis[index]),
             ),
           ),
-          const Divider(color: Colors.grey, height: 1),
-          // 表情 Grid
-          Expanded(
-            child: GridView.count(
-              crossAxisCount: 8,
-              padding: const EdgeInsets.all(8),
-              childAspectRatio: 1.3,
-              mainAxisSpacing: 4,
-              crossAxisSpacing: 4,
-              physics: const BouncingScrollPhysics(),
-              children: _emojiList.map((emoji) {
-                return _buildEmojiCell(emoji);
-              }).toList(),
+          // 底部固定栏：分类 tab + 删除键
+          Container(
+            height: 52,
+            padding: const EdgeInsets.only(left: 8, right: 8),
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: AppTheme.chatDivider, width: 0.5)),
+            ),
+            child: Row(
+              children: [
+                // 分类按等分宽度排列（而不是按文字宽度自然排列）：
+                // 本机 411dp 逻辑宽下放 6 个中文分类刚好差 20dp，最后一个会露出半个字，
+                // 且系统字号放大后更糟。等分 + tab 内 textScaleDown 后，任何字号都放得下。
+                Expanded(
+                  child: Row(
+                    children: [
+                      for (final group in groups)
+                        Expanded(child: _buildEmojiGroupTab(group)),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _buildEmojiDeleteButton(),
+              ],
             ),
           ),
         ],
@@ -2017,33 +2050,102 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 
-  /// 单个表情格子
-  Widget _buildEmojiCell(String emoji) {
+  /// 底部分类 tab（小胶囊，未选中为纯文字）
+  ///
+  /// 外层由等分的 [Expanded] 给定宽度，所以这里撑满格子即可；文字用
+  /// [FittedBox] 兜底 —— 系统字号调大时优先缩排，而不是把最后一个分类裁掉半个字。
+  Widget _buildEmojiGroupTab(String name) {
+    final selected = name == _emojiGroup;
     return GestureDetector(
-      onTap: () => _sendEmoji(emoji),
-      child: Center(
-        child: Text(emoji, style: const TextStyle(fontSize: 30)),
+      onTap: () => setState(() => _emojiGroup = name),
+      child: Container(
+        height: 30,
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          // 金色 18% 透明：与主题强调色同源，未选中时保持透明
+          color: selected ? const Color(0x2EFFC940) : Colors.transparent,
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            name,
+            style: TextStyle(
+              color: selected ? AppTheme.accent : Colors.white60,
+              fontSize: 12,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+            ),
+          ),
+        ),
       ),
     );
   }
 
-  /// 发送表情并关闭面板
-  void _sendEmoji(String emoji) {
-    // 直接在输入框追加 emoji，用户确认后再发送（更贴近微信行为）
-    _controller.text += emoji;
-    setState(() => _showEmojiPanel = false);
-    // 将焦点还给输入框
-    Future.microtask(() {
-      if (mounted) _inputFocusNode.requestFocus();
-    });
+  /// 单个表情格子：正方形，emoji 居中并留出四周空白
+  Widget _buildEmojiCell(String emoji) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () => _sendEmoji(emoji),
+        // 字号比原来（30）略小：emoji 字形实际渲染高度远大于字号，
+        // 缩到 26 才能在正方形格子里留出呼吸感
+        child: Center(child: Text(emoji, style: const TextStyle(fontSize: 26))),
+      ),
+    );
   }
 
-  /// 计算字符串末尾字符的实际长度（处理 surrogate pair）
-  int _getCharLength(String text) {
-    if (text.isEmpty) return 0;
-    final rune = text.codeUnitAt(text.length - 1);
-    // UTF-16 surrogate pair：高位 surrogate (D800-DFFF) 占用 2 个 char
-    return (rune >= 0xD800 && rune <= 0xDBFF) ? 2 : 1;
+  /// 删除键：单击删一个字符，长按连续删除
+  Widget _buildEmojiDeleteButton() {
+    return GestureDetector(
+      onTap: _deleteLastChar,
+      onLongPressStart: (_) => _startRepeatDelete(),
+      onLongPressEnd: (_) => _stopRepeatDelete(),
+      onLongPressCancel: _stopRepeatDelete,
+      child: Container(
+        width: 52,
+        height: 34,
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: const Icon(Icons.backspace_outlined, color: Colors.white70, size: 20),
+      ),
+    );
+  }
+
+  /// 长按删除键：连续删除
+  void _startRepeatDelete() {
+    _deleteLastChar();
+    _emojiDeleteTimer?.cancel();
+    _emojiDeleteTimer =
+        Timer.periodic(const Duration(milliseconds: 80), (_) => _deleteLastChar());
+  }
+
+  void _stopRepeatDelete() {
+    _emojiDeleteTimer?.cancel();
+    _emojiDeleteTimer = null;
+  }
+
+  /// 删除输入框里光标前的一个字符（有选中内容时先删选中）
+  ///
+  /// 退格按「显示字符」而不是 UTF-16 code unit 处理，细节见 [EmojiTextEditing]。
+  void _deleteLastChar() {
+    final next = EmojiTextEditing.deleteBackward(_controller.value);
+    if (next == _controller.value) return;
+    _controller.value = next;
+    setState(() {});
+  }
+
+  /// 点选表情：插入到输入框光标处，面板保持打开，方便连续挑（微信行为）
+  ///
+  /// 原来每点一个表情就关面板并 `requestFocus()`，键盘会跟着弹出来，
+  /// 想连发两个表情得反复开关面板。
+  void _sendEmoji(String emoji) {
+    _controller.value = EmojiTextEditing.insertAtCursor(_controller.value, emoji);
+    // 输入栏要按「有无文字」切换发送/附件按钮，这里手动触发一次重建
+    setState(() {});
   }
 }
 
