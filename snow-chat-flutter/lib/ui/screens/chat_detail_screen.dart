@@ -1624,12 +1624,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     // 工具栏 #1A1A1A、顶部 1px 分隔线；输入框同底色、圆角 14；
     // 有文字时显示金色「发送」按钮（40x32、圆角 6），无文字时显示「+」附件
     final hasText = _controller.text.trim().isNotEmpty;
+    // 底部手势条/虚拟键的安全区内边距：面板贴屏幕最底时内容不被遮挡
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // 微信风格：表情面板 / 附件面板都从底部滑入，覆盖在输入栏上方
-        if (_showEmojiPanel) _buildEmojiPanel(),
-        if (_showAttachPanel) _buildAttachPanel(l10n),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
           decoration: const BoxDecoration(
@@ -1736,7 +1735,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   ),
                 ),
               // 附件按钮（语音模式或有文字时隐藏，避免误触）：
-              // 点击后在输入栏上方展开微信风格的图片/视频/文件面板
+              // 点击后在输入栏下方展开图片/视频/文件面板
               if (!_voiceMode && !hasText)
                 IconButton(
                   icon: Icon(
@@ -1759,19 +1758,23 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             ],
           ),
         ),
+        // 表情/附件面板展开在输入栏下方（输入栏在上、面板贴屏幕底部）
+        if (_showEmojiPanel) _buildEmojiPanel(),
+        if (_showAttachPanel) _buildAttachPanel(l10n, bottomInset: bottomInset),
       ],
     );
   }
 
-  /// 微信风格附件面板：图片 / 视频 / 文件 三宫格，位于输入栏上方
+  /// 附件面板：图片 / 视频 / 文件 三宫格，位于输入栏下方、贴屏幕底部
   ///
   /// 之前「+」是一个向上弹出的 PopupMenu，菜单浮在系统弹层里、位置随输入栏漂移，
-  /// 与微信「点 + 在输入栏上方展开面板」的体验不一致。改为内嵌面板后，
+  /// 与「点 + 在输入栏下方展开面板」的体验不一致。改为内嵌面板后，
   /// 面板与输入栏连成一体，点击即选文件，选完直接发送。
-  Widget _buildAttachPanel(AppLocalizations l10n) {
-    // 面板底色与输入栏一致（#1A1A1A），顶部一条分隔线划分边界
+  Widget _buildAttachPanel(AppLocalizations l10n, {double bottomInset = 0}) {
+    // 面板底色与输入栏一致（#1A1A1A），顶部一条分隔线划分边界；
+    // 底部加上安全区内边距，避免内容被手势条/虚拟键挡住
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
+      padding: EdgeInsets.fromLTRB(16, 18, 16, 12 + bottomInset),
       decoration: const BoxDecoration(
         color: AppTheme.chatInputBar,
         border: Border(top: BorderSide(color: AppTheme.chatDivider, width: 0.5)),
@@ -1935,8 +1938,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   /// 分类栏在下，和微信一致（组件默认是分类栏在顶）。
   Widget _buildEmojiPanel() {
     final l10n = AppLocalizations.of(context)!;
+    // 面板现在贴屏幕最底，把底部手势条/虚拟键的安全区让出来
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return Container(
-      // 面板高度约为屏幕的 42%：再高就把聊天内容区挤没了
+      // 面板高度约为屏幕的 42%（含底部安全区）：再高就把聊天内容区挤没了
       height: MediaQuery.of(context).size.height * 0.42,
       decoration: const BoxDecoration(
         // 与输入栏同色（#1A1A1A），上下连成一体
@@ -1946,7 +1951,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       // 左右留边：组件内部按「picker 宽度 / 列数」算格子尺寸，
       // 所以边距必须加在外面（用 gridPadding 会让格子比实际宽而被裁掉一列）
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6),
+        padding: EdgeInsets.fromLTRB(6, 0, 6, bottomInset),
         child: EmojiPicker(
           onEmojiSelected: (_, emoji) => _sendEmoji(emoji.emoji),
           onBackspacePressed: _deleteLastChar,
