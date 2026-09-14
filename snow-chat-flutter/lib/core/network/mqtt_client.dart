@@ -131,8 +131,14 @@ class MqttChatClient {
           cmd = 0;
         }
         final data = packet['data'];
-        // 调用上层回调处理消息
-        onMessage?.call(cmd, data);
+        // 调用上层回调处理消息；
+        // 回调是 async 的，异常会变成 Unhandled Exception（dart_vm_initializer），
+        // 这里兜住打日志，避免回调里的解析错误外溢
+        try {
+          onMessage?.call(cmd, data);
+        } catch (e, st) {
+          debugPrint('[MQTT] onMessage handler error (cmd=$cmd): $e\n$st');
+        }
       } on FormatException {
         // 忽略格式错误的 payload
         debugPrint('[MQTT] malformed payload on ${received.topic}: $preview');

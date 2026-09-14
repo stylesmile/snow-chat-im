@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../l10n/app_localizations.dart';
 import '../../core/cache/message_cache_manager.dart';
+import '../../core/theme/app_theme.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../services/conversation_service.dart';
@@ -199,35 +200,39 @@ class _SingleChatSettingsScreenState extends State<SingleChatSettingsScreen> {
           const Divider(height: 1),
           // 查找聊天记录入口
           ListTile(
-            leading: const CircleAvatar(
-              backgroundColor: Colors.transparent,
-              child: Icon(Icons.search, color: Colors.blue),
-            ),
+            leading: const Icon(Icons.search, color: Colors.blue),
             title: Text(l10n.findChatRecord),
             trailing: const Icon(Icons.chevron_right),
             onTap: _openSearch,
           ),
-          // 置顶开关（以 Provider 状态驱动，切换时持久化）
-          SwitchListTile(
-            secondary: const Icon(Icons.push_pin_outlined, color: Colors.orange),
+          // 置顶开关（以 Provider 状态驱动，切换时持久化）。
+          // 统一用 ListTile + trailing Switch，保证与上下行图标/标题左对齐
+          // （SwitchListTile 的 secondary 内缩与 ListTile 的 leading 不一致，会错位）
+          ListTile(
+            leading: const Icon(Icons.push_pin_outlined, color: Colors.orange),
             title: Text(l10n.topChat),
-            value: _isPinned,
-            onChanged: _togglePinned,
+            trailing: Switch(
+              value: _isPinned,
+              onChanged: _togglePinned,
+              activeThumbColor: AppTheme.accent,
+            ),
+            onTap: () => _togglePinned(!_isPinned),
           ),
           // 免打扰开关
-          SwitchListTile(
-            secondary: const Icon(Icons.notifications_none, color: Colors.purple),
+          ListTile(
+            leading: const Icon(Icons.notifications_none, color: Colors.purple),
             title: Text(l10n.mute),
-            value: _isMuted,
-            onChanged: _toggleMuted,
+            trailing: Switch(
+              value: _isMuted,
+              onChanged: _toggleMuted,
+              activeThumbColor: AppTheme.accent,
+            ),
+            onTap: () => _toggleMuted(!_isMuted),
           ),
           const Divider(height: 1),
           // 清空聊天记录入口
           ListTile(
-            leading: const CircleAvatar(
-              backgroundColor: Colors.transparent,
-              child: Icon(Icons.delete_outline, color: Colors.red),
-            ),
+            leading: const Icon(Icons.delete_outline, color: Colors.red),
             title: Text(l10n.clearChat),
             trailing: const Icon(Icons.chevron_right),
             onTap: _confirmClearChat,
@@ -235,10 +240,7 @@ class _SingleChatSettingsScreenState extends State<SingleChatSettingsScreen> {
           const Divider(height: 1),
           // 投诉入口
           ListTile(
-            leading: const CircleAvatar(
-              backgroundColor: Colors.transparent,
-              child: Icon(Icons.report_problem_outlined, color: Colors.redAccent),
-            ),
+            leading: const Icon(Icons.report_problem_outlined, color: Colors.redAccent),
             title: Text(l10n.reportComplaint),
             trailing: const Icon(Icons.chevron_right),
             onTap: _showReportDialog,

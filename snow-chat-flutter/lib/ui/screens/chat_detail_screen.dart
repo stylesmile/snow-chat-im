@@ -284,7 +284,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         });
       }
     } else if (cmd == WsCmd.fetchUndeliveredAck) {
-      final messages = data as List<dynamic>? ?? [];
+      // 后端推送的是 {messages:[...]}（与 home_screen 的解析一致）；
+      // 兼容旧协议的裸数组形式，避免 Map→List 强转抛 TypeError
+      final List<dynamic> messages;
+      if (data is List<dynamic>) {
+        messages = data;
+      } else if (data is Map<String, dynamic>) {
+        messages = data['messages'] as List<dynamic>? ?? [];
+      } else {
+        messages = [];
+      }
       debugPrint('[ChatDetail] fetchUndeliveredAck: ${messages.length} messages');
       for (final msgData in messages) {
         final incoming = _DisplayMessage.fromJson(msgData);
