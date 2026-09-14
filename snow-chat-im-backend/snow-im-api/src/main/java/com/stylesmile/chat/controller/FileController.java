@@ -47,9 +47,24 @@ public class FileController {
      *
      * <p>只放行五大业务目录，且文件名只允许字母数字与 . _ -，
      * 从入口处阻断 {@code ..} 之类的路径穿越与目录探测。
+     *
+     * <p>中间的日期目录 {@code (?:\\d{4}/\\d{2}/\\d{2}/)?} 是可选的：聊天媒体文件的 key 形如
+     * {@code images/2026/09/14/uuid.jpg}（见 {@code FileStorageServiceImpl} 的日期分层），
+     * 头像与历史数据仍是一层 {@code avatars/uuid.jpg}。这里刻意只认"纯数字日期"这一种
+     * 多级目录，不写成"任意目录段"，否则 {@code images/../../etc/passwd} 会被放行。
      */
     private static final Pattern RAW_KEY_PATTERN =
-            Pattern.compile("^(avatars|images|videos|files|voices)/[A-Za-z0-9._-]+$");
+            Pattern.compile("^(avatars|images|videos|files|voices)/(?:\\d{4}/\\d{2}/\\d{2}/)?[A-Za-z0-9._-]+$");
+
+    /**
+     * 判断对象 key 是否允许通过 {@code /file/raw/**} 下载（供单测直接校验白名单）。
+     *
+     * @param key 解码后的对象 key
+     * @return 允许下载返回 true
+     */
+    static boolean isRawKeyAllowed(String key) {
+        return key != null && RAW_KEY_PATTERN.matcher(key).matches();
+    }
 
     @Resource
     private FileStorageService fileStorageService;
@@ -86,8 +101,8 @@ public class FileController {
         }
         String key = URLDecoder.decode(
                 path.substring(rawIndex + "/raw/".length()), StandardCharsets.UTF_8);
-        // 白名单校验：只放行业务目录 + 安全文件名
-        if (!RAW_KEY_PATTERN.matcher(key).matches()) {
+        // 白名单校验：只放行业务目录（可含一级日期目录）+ 安全文件名
+        if (!isRawKeyAllowed(key)) {
             return ResponseEntity.notFound().build();
         }
         // 读取字节流（对象存储实现返回 null，本端点仅服务本地磁盘存储）

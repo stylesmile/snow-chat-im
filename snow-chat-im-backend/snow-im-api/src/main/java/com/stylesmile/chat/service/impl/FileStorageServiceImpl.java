@@ -3,12 +3,16 @@ package com.stylesmile.chat.service.impl;
 import com.stylesmile.chat.dto.UploadResult;
 import com.stylesmile.chat.service.FileStorageService;
 import com.stylesmile.chat.storage.FileStorage;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Clock;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.Set;
 import java.util.UUID;
 
@@ -17,7 +21,8 @@ import java.util.UUID;
  *
  * <p>负责：
  * <ul>
- *   <li>生成对象 key（按用途区分目录：{@code avatars/}、{@code images/}、{@code videos/}、{@code files/}）；</li>
+ *   <li>生成对象 key（按用途区分目录：{@code avatars/}、{@code images/}、{@code videos/}、{@code files/}）；
+ *       聊天媒体文件还会再按 {@code 年/月/日} 分层，便于按天归档与清理；</li>
  *   <li>委托 {@link FileStorage} 完成实际上传与 URL 生成；</li>
  *   <li>返回 {@link UploadResult} 给上层。</li>
  * </ul>
@@ -53,17 +58,43 @@ public class FileStorageServiceImpl implements FileStorageService {
     private static final int PRESIGN_EXPIRATION_MINUTES = 7 * 24 * 60;
 
     /**
+     * 聊天媒体文件的日期目录格式：{@code yyyy/MM/dd}。
+     */
+    private static final DateTimeFormatter DATE_PATH_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd");
+
+    /**
      * 文件存储出站端口，由 Spring 注入具体实现（MinioFileStorage / SeaweedfsFileStorage / InMemoryFileStorage）。
      */
     private final FileStorage fileStorage;
 
     /**
+     * 日期目录的时钟源。生产走系统默认时区，测试可注入固定时钟以断言目录。
+     */
+    private final Clock clock;
+
+    /**
      * 构造器注入 FileStorage（Spring 自动根据条件装配具体实现）。
+     *
+     * <p>必须显式标注 {@code @Autowired}：本类有两个构造器（另一个供测试注入固定时钟），
+     * Spring 在多构造器且无标注时会退化为找无参构造器，导致启动失败
+     * （{@code No default constructor found}）。
      *
      * @param fileStorage 文件存储实现
      */
+    @Autowired
     public FileStorageServiceImpl(FileStorage fileStorage) {
+        this(fileStorage, Clock.systemDefaultZone());
+    }
+
+    /**
+     * 构造器注入 FileStorage 与时钟源（供测试固定日期使用）。
+     *
+     * @param fileStorage 文件存储实现
+     * @param clock       日期目录所用的时钟
+     */
+    public FileStorageServiceImpl(FileStorage fileStorage, Clock clock) {
         this.fileStorage = fileStorage; // 保存文件存储实现
+        this.clock = clock;             // 保存时钟源
     }
 
     /**
@@ -97,10 +128,11 @@ public class FileStorageServiceImpl implements FileStorageService {
     /**
      * 上传媒体/附件文件并生成 URL（按 mediaType 选目录前缀）。
      *
-     * <p>与 {@link #uploadAndSign(MultipartFile)} 的区别是目录前缀由 {@code mediaType} 决定。
+     * <p>与 {@link #uploadAndSign(MultipartFile)} 的区别是目录前缀由 {@code mediaType} 决定，
+     * 且会追加上传当天的日期目录（{@code images/2026/09/14/uuid.jpg}），便于按天归档与清理。
      *
      * @param file      前端上传的 multipart 文件
-     * @param mediaType 媒体类型标识（images / videos / files），用于生成目录前缀
+     * @param mediaType 媒体类型标识（images / videos / files / voices），用于生成目录前缀
      * @return UploadResult(key, url)
      * @throws IllegalArgumentException 当 mediaType 不在允许集合中时抛出
      */
@@ -108,7 +140,7 @@ public class FileStorageServiceImpl implements FileStorageService {
     public UploadResult uploadAndSign(MultipartFile file, String mediaType) {
         // 1. 根据 mediaType 确定目录前缀（必须属于白名单，否则直接拒绝，防止路径穿越）
         String prefix = resolveMediaPrefix(mediaType);
-        // 2. 生成对象 key：{prefix}{uuid}.{ext}
+        // 2. 生成对象 key：{prefix}{yyyy/MM/dd/}{uuid}.{ext}
         String objectKey = generateObjectKey(file.getOriginalFilename(), prefix);
         // 3. 读取文件输入流与元数据
         String contentType = file.getContentType();            // MIME 类型
@@ -127,21 +159,21 @@ public class FileStorageServiceImpl implements FileStorageService {
     }
 
     /**
-     * 将 mediaType 映射到目录前缀（images/、videos/、files/）。
+     * 将 mediaType 映射到目录前缀（images/、videos/、files/、voices/），并追加当天日期目录。
      *
      * <p>安全约束：只允许白名单内的 mediaType，拒绝其他值以防止任意目录写入。
      *
      * @param mediaType 前端传来的媒体类型（如 "images"、"videos"、"files"）
-     * @return 对应的目录前缀（如 "images/"）
+     * @return 对应的目录前缀（如 {@code images/2026/09/14/}）
      * @throws IllegalArgumentException 当 mediaType 不在白名单时抛出
      */
     private String resolveMediaPrefix(String mediaType) {
         // 安全校验：mediaType 必须是白名单之一
         if (!ALLOWED_MEDIA_PREFIXES.contains(mediaType + "/")) {
-            throw new IllegalArgumentException("非法的媒体类型: " + mediaType + "，只允许 images/videos/files");
+            throw new IllegalArgumentException("非法的媒体类型: " + mediaType + "，只允许 images/videos/files/voices");
         }
-        // 返回标准化前缀
-        return mediaType + "/";
+        // 返回标准化前缀 + 当天日期目录：images/2026/09/14/
+        return mediaType + "/" + LocalDate.now(clock).format(DATE_PATH_FORMATTER) + "/";
     }
 
     /**
@@ -172,7 +204,7 @@ public class FileStorageServiceImpl implements FileStorageService {
     /**
      * 根据原始文件名生成对象 key。
      *
-     * <p>规则：前缀由 {@code prefix} 参数传入（如 {@code avatars/}、{@code images/}）；
+     * <p>规则：前缀由 {@code prefix} 参数传入（如 {@code avatars/}、{@code images/2026/09/14/}）；
      * 主体为 UUID（避免文件名冲突与信息泄漏）；保留原始文件扩展名（小写）。
      *
      * @param originalFilename 原始文件名（可能为 null）

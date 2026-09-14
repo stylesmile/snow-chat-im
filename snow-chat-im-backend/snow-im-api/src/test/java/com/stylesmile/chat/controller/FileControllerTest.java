@@ -18,8 +18,10 @@ import org.springframework.mock.web.MockMultipartFile;
 import java.io.ByteArrayInputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -276,5 +278,36 @@ class FileControllerTest {
         assertEquals(HttpStatus.NOT_FOUND, outside.getStatusCode());
         assertEquals(HttpStatus.NOT_FOUND, traversal.getStatusCode());
         verify(fileStorageService, org.mockito.Mockito.never()).load(org.mockito.ArgumentMatchers.contains(".."));
+    }
+
+    @Test
+    void rawReturnsFileStreamForKeyWithDateDirectory() throws Exception {
+        // 准备：聊天媒体文件的 key 现在是 images/2026/09/14/uuid.jpg
+        String key = "images/2026/09/14/550e8400-e29b-41d4-a716-446655440000.jpg";
+        when(fileStorageService.load(key)).thenReturn(new ByteArrayInputStream("jpg-bytes".getBytes()));
+
+        // 执行
+        ResponseEntity<InputStreamResource> response = controller.raw(rawRequest(key));
+
+        // 验证：日期目录不影响下载
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(MediaType.IMAGE_JPEG, response.getHeaders().getContentType());
+        assertEquals("jpg-bytes", new String(response.getBody().getInputStream().readAllBytes()));
+    }
+
+    @Test
+    void rawKeyWhitelistAcceptsDateDirectoryOnly() {
+        // 合法：业务目录（可带一级 yyyy/MM/dd 日期目录）+ 安全文件名
+        assertTrue(FileController.isRawKeyAllowed("images/2026/09/14/uuid.jpg"));
+        assertTrue(FileController.isRawKeyAllowed("avatars/uuid.jpg"));
+        assertTrue(FileController.isRawKeyAllowed("voices/2026/09/14/uuid.m4a"));
+
+        // 非法：穿越、多级任意目录、非法目录、空值
+        assertFalse(FileController.isRawKeyAllowed("images/../../etc/passwd"));
+        assertFalse(FileController.isRawKeyAllowed("images/2026/09/uuid.jpg"));
+        assertFalse(FileController.isRawKeyAllowed("images/2026/09/14/15/uuid.jpg"));
+        assertFalse(FileController.isRawKeyAllowed("images/2026/09/14/"));
+        assertFalse(FileController.isRawKeyAllowed("etc/passwd"));
+        assertFalse(FileController.isRawKeyAllowed(null));
     }
 }
