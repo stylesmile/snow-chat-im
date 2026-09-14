@@ -1,0 +1,21 @@
+// Application-level settings for the Runner target.
+//
+// This may be replaced with something auto-generated from metadata (e.g., pubspec.yaml) in the
+// future. If not, the values below would default to using the project name when this becomes a
+// 'flutter create' template.
+
+// The application's name. By default this is also the title of the Flutter window.
+PRODUCT_NAME = SnowChat
+
+// The application's bundle identifier
+PRODUCT_BUNDLE_IDENTIFIER = com.snow.chat.im
+
+// 로컬 빌드용 자동 서명 (Runner 타깃)
+CODE_SIGN_STYLE = Automatic
+// 本地调试无需指定开发团队；指定后会自动要求匹配该团队的 provisioning profile，
+// 而 com.snow.chat.im 可能没有对应 profile，导致本地 flutter run 失败。
+// 需要真机/发布签名时再取消注释并填入正确 team。
+//DEVELOPMENT_TEAM = QW7DJ7FBDT
+
+// The copyright displayed in application information
+PRODUCT_COPYRIGHT = Copyright © 2026 com.snow.chat.im. All rights reserved.

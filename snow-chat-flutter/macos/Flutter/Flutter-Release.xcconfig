@@ -1,0 +1,8 @@
+#include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"
+#include "ephemeral/Flutter-Generated.xcconfig"
+
+// 로컬/디버그 빌드용 자동 서명 (App Store 배포 시 Xcode에서 Manual로 변경)
+CODE_SIGN_STYLE = Automatic
+CODE_SIGN_IDENTITY = "Apple Development"
+DEVELOPMENT_TEAM = QW7DJ7FBDT
+PROVISIONING_PROFILE_SPECIFIER =
