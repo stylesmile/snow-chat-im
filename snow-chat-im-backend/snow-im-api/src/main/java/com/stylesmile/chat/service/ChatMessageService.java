@@ -13,12 +13,12 @@ public interface ChatMessageService extends BaseService<ChatMessage> {
     /**
      * 查询历史消息（按时间倒序，最新在前）
      */
-    List<ChatMessage> getHistoryMessages(Integer userId, Integer targetId, String targetType, int page, int size);
+    List<ChatMessage> getHistoryMessages(Long userId, Long targetId, String targetType, int page, int size);
 
     /**
      * 查询历史消息（游标分页，基于 messageId）
      */
-    List<ChatMessage> getHistoryMessagesByCursor(Integer userId, Integer targetId, String targetType, Integer beforeMessageId, int size);
+    List<ChatMessage> getHistoryMessagesByCursor(Long userId, Long targetId, String targetType, Long beforeMessageId, int size);
 
     /**
      * 发送消息并广播

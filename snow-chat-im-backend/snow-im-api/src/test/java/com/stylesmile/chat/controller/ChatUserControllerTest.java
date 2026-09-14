@@ -85,14 +85,14 @@ class ChatUserControllerTest {
         verify(chatUserService).register("alice", "secret", "Alice", "alice@example.com", "123456");
     }
 
-    private static void loginAs(HttpServletRequest mockRequest, Integer userId) {
+    private static void loginAs(HttpServletRequest mockRequest, Long userId) {
         when(mockRequest.getAttribute("currentUserId")).thenReturn(userId);
     }
 
     @Test
     void returnsUserInfo() {
         // 准备：请求属性携带当前用户 ID
-        loginAs(request, 4);
+        loginAs(request, 4L);
         ChatUser user = new ChatUser();
         when(chatUserService.getUserById(eq(4L))).thenReturn(user);
 
@@ -110,7 +110,7 @@ class ChatUserControllerTest {
     @Test
     void convertsAvatarKeyToUrl() {
         // 准备：DB 中 avatar 存的是对象 key
-        loginAs(request, 4);
+        loginAs(request, 4L);
         ChatUser user = new ChatUser();
         user.setAvatar("avatars/uuid.jpg");
         when(chatUserService.getUserById(eq(4L))).thenReturn(user);
@@ -129,7 +129,7 @@ class ChatUserControllerTest {
      */
     @Test
     void passesThroughLegacyAvatar() {
-        loginAs(request, 4);
+        loginAs(request, 4L);
         ChatUser user = new ChatUser();
         user.setAvatar("https://legacy.example.com/old.png");
         when(chatUserService.getUserById(eq(4L))).thenReturn(user);
@@ -142,7 +142,7 @@ class ChatUserControllerTest {
 
     @Test
     void passesThroughNullAvatar() {
-        loginAs(request, 4);
+        loginAs(request, 4L);
         ChatUser user = new ChatUser();
         user.setAvatar(null);
         when(chatUserService.getUserById(eq(4L))).thenReturn(user);
@@ -173,7 +173,7 @@ class ChatUserControllerTest {
     @Test
     void updatesOnlyProvidedProfileFields() {
         // 准备：DB 中已有用户
-        loginAs(request, 4);
+        loginAs(request, 4L);
         ChatUser user = new ChatUser();
         user.setNickname("old");
         user.setAvatar("old.png");
@@ -277,7 +277,7 @@ class ChatUserControllerTest {
     @Test
     void doesNotUpdateMissingUser() {
         // 准备：request 携带的当前用户不存在
-        loginAs(request, 404);
+        loginAs(request, 404L);
         when(chatUserService.getUserById(eq(404L))).thenReturn(null);
         ChatUserController.UpdateProfileDTO dto = new ChatUserController.UpdateProfileDTO();
         dto.setNickname("name");

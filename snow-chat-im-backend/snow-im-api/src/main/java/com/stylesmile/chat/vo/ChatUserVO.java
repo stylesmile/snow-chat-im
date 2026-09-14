@@ -5,7 +5,7 @@ import lombok.Data;
 @Data
 public class ChatUserVO {
 
-    private Integer id;
+    private Long id;
 
     private String username;
 

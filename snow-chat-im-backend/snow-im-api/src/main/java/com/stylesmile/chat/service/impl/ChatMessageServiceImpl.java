@@ -50,12 +50,12 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
     private ChatGroupMemberService chatGroupMemberService;
 
     @Override
-    public List<ChatMessage> getHistoryMessages(Integer userId, Integer targetId, String targetType, int page, int size) {
+    public List<ChatMessage> getHistoryMessages(Long userId, Long targetId, String targetType, int page, int size) {
         return baseMapper.getHistoryMessages(userId, targetId, targetType, (page - 1) * size, size);
     }
 
     @Override
-    public List<ChatMessage> getHistoryMessagesByCursor(Integer userId, Integer targetId, String targetType, Integer beforeMessageId, int size) {
+    public List<ChatMessage> getHistoryMessagesByCursor(Long userId, Long targetId, String targetType, Long beforeMessageId, int size) {
         LambdaQueryWrapper<ChatMessage> wrapper = new LambdaQueryWrapper<>();
 
         if ("friend".equalsIgnoreCase(targetType)) {

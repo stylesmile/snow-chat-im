@@ -47,8 +47,8 @@ public class ChatMessageController {
     @ApiResponse(responseCode = "200", description = "查询成功")
     @GetMapping("/history")
     public Result<List<ChatMessage>> history(
-            @Parameter(description = "用户ID", required = true) @RequestParam Integer userId,
-            @Parameter(description = "目标ID（好友ID或群组ID）", required = true) @RequestParam Integer targetId,
+            @Parameter(description = "用户ID", required = true) @RequestParam Long userId,
+            @Parameter(description = "目标ID（好友ID或群组ID）", required = true) @RequestParam Long targetId,
             @Parameter(description = "目标类型：friend/group/file_helper", required = true) @RequestParam String targetType,
             @Parameter(description = "页码，从1开始", example = "1") @RequestParam(defaultValue = "1") Integer page,
             @Parameter(description = "每页条数", example = "20") @RequestParam(defaultValue = "20") Integer size) {
@@ -63,10 +63,10 @@ public class ChatMessageController {
     @ApiResponse(responseCode = "200", description = "查询成功")
     @GetMapping("/history/cursor")
     public Result<List<ChatMessage>> historyCursor(
-            @Parameter(description = "用户ID", required = true) @RequestParam Integer userId,
-            @Parameter(description = "目标ID", required = true) @RequestParam Integer targetId,
+            @Parameter(description = "用户ID", required = true) @RequestParam Long userId,
+            @Parameter(description = "目标ID", required = true) @RequestParam Long targetId,
             @Parameter(description = "目标类型：friend/group/file_helper", required = true) @RequestParam String targetType,
-            @Parameter(description = "上一页最后一条消息ID，用于游标分页") @RequestParam(required = false) Integer beforeMessageId,
+            @Parameter(description = "上一页最后一条消息ID，用于游标分页") @RequestParam(required = false) Long beforeMessageId,
             @Parameter(description = "每页条数", example = "20") @RequestParam(defaultValue = "20") Integer size) {
         List<ChatMessage> messages = chatMessageService.getHistoryMessagesByCursor(userId, targetId, targetType, beforeMessageId, size);
         return Result.success(messages);

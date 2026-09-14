@@ -36,13 +36,72 @@ class ChatMessageControllerTest {
     @Test
     void getsHistoryWithPagingArguments() {
         List<ChatMessage> messages = List.of(new ChatMessage());
-        when(chatMessageService.getHistoryMessages(1, 2, "friend", 2, 15)).thenReturn(messages);
+        when(chatMessageService.getHistoryMessages(1L, 2L, "friend", 2, 15)).thenReturn(messages);
 
-        Result<List<ChatMessage>> result = controller.history(1, 2, "friend", 2, 15);
+        Result<List<ChatMessage>> result = controller.history(1L, 2L, "friend", 2, 15);
 
         assertSuccess(result);
         assertEquals(messages, result.getData());
-        verify(chatMessageService).getHistoryMessages(1, 2, "friend", 2, 15);
+        verify(chatMessageService).getHistoryMessages(1L, 2L, "friend", 2, 15);
+    }
+
+    /**
+     * 雪花 ID 超出 int 范围时，history 必须原样透传给 service。
+     *
+     * 背景：chat_user.id 的 AUTO_INCREMENT 已达 2091818653023719424（远超 Integer.MAX_VALUE）。
+     * 此前 userId/targetId 声明为 Integer，Spring 在参数绑定阶段就会因 NumberFormatException
+     * 直接返回 400，大 ID 用户拉不到任何历史消息。改成 Long 后这里应能完整透传。
+     */
+    @Test
+    void getsHistoryWithSnowflakeIdBeyondIntegerRange() {
+        long snowflakeId = 2091818653023719424L;
+        List<ChatMessage> messages = List.of(new ChatMessage());
+        when(chatMessageService.getHistoryMessages(snowflakeId, 1065095167L, "friend", 1, 20))
+                .thenReturn(messages);
+
+        Result<List<ChatMessage>> result =
+                controller.history(snowflakeId, 1065095167L, "friend", 1, 20);
+
+        assertSuccess(result);
+        assertEquals(messages, result.getData());
+        verify(chatMessageService).getHistoryMessages(snowflakeId, 1065095167L, "friend", 1, 20);
+    }
+
+    /**
+     * 游标分页的 beforeMessageId 同样是雪花 ID，必须能承接超 int 范围的值。
+     */
+    @Test
+    void getsHistoryByCursorWithSnowflakeMessageId() {
+        long snowflakeUserId = 2091818653023719424L;
+        long snowflakeMessageId = 2091818653023719999L;
+        List<ChatMessage> messages = List.of(new ChatMessage());
+        when(chatMessageService.getHistoryMessagesByCursor(
+                snowflakeUserId, 1065095167L, "friend", snowflakeMessageId, 20))
+                .thenReturn(messages);
+
+        Result<List<ChatMessage>> result = controller.historyCursor(
+                snowflakeUserId, 1065095167L, "friend", snowflakeMessageId, 20);
+
+        assertSuccess(result);
+        assertEquals(messages, result.getData());
+        verify(chatMessageService).getHistoryMessagesByCursor(
+                snowflakeUserId, 1065095167L, "friend", snowflakeMessageId, 20);
+    }
+
+    /**
+     * 未带 beforeMessageId 的首次拉取应传 null（游标为空 = 从最新一条开始）。
+     */
+    @Test
+    void getsHistoryByCursorWithoutBeforeMessageIdPassesNull() {
+        List<ChatMessage> messages = List.of(new ChatMessage());
+        when(chatMessageService.getHistoryMessagesByCursor(1L, 2L, "friend", null, 20))
+                .thenReturn(messages);
+
+        Result<List<ChatMessage>> result = controller.historyCursor(1L, 2L, "friend", null, 20);
+
+        assertSuccess(result);
+        assertEquals(messages, result.getData());
+        verify(chatMessageService).getHistoryMessagesByCursor(1L, 2L, "friend", null, 20);
     }
 
     @Test

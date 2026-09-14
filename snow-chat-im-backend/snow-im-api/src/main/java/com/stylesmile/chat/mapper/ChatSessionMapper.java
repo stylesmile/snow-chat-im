@@ -22,7 +22,7 @@ public interface ChatSessionMapper extends BaseMapper<ChatSession> {
      * @param userId 用户ID
      * @return 会话列表
      */
-    List<ChatSession> getSessionsByUserId(@Param("userId") Integer userId);
+    List<ChatSession> getSessionsByUserId(@Param("userId") Long userId);
 
     /**
      * 查询或创建会话
@@ -32,8 +32,8 @@ public interface ChatSessionMapper extends BaseMapper<ChatSession> {
      * @param targetType 目标类型
      * @return 会话
      */
-    ChatSession getOrCreateSession(@Param("userId") Integer userId,
-                                   @Param("targetId") Integer targetId,
+    ChatSession getOrCreateSession(@Param("userId") Long userId,
+                                   @Param("targetId") Long targetId,
                                    @Param("targetType") String targetType);
 
     /**
@@ -44,8 +44,8 @@ public interface ChatSessionMapper extends BaseMapper<ChatSession> {
      * @param targetType 目标类型
      * @param lastMsg    最后一条消息
      */
-    void updateLastMessage(@Param("userId") Integer userId,
-                           @Param("targetId") Integer targetId,
+    void updateLastMessage(@Param("userId") Long userId,
+                           @Param("targetId") Long targetId,
                            @Param("targetType") String targetType,
                            @Param("lastMsg") String lastMsg);
 
@@ -55,6 +55,6 @@ public interface ChatSessionMapper extends BaseMapper<ChatSession> {
      * @param userId     用户ID
      * @param targetId   目标ID
      */
-    void clearUnreadCount(@Param("userId") Integer userId,
-                          @Param("targetId") Integer targetId);
+    void clearUnreadCount(@Param("userId") Long userId,
+                          @Param("targetId") Long targetId);
 }

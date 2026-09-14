@@ -26,8 +26,8 @@ public interface ChatMessageMapper extends BaseMapper<ChatMessage> {
      * @param size       每页大小
      * @return 消息列表
      */
-    List<ChatMessage> getHistoryMessages(@Param("userId") Integer userId,
-                                         @Param("targetId") Integer targetId,
+    List<ChatMessage> getHistoryMessages(@Param("userId") Long userId,
+                                         @Param("targetId") Long targetId,
                                          @Param("targetType") String targetType,
                                          @Param("page") int page,
                                          @Param("size") int size);
