@@ -10,6 +10,7 @@ import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/services.dart';
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -81,75 +82,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   // 表情面板状态
   bool _showEmojiPanel = false;
-  // 当前选中的表情分类（底部 tab 切换）
-  String _emojiGroup = '表情';
   // 表情面板删除键的长按连删计时器
   Timer? _emojiDeleteTimer;
   // 微信风格附件面板状态：点「+」后在输入栏上方展开图片/视频/文件
   bool _showAttachPanel = false;
 
-  /// 表情表：按分类拆分，底部 tab 切换。
-  ///
-  /// 原先是把 400+ 个表情平铺进一个 8 列的网格里（`crossAxisCount: 8` +
-  /// `childAspectRatio: 1.3` + 行间距 4），格子偏扁、行距又小，emoji 字形几乎
-  /// 顶到格子上下边，看起来全糊在一起；同时列表里混着重复项和一个乱码字符
-  /// （`'�指'`），这里一并清理并按分类归位。
-  static const Map<String, List<String>> _emojiGroups = {
-    '表情': [
-      '😀','😃','😄','😁','😆','😅','🤣','😂',
-      '🙂','😊','😇','🥰','😍','🤩','😘','😗',
-      '😚','😙','🥲','😋','😛','😜','🤪','😝',
-      '🤑','🤗','🤭','🫢','🤫','🤔','🫡','🤐',
-      '🤨','😐','😑','😶','🫥','😏','😒','🙄',
-      '😬','🤥','😌','😔','😪','🤤','😴','😷',
-      '🤒','🤕','🤢','🤮','🥵','🥶','🥴','😵',
-      '🤯','🤠','🥳','🥸','😎','🤓','🧐','😕',
-      '🫤','😟','🙁','☹️','😮','😯','😲','😳',
-      '🥺','🥹','😦','😧','😨','😰','😥','😢',
-      '😭','😱','😖','😣','😞','😓','😩','😫',
-      '🥱','😤','😡','😠','🤬','😈','👿','💀',
-      '☠️','💩','🤡','👹','👺','👻','👽','👾',
-      '🤖',
-    ],
-    '手势': [
-      '👋','🤚','🖐','✋','🖖','🫱','🫲','🫳',
-      '🫴','👌','🤌','🤏','✌️','🤞','🫰','🤟',
-      '🤘','🤙','👈','👉','👆','🖕','👇','☝️',
-      '👍','👎','✊','👊','🤛','🤜','👏','🙌',
-      '👐','🤲','🤝','🙏','✍️','💅','🤳','💪',
-      '🦾','🦿','🦵','🦶','👂','🦻','👃','🧠',
-      '🫀','🫁','🦷','🦴','👀','👁','👅','👄',
-      '💋',
-    ],
-    '人物': [
-      '👶','🧒','👦','👧','🧑','👱','👨','🧔',
-      '👩','🧓','👴','👵','🙍','🙎','🙅','🙆',
-      '💁','🙋','🧏','🙇','🤦','🤷','👮','🕵️',
-      '💂','🥷','👷','🤴','👸','👳','👲','🧕',
-      '🤵','👰','🤰','🤱','👼','🎅','🤶','🦸',
-      '🦹','🧙','🧚','🧛','🧜','🧝','🧞','🧟',
-      '💆','💇','🚶','🧍','🧎','🏃','💃','🕺',
-      '👯','🧖','🧗','🤸','⛹️','🏋️','🚴','🚵',
-      '🤼','🤽','🤾','🤺','⛷','🏂','🏄','🏊',
-      '🏇','🧘','🛀','🛌','👭','👫','👬','💏',
-      '💑',
-    ],
-    '动物': [
-      '😺','😸','😹','😻','😼','😽','🙀','😿',
-      '😾','🙈','🙉','🙊',
-    ],
-    '自然': [
-      '🔥','⭐','🌟','✨','💫','💥','🔆','🔅',
-      '☀️','🌤','⛅','🌥','☁️','🌦','🌈','☔',
-      '⚡','❄️','💧','🌊','🎉','🎊','🎈','🎁',
-    ],
-    '运动': [
-      '🏆','🥇','🥈','🥉','⚽','🏀','🏈','⚾',
-      '🥎','🎾','🏐','🏉','🥏','🎱','🪀','🏓',
-      '🏸','🏒','🥍','🏏','🪃','🥅','⛳','🏹',
-      '🎣','🤿','🎽','🛹','🛼','🥾','👑','💎',
-    ],
-  };
 
   // 视频播放器控制器（每个视频消息独立持有）
   final Map<int, VideoPlayerController> _videoPlayers = {};
@@ -204,6 +141,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     _controller.dispose();
     _inputFocusNode.dispose();
     _scrollController.dispose();
+    _stopRepeatDelete();
     _mqttClient?.disconnect();
     // 释放所有视频播放器
     for (final controller in _videoPlayers.values) {
@@ -1987,11 +1925,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   /// 构建微信风格的底部表情面板
   ///
-  /// 布局自上而下：表情网格（占满剩余高度）→ 底部固定栏（左侧分类 tab、
-  /// 右侧删除键）。底部栏固定不滚动，删除键始终停在右下角拇指区。
+  /// 表情数据、分类、最近使用、搜索、肤色选择全部交给三方组件
+  /// `emoji_picker_flutter`（1500+ emoji / 8 个分类），这里只做两件事：
+  /// 1. 把配色改成聊天页的深色主题；
+  /// 2. 把「选中插入」和「退格删除」接到输入框上（走 [EmojiTextEditing]，
+  ///    emoji 是多码点字符，不能按 UTF-16 删）。
+  ///
+  /// 视图顺序用 emojiView → categoryBar → bottomActionBar：网格在上、
+  /// 分类栏在下，和微信一致（组件默认是分类栏在顶）。
   Widget _buildEmojiPanel() {
-    final groups = _emojiGroups.keys.toList();
-    final emojis = _emojiGroups[_emojiGroup] ?? const <String>[];
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       // 面板高度约为屏幕的 42%：再高就把聊天内容区挤没了
       height: MediaQuery.of(context).size.height * 0.42,
@@ -2000,117 +1943,124 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         color: AppTheme.chatInputBar,
         border: Border(top: BorderSide(color: AppTheme.chatDivider, width: 0.5)),
       ),
-      child: Column(
-        children: [
-          // 表情网格：正方形格子（crossAxisCount 与 aspectRatio 都不再压缩高度），
-          // 让 emoji 四周留出足够空白，不再互相贴在一起
-          Expanded(
-            child: GridView.builder(
-              // 换分类时重建，否则会沿用上一组的滚动偏移：
-              // 从 96 个表情的「表情」切到只剩 12 个的「动物」会停在偏移外显示空白
-              key: ValueKey('emoji-grid-$_emojiGroup'),
-              padding: const EdgeInsets.fromLTRB(10, 12, 10, 10),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 8,
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
+      // 左右留边：组件内部按「picker 宽度 / 列数」算格子尺寸，
+      // 所以边距必须加在外面（用 gridPadding 会让格子比实际宽而被裁掉一列）
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: EmojiPicker(
+          onEmojiSelected: (_, emoji) => _sendEmoji(emoji.emoji),
+          onBackspacePressed: _deleteLastChar,
+          config: Config(
+            // 高度交给外层 Container（传固定值会和外层叠加导致溢出）
+            height: null,
+            // 按系统语言取表情名，中文下搜索「笑」「哭」才有结果
+            locale: Localizations.localeOf(context),
+            // 过滤掉系统字体渲染不出来的 emoji（不然会出现方块豆腐块）
+            checkPlatformCompatibility: true,
+            emojiTextStyle: const TextStyle(fontSize: 26),
+            emojiViewConfig: EmojiViewConfig(
+              columns: 8,
+              emojiSizeMax: 30,
+              verticalSpacing: 4,
+              horizontalSpacing: 4,
+              backgroundColor: AppTheme.chatInputBar,
+              gridPadding: const EdgeInsets.only(top: 8, bottom: 8),
+              buttonMode: ButtonMode.MATERIAL,
+              recentsLimit: 32,
+              replaceEmojiOnLimitExceed: true,
+              noRecents: Text(
+                l10n.noData,
+                style: const TextStyle(fontSize: 14, color: Colors.white38),
+                textAlign: TextAlign.center,
               ),
-              physics: const BouncingScrollPhysics(),
-              itemCount: emojis.length,
-              itemBuilder: (context, index) => _buildEmojiCell(emojis[index]),
+              loadingIndicator: const Center(
+                child: SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            ),
+            viewOrderConfig: const ViewOrderConfig(
+              top: EmojiPickerItem.emojiView,
+              middle: EmojiPickerItem.categoryBar,
+              bottom: EmojiPickerItem.searchBar,
+            ),
+            categoryViewConfig: const CategoryViewConfig(
+              tabBarHeight: 44,
+              initCategory: Category.SMILEYS,
+              backgroundColor: AppTheme.chatInputBar,
+              indicatorColor: AppTheme.accent,
+              iconColor: Colors.white38,
+              iconColorSelected: AppTheme.accent,
+              dividerColor: AppTheme.chatDivider,
+            ),
+            bottomActionBarConfig: BottomActionBarConfig(
+              backgroundColor: AppTheme.chatInputBar,
+              buttonColor: AppTheme.surface,
+              buttonIconColor: Colors.white70,
+              customBottomActionBar: _buildEmojiBottomBar,
+            ),
+            searchViewConfig: SearchViewConfig(
+              backgroundColor: AppTheme.chatInputBar,
+              buttonIconColor: Colors.white54,
+              hintText: l10n.search,
+              hintTextStyle: const TextStyle(fontSize: 14, color: Colors.white38),
+              inputTextStyle: const TextStyle(fontSize: 15, color: Colors.white),
+            ),
+            skinToneConfig: const SkinToneConfig(
+              dialogBackgroundColor: AppTheme.surface,
+              indicatorColor: AppTheme.accent,
             ),
           ),
-          // 底部固定栏：分类 tab + 删除键
-          Container(
-            height: 52,
-            padding: const EdgeInsets.only(left: 8, right: 8),
-            decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: AppTheme.chatDivider, width: 0.5)),
-            ),
-            child: Row(
-              children: [
-                // 分类按等分宽度排列（而不是按文字宽度自然排列）：
-                // 本机 411dp 逻辑宽下放 6 个中文分类刚好差 20dp，最后一个会露出半个字，
-                // 且系统字号放大后更糟。等分 + tab 内 textScaleDown 后，任何字号都放得下。
-                Expanded(
-                  child: Row(
-                    children: [
-                      for (final group in groups)
-                        Expanded(child: _buildEmojiGroupTab(group)),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _buildEmojiDeleteButton(),
-              ],
+        ),
+      ),
+    );
+  }
+
+  /// 表情面板底栏：左边搜索、右边退格（长按连删）
+  ///
+  /// 不用组件默认的底栏，是因为默认退格只有单击 —— 长按连删是组件在
+  /// 传了 `textEditingController` 时才处理的分支，这里没传，所以自己接。
+  Widget _buildEmojiBottomBar(
+    Config config,
+    EmojiViewState state,
+    VoidCallback showSearchView,
+  ) {
+    final l10n = AppLocalizations.of(context)!;
+    return Container(
+      height: 44,
+      color: config.bottomActionBarConfig.backgroundColor,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.search, size: 22),
+            color: config.bottomActionBarConfig.buttonIconColor,
+            tooltip: l10n.search,
+            onPressed: showSearchView,
+          ),
+          const Spacer(),
+          GestureDetector(
+            onTap: state.onBackspacePressed,
+            onLongPressStart: (_) => _startRepeatDelete(),
+            onLongPressEnd: (_) => _stopRepeatDelete(),
+            onLongPressCancel: _stopRepeatDelete,
+            child: Container(
+              width: 46,
+              height: 32,
+              decoration: BoxDecoration(
+                color: config.bottomActionBarConfig.buttonColor,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.backspace_outlined,
+                size: 20,
+                color: config.bottomActionBarConfig.buttonIconColor,
+              ),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  /// 底部分类 tab（小胶囊，未选中为纯文字）
-  ///
-  /// 外层由等分的 [Expanded] 给定宽度，所以这里撑满格子即可；文字用
-  /// [FittedBox] 兜底 —— 系统字号调大时优先缩排，而不是把最后一个分类裁掉半个字。
-  Widget _buildEmojiGroupTab(String name) {
-    final selected = name == _emojiGroup;
-    return GestureDetector(
-      onTap: () => setState(() => _emojiGroup = name),
-      child: Container(
-        height: 30,
-        margin: const EdgeInsets.symmetric(horizontal: 2),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          // 金色 18% 透明：与主题强调色同源，未选中时保持透明
-          color: selected ? const Color(0x2EFFC940) : Colors.transparent,
-          borderRadius: BorderRadius.circular(15),
-        ),
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            name,
-            style: TextStyle(
-              color: selected ? AppTheme.accent : Colors.white60,
-              fontSize: 12,
-              fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 单个表情格子：正方形，emoji 居中并留出四周空白
-  Widget _buildEmojiCell(String emoji) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: () => _sendEmoji(emoji),
-        // 字号比原来（30）略小：emoji 字形实际渲染高度远大于字号，
-        // 缩到 26 才能在正方形格子里留出呼吸感
-        child: Center(child: Text(emoji, style: const TextStyle(fontSize: 26))),
-      ),
-    );
-  }
-
-  /// 删除键：单击删一个字符，长按连续删除
-  Widget _buildEmojiDeleteButton() {
-    return GestureDetector(
-      onTap: _deleteLastChar,
-      onLongPressStart: (_) => _startRepeatDelete(),
-      onLongPressEnd: (_) => _stopRepeatDelete(),
-      onLongPressCancel: _stopRepeatDelete,
-      child: Container(
-        width: 52,
-        height: 34,
-        decoration: BoxDecoration(
-          color: AppTheme.surface,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const Icon(Icons.backspace_outlined, color: Colors.white70, size: 20),
       ),
     );
   }
