@@ -8,6 +8,10 @@ import com.stylesmile.chat.entity.ChatUser;
 import com.stylesmile.chat.mapper.ChatUserMapper;
 import com.stylesmile.chat.service.ChatUserService;
 import com.stylesmile.chat.service.ChatVerifyCodeService;
+import com.stylesmile.chat.shard.MessageShardRouter;
+import com.stylesmile.chat.shard.MessageShardSchemaService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -22,8 +26,33 @@ import java.util.List;
 @Service
 public class ChatUserServiceImpl extends BaseServiceImpl<ChatUserMapper, ChatUser> implements ChatUserService {
 
+    private static final Logger log = LoggerFactory.getLogger(ChatUserServiceImpl.class);
+
     @Resource
     private ChatVerifyCodeService verifyCodeService;
+    @Resource
+    private MessageShardRouter shardRouter;
+    @Resource
+    private MessageShardSchemaService shardSchemaService;
+
+    /**
+     * 注册成功后预建该用户的私聊消息分表。
+     *
+     * <p>建表失败<b>不影响注册成功</b>：分表在首次发消息时还会兜底再建一次，
+     * 这里只是把 DDL 提前，避免第一条消息卡在 DDL 上。
+     *
+     * @param userId 新用户 ID
+     */
+    private void ensureMessageShardTable(Long userId) {
+        try {
+            if (!shardRouter.isShardEnabled()) {
+                return;
+            }
+            shardSchemaService.ensureFriendTableForUser(shardRouter, userId);
+        } catch (Exception e) {
+            log.error("预建消息分表失败，userId={}（首次发消息时会重试）", userId, e);
+        }
+    }
 
     @Override
     public ChatUser getUserByUsername(String username) {
@@ -117,6 +146,11 @@ public class ChatUserServiceImpl extends BaseServiceImpl<ChatUserMapper, ChatUse
         newUser.setSignature("");
         newUser.setId(IdUtil.getSnowflakeNextId());
         save(newUser);
+
+        // 消息分表：新用户注册即预建他所在的私聊消息表，
+        // 避免第一条私聊消息到来时才建表（DDL 混在发消息事务里）
+        ensureMessageShardTable(newUser.getId());
+
         return Result.success(newUser);
     }
 

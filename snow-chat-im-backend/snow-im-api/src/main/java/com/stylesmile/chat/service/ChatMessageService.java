@@ -26,6 +26,19 @@ public interface ChatMessageService extends BaseService<ChatMessage> {
     void sendMessage(ChatMessage message);
 
     /**
+     * 只落库（按分片写入并登记路由），不做 MQTT 推送。
+     *
+     * <p>给"自己负责推送"的调用方用，例如建群时写入的系统通知 ——
+     * 它们推的是自己构造的报文，不需要 sendMessage 那套收发双方会话与回执逻辑。
+     *
+     * <p>⚠️ 不要用继承来的 {@code save()}：那个走实体固定表名，会写进 chat_message 主表，
+     * 分表之后消息就查不到了。
+     *
+     * @param message 消息实体
+     */
+    void saveMessage(ChatMessage message);
+
+    /**
      * 撤回消息
      */
     void recallMessage(Long userId, Long messageId);

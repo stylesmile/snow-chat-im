@@ -1,13 +1,13 @@
 package com.stylesmile.chat.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
+import cn.hutool.core.util.IdUtil;
 import com.stylesmile.chat.entity.ChatGroupMember;
 import com.stylesmile.chat.entity.ChatMessage;
+import com.stylesmile.chat.entity.ChatMessageRoute;
 import com.stylesmile.chat.entity.ChatOfflineMessage;
 import com.stylesmile.chat.entity.ChatSession;
 import com.stylesmile.chat.mapper.ChatMessageMapper;
+import com.stylesmile.chat.mapper.ChatMessageRouteMapper;
 import com.stylesmile.chat.mapper.ChatOfflineMessageMapper;
 import com.stylesmile.chat.mqtt.MqttConnectStatusListener;
 import com.stylesmile.chat.mqtt.MqttPushService;
@@ -16,6 +16,8 @@ import com.stylesmile.chat.mqtt.WsCmd;
 import com.stylesmile.chat.service.ChatGroupMemberService;
 import com.stylesmile.chat.service.ChatMessageService;
 import com.stylesmile.chat.service.ChatSessionService;
+import com.stylesmile.chat.shard.MessageShardRouter;
+import com.stylesmile.chat.shard.MessageShardSchemaService;
 import com.stylesmile.common.service.BaseServiceImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,7 +28,18 @@ import javax.annotation.Resource;
 import java.util.*;
 
 /**
- * 消息服务实现
+ * 消息服务实现。
+ *
+ * <p><b>分表</b>：消息按「群 / 私聊会话」落在不同的物理表
+ * （{@code chat_message_group_N} / {@code chat_message_friend_N}，见 {@link MessageShardRouter}）。
+ * 本类是唯一需要感知分表的地方，所有 SQL 都通过 {@link ChatMessageMapper} 带 {@code table}
+ * 参数下发；上游 Controller 与前端完全无感。
+ *
+ * <p>两类入口的表定位方式不同：
+ * <ul>
+ *   <li>知道会话（拉历史、发消息、标记已读）→ 直接用 {@code targetType + userId + targetId} 算表；</li>
+ *   <li>只知道 messageId（撤回、已读回执）→ 先查 {@code chat_message_route} 拿分片，再还原表名。</li>
+ * </ul>
  */
 @Service
 public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, ChatMessage> implements ChatMessageService {
@@ -37,6 +50,10 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
     private static final String TYPE_SELF = "self";
     // 会话目标类型：file_helper 对应文件传输助手会话
     private static final String TARGET_FILE_HELPER = "file_helper";
+    // 会话目标类型：group 对应群聊
+    private static final String TARGET_GROUP = "group";
+    // 会话目标类型：friend 对应私聊
+    private static final String TARGET_FRIEND = "friend";
 
     @Resource
     private MqttPushService mqttPushService;
@@ -48,36 +65,23 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
     private ChatSessionService chatSessionService;
     @Resource
     private ChatGroupMemberService chatGroupMemberService;
+    @Resource
+    private ChatMessageRouteMapper chatMessageRouteMapper;
+    @Resource
+    private MessageShardRouter shardRouter;
+    @Resource
+    private MessageShardSchemaService shardSchemaService;
 
     @Override
     public List<ChatMessage> getHistoryMessages(Long userId, Long targetId, String targetType, int page, int size) {
-        return baseMapper.getHistoryMessages(userId, targetId, targetType, (page - 1) * size, size);
+        String table = resolveTable(targetType, userId, targetId);
+        return baseMapper.getHistoryMessages(table, userId, targetId, targetType, (page - 1) * size, size);
     }
 
     @Override
     public List<ChatMessage> getHistoryMessagesByCursor(Long userId, Long targetId, String targetType, Long beforeMessageId, int size) {
-        LambdaQueryWrapper<ChatMessage> wrapper = new LambdaQueryWrapper<>();
-
-        if ("friend".equalsIgnoreCase(targetType)) {
-            // 普通好友私聊：双向查询（from→to 或 to→from）
-            wrapper.and(w -> w
-                    .eq(ChatMessage::getFromUserId, userId).eq(ChatMessage::getToUserId, targetId)
-                    .or()
-                    .eq(ChatMessage::getFromUserId, targetId).eq(ChatMessage::getToUserId, userId));
-        } else if (TARGET_FILE_HELPER.equalsIgnoreCase(targetType)) {
-            // 文件传输助手：type=self（发给自己的消息），接收人即自己
-            wrapper.eq(ChatMessage::getType, TYPE_SELF)
-                   .eq(ChatMessage::getToUserId, userId);
-        } else if ("group".equalsIgnoreCase(targetType)) {
-            wrapper.eq(ChatMessage::getGroupId, targetId);
-        }
-
-        if (beforeMessageId != null) {
-            wrapper.lt(ChatMessage::getId, beforeMessageId);
-        }
-        wrapper.orderByDesc(ChatMessage::getCreateTime);
-        wrapper.last("LIMIT " + size);
-        return baseMapper.selectList(wrapper);
+        String table = resolveTable(targetType, userId, targetId);
+        return baseMapper.getMessagesByCursor(table, userId, targetId, targetType, beforeMessageId, size);
     }
 
     @Override
@@ -92,19 +96,105 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
         message.setCreateTime(new Date());
         message.setStatus(0);
         message.setPushStatus("server_received"); // 服务器已收到
-        save(message);
+        saveMessage(message);
 
         // 更新发送方会话
         Long targetId = message.getGroupId() != null ? message.getGroupId() : message.getToUserId();
-        // 会话目标类型：群消息=group；type=self（发给自己的文件助手消息）=file_helper；其余=friend
-        String targetType = message.getGroupId() != null ? "group"
-                : (TYPE_SELF.equals(message.getType()) ? TARGET_FILE_HELPER : "friend");
-        chatSessionService.getOrCreateSession(message.getFromUserId(), targetId, targetType);
+        chatSessionService.getOrCreateSession(message.getFromUserId(), targetId, resolveTargetType(message));
 
         publishMessage(message);
 
         // 向发送方回推回执，确认服务器已收到并推送
         sendReceiptAckToSender(message);
+    }
+
+    /**
+     * 只落库：按分片写进对应的物理表并登记路由，不做任何推送。
+     */
+    @Override
+    @Transactional
+    public void saveMessage(ChatMessage message) {
+        // 分表后各表的自增 ID 互不相干，必须用全局唯一 ID（与 MP 的 ASSIGN_ID 同款雪花）
+        if (message.getId() == null) {
+            message.setId(IdUtil.getSnowflakeNextId());
+        }
+        if (message.getCreateTime() == null) {
+            message.setCreateTime(new Date());
+        }
+        if (message.getStatus() == null) {
+            message.setStatus(0);
+        }
+
+        String targetType = resolveTargetType(message);
+        Long shardKey = resolveShardKey(message);
+        String table = shardEnabled()
+                ? shardSchemaService.ensureTableByName(shardRouter.tableForRoute(targetType, shardKey))
+                : shardRouter.mainTable();
+
+        baseMapper.insertInto(table, message);
+        saveRoute(message.getId(), targetType, shardKey);
+    }
+
+    /**
+     * 判断消息属于哪类会话：群消息=group；type=self（发给自己的文件助手消息）=file_helper；其余=friend。
+     */
+    private String resolveTargetType(ChatMessage message) {
+        return message.getGroupId() != null ? TARGET_GROUP
+                : (TYPE_SELF.equals(message.getType()) ? TARGET_FILE_HELPER : TARGET_FRIEND);
+    }
+
+    /**
+     * 计算分片键：群=groupId；私聊=min(收发双方用户ID)。
+     */
+    private Long resolveShardKey(ChatMessage message) {
+        if (message.getGroupId() != null) {
+            return message.getGroupId();
+        }
+        return shardRouter.friendShardKey(message.getFromUserId(), message.getToUserId());
+    }
+
+    /**
+     * 写一行分片路由，供"只知 messageId"的撤回/回执定位表。
+     */
+    private void saveRoute(Long messageId, String targetType, Long shardKey) {
+        if (!shardEnabled()) {
+            return;
+        }
+        ChatMessageRoute route = new ChatMessageRoute();
+        route.setId(messageId);
+        route.setTargetType(targetType);
+        route.setShardKey(shardKey);
+        chatMessageRouteMapper.insert(route);
+    }
+
+    /**
+     * 由会话信息算出物理表名（并确保表已存在）。
+     */
+    private String resolveTable(String targetType, Long userId, Long targetId) {
+        if (!shardEnabled()) {
+            return shardRouter.mainTable();
+        }
+        return shardSchemaService.ensureTableByName(shardRouter.tableFor(targetType, userId, targetId));
+    }
+
+    /**
+     * 由 messageId 查路由还原物理表名；查不到路由（历史数据未迁移）时返回 null。
+     */
+    private String resolveTableByMessageId(Long messageId) {
+        if (!shardEnabled()) {
+            return shardRouter.mainTable();
+        }
+        ChatMessageRoute route = chatMessageRouteMapper.selectById(messageId);
+        if (route == null || route.getShardKey() == null) {
+            log.warn("消息 {} 没有分片路由记录，无法定位分表", messageId);
+            return null;
+        }
+        return shardSchemaService.ensureTableByName(
+                shardRouter.tableForRoute(route.getTargetType(), route.getShardKey()));
+    }
+
+    private boolean shardEnabled() {
+        return shardRouter.isShardEnabled();
     }
 
     private void publishMessage(ChatMessage message) {
@@ -163,8 +253,7 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
         // 更新接收方会话与未读数
         Long targetId = message.getGroupId() != null ? message.getGroupId() : message.getFromUserId();
         // 会话目标类型：群消息=group；type=self（发给自己的文件助手消息）也会被推送到自己 topic，归为 file_helper；其余=friend
-        String targetType = message.getGroupId() != null ? "group"
-                : (TYPE_SELF.equals(message.getType()) ? TARGET_FILE_HELPER : "friend");
+        String targetType = resolveTargetType(message);
         chatSessionService.getOrCreateSession(userId, targetId, targetType);
         chatSessionService.updateLastMessage(userId, targetId, targetType, message.getContent());
     }
@@ -234,12 +323,17 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
     }
 
     @Override
+    @Transactional
     public void recallMessage(Long userId, Long messageId) {
-        ChatMessage message = getById(messageId);
+        String table = resolveTableByMessageId(messageId);
+        if (table == null) {
+            return;
+        }
+        ChatMessage message = baseMapper.selectByIdFrom(table, messageId);
         if (message != null && message.getFromUserId().equals(userId)) {
+            baseMapper.recallById(table, messageId);
             message.setContent("[消息已撤回]");
             message.setType("recall");
-            updateById(message);
 
             Map<String, Object> data = new HashMap<>();
             data.put("messageId", messageId);
@@ -262,37 +356,23 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
 
     @Override
     public void markAsRead(Long userId, Long targetId, String targetType) {
-        LambdaUpdateWrapper<ChatMessage> wrapper = new LambdaUpdateWrapper<>();
-        wrapper.eq(ChatMessage::getToUserId, userId)
-               .eq(ChatMessage::getStatus, 0)
-               .set(ChatMessage::getStatus, 1);
-
-        if ("friend".equalsIgnoreCase(targetType)) {
-            wrapper.eq(ChatMessage::getFromUserId, targetId);
-        } else if (TARGET_FILE_HELPER.equalsIgnoreCase(targetType)) {
-            // 文件传输助手：type=self（发给自己的消息），接收人即自己
-            wrapper.eq(ChatMessage::getType, TYPE_SELF)
-                   .eq(ChatMessage::getToUserId, userId);
-        } else if ("group".equalsIgnoreCase(targetType)) {
-            wrapper.eq(ChatMessage::getGroupId, targetId);
-        }
-        update(wrapper);
+        String table = resolveTable(targetType, userId, targetId);
+        baseMapper.markRead(table, userId, targetId, targetType);
     }
 
     @Override
+    @Transactional
     public void processReceipt(Long messageId, Long userId) {
+        String table = resolveTableByMessageId(messageId);
+        if (table == null) {
+            return;
+        }
         // 1. 更新消息推送状态为 delivered（接收方已确认收到）
-        // 使用 UpdateWrapper（非 lambda）而非 LambdaUpdateWrapper，避免单元测试中 lambda cache 不可用的问题
         // 状态机：pending → server_received → delivered
-        //   - server_received：服务器收到发送方的消息
-        //   - delivered：接收方确认收到消息（终端状态）
-        UpdateWrapper<ChatMessage> wrapper = new UpdateWrapper<>();
-        wrapper.eq("id", messageId)
-               .set("push_status", "delivered");
-        update(wrapper);
+        baseMapper.updatePushStatus(table, messageId, "delivered");
 
         // 2. 查询消息，获取发送方 ID，向发送方推送回执
-        ChatMessage message = getById(messageId);
+        ChatMessage message = baseMapper.selectByIdFrom(table, messageId);
         if (message != null && message.getFromUserId() != null) {
             Map<String, Object> receiptData = new HashMap<>();
             receiptData.put("messageId", messageId);
@@ -337,28 +417,8 @@ public class ChatMessageServiceImpl extends BaseServiceImpl<ChatMessageMapper, C
 
     @Override
     public List<ChatMessage> getUndeliveredMessages(Long userId, Long targetId, String targetType) {
-        LambdaQueryWrapper<ChatMessage> wrapper = new LambdaQueryWrapper<>();
-
-        if ("friend".equalsIgnoreCase(targetType)) {
-            wrapper.eq(ChatMessage::getToUserId, userId)
-                   .eq(ChatMessage::getFromUserId, targetId)
-                   .ne(ChatMessage::getPushStatus, "client_ack")
-                   .ne(ChatMessage::getPushStatus, "delivered");
-        } else if (TARGET_FILE_HELPER.equalsIgnoreCase(targetType)) {
-            // 文件传输助手：type=self（发给自己的消息），补投给自己的其他在线/离线设备
-            wrapper.eq(ChatMessage::getType, TYPE_SELF)
-                   .eq(ChatMessage::getToUserId, userId)
-                   .ne(ChatMessage::getPushStatus, "client_ack")
-                   .ne(ChatMessage::getPushStatus, "delivered");
-        } else if ("group".equalsIgnoreCase(targetType)) {
-            wrapper.eq(ChatMessage::getGroupId, targetId)
-                   .ne(ChatMessage::getToUserId, userId)
-                   .ne(ChatMessage::getPushStatus, "client_ack")
-                   .ne(ChatMessage::getPushStatus, "delivered");
-        }
-
-        wrapper.orderByAsc(ChatMessage::getCreateTime);
-        List<ChatMessage> undelivered = baseMapper.selectList(wrapper);
+        String table = resolveTable(targetType, userId, targetId);
+        List<ChatMessage> undelivered = baseMapper.selectUndelivered(table, userId, targetId, targetType);
         log.info("Found {} undelivered messages for userId={}, targetId={}", undelivered.size(), userId, targetId);
         return undelivered;
     }

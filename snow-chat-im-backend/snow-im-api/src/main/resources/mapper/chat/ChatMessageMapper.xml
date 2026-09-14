@@ -3,10 +3,25 @@
 <mapper namespace="com.stylesmile.chat.mapper.ChatMessageMapper">
     <resultMap id="chatMessage" type="com.stylesmile.chat.entity.ChatMessage"/>
 
+    <!--
+      消息已分表：所有 SQL 的表名由 ${table} 传入（由 MessageShardRouter 计算，
+      形如 chat_message_friend_1 / chat_message_group_0），不是外部输入，无注入风险。
+      其余条件一律用 #{} 预编译。
+    -->
+
+    <!-- 写入一条消息（id 由调用方用雪花算法生成） -->
+    <insert id="insertInto">
+        INSERT INTO ${table}
+        (id, from_user_id, to_user_id, group_id, type, content, local_seq, status, create_time, push_status)
+        VALUES
+        (#{m.id}, #{m.fromUserId}, #{m.toUserId}, #{m.groupId}, #{m.type},
+         #{m.content}, #{m.localSeq}, #{m.status}, #{m.createTime}, #{m.pushStatus})
+    </insert>
+
     <!-- 查询历史消息（按时间倒序，最新在前） -->
     <select id="getHistoryMessages" resultMap="chatMessage">
         SELECT *
-        FROM chat_message
+        FROM ${table}
         WHERE
         <choose>
             <when test="targetType == 'group'">
@@ -24,11 +39,88 @@
         LIMIT #{offset}, #{size}
     </select>
 
-    <!-- 根据目标查询消息 -->
-    <select id="getMessagesByTarget" resultMap="chatMessage">
-        SELECT * FROM chat_message
-        WHERE ((to_user_id = #{userId} AND group_id IS NULL) OR group_id = #{groupId})
-        AND create_time &gt; #{sinceTime}
+    <!-- 游标分页：只取 id 小于 beforeMessageId 的消息 -->
+    <select id="getMessagesByCursor" resultMap="chatMessage">
+        SELECT *
+        FROM ${table}
+        WHERE
+        <choose>
+            <when test="targetType == 'group'">
+                group_id = #{targetId}
+            </when>
+            <when test="targetType == 'file_helper'">
+                type = 'self' AND to_user_id = #{userId}
+            </when>
+            <otherwise>
+                ((from_user_id = #{userId} AND to_user_id = #{targetId})
+                OR (from_user_id = #{targetId} AND to_user_id = #{userId}))
+            </otherwise>
+        </choose>
+        <if test="beforeMessageId != null">
+            AND id &lt; #{beforeMessageId}
+        </if>
+        ORDER BY create_time DESC, id DESC
+        LIMIT #{size}
+    </select>
+
+    <!-- 按主键查一条消息 -->
+    <select id="selectByIdFrom" resultMap="chatMessage">
+        SELECT * FROM ${table} WHERE id = #{id}
+    </select>
+
+    <!-- 撤回：内容替换 + type 置为 recall -->
+    <update id="recallById">
+        UPDATE ${table}
+        SET content = '[消息已撤回]', type = 'recall'
+        WHERE id = #{id}
+    </update>
+
+    <!-- 按会话标记已读 -->
+    <update id="markRead">
+        UPDATE ${table}
+        SET status = 1
+        WHERE status = 0
+        <choose>
+            <when test="targetType == 'group'">
+                AND group_id = #{targetId}
+                <!-- 群消息没有 to_user_id，这里只按群维度标记（原实现额外加了
+                     to_user_id = userId，导致群消息永远匹配不到、已读不生效） -->
+            </when>
+            <when test="targetType == 'file_helper'">
+                AND type = 'self' AND to_user_id = #{userId}
+            </when>
+            <otherwise>
+                AND to_user_id = #{userId} AND from_user_id = #{targetId}
+            </otherwise>
+        </choose>
+    </update>
+
+    <!-- 更新推送状态 -->
+    <update id="updatePushStatus">
+        UPDATE ${table}
+        SET push_status = #{status}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 未送达消息补投 -->
+    <select id="selectUndelivered" resultMap="chatMessage">
+        SELECT *
+        FROM ${table}
+        WHERE
+        <choose>
+            <when test="targetType == 'group'">
+                group_id = #{targetId}
+                AND (to_user_id IS NULL OR to_user_id &lt;&gt; #{userId})
+            </when>
+            <when test="targetType == 'file_helper'">
+                type = 'self' AND to_user_id = #{userId}
+            </when>
+            <otherwise>
+                to_user_id = #{userId} AND from_user_id = #{targetId}
+            </otherwise>
+        </choose>
+        AND push_status &lt;&gt; 'client_ack'
+        AND push_status &lt;&gt; 'delivered'
         ORDER BY create_time ASC
     </select>
 </mapper>

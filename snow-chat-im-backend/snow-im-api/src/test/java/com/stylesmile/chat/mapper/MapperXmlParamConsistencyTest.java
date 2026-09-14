@@ -96,14 +96,26 @@ class MapperXmlParamConsistencyTest {
         return names;
     }
 
-    /** 提取 #{xxx} / ${xxx} 里的变量名，跳过 jdbcType 之类的附加属性 */
+    /**
+     * 提取 #{xxx} / ${xxx} 里的变量名，跳过 jdbcType 之类的附加属性。
+     *
+     * <p>只取<b>根名</b>：{@code #{m.id}} 的根是 {@code m}（其余部分是对象属性导航），
+     * 归属判断要看根名是否出现在 {@code @Param} 里。
+     */
     private List<String> placeholders(String body) {
         List<String> result = new ArrayList<>();
         Matcher m = Pattern.compile("[#$]\\{([^}]+)}").matcher(body);
         while (m.find()) {
             String raw = m.group(1).trim();
             int comma = raw.indexOf(',');
-            result.add(comma > 0 ? raw.substring(0, comma).trim() : raw);
+            if (comma > 0) {
+                raw = raw.substring(0, comma).trim();
+            }
+            int dot = raw.indexOf('.');
+            if (dot > 0) {
+                raw = raw.substring(0, dot).trim();
+            }
+            result.add(raw);
         }
         return result;
     }

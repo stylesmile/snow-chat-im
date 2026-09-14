@@ -2,14 +2,19 @@ package com.stylesmile.modules.chat.service.impl;
 
 import com.stylesmile.chat.entity.ChatGroupMember;
 import com.stylesmile.chat.entity.ChatMessage;
+import com.stylesmile.chat.entity.ChatMessageRoute;
 import com.stylesmile.chat.entity.ChatOfflineMessage;
 import com.stylesmile.chat.mapper.ChatMessageMapper;
+import com.stylesmile.chat.mapper.ChatMessageRouteMapper;
 import com.stylesmile.chat.mapper.ChatOfflineMessageMapper;
 import com.stylesmile.chat.mqtt.MqttConnectStatusListener;
 import com.stylesmile.chat.mqtt.MqttPushService;
 import com.stylesmile.chat.service.ChatGroupMemberService;
 import com.stylesmile.chat.service.ChatSessionService;
 import com.stylesmile.chat.service.impl.ChatMessageServiceImpl;
+import com.stylesmile.chat.shard.MessageShardProperties;
+import com.stylesmile.chat.shard.MessageShardRouter;
+import com.stylesmile.chat.shard.MessageShardSchemaService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,17 +23,15 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import com.baomidou.mybatisplus.core.conditions.Wrapper;
-import com.baomidou.mybatisplus.core.conditions.update.UpdateWrapper;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -51,6 +54,13 @@ class ChatMessageServiceImplTest {
     private ChatSessionService chatSessionService;
     @Mock
     private ChatGroupMemberService chatGroupMemberService;
+    @Mock
+    private ChatMessageRouteMapper chatMessageRouteMapper;
+    @Mock
+    private MessageShardSchemaService shardSchemaService;
+
+    /** 真实路由组件（默认粒度 1000 用户 / 100 群一表），表名可预期 */
+    private MessageShardRouter shardRouter;
 
     @Spy
     private ChatMessageServiceImpl service;
@@ -63,8 +73,13 @@ class ChatMessageServiceImplTest {
         ReflectionTestUtils.setField(service, "chatOfflineMessageMapper", chatOfflineMessageMapper);
         ReflectionTestUtils.setField(service, "chatSessionService", chatSessionService);
         ReflectionTestUtils.setField(service, "chatGroupMemberService", chatGroupMemberService);
-        // save stub 用 lenient：sendMessage 测试需要，processReceipt 测试不需要
-        lenient().doReturn(true).when(service).save(any(ChatMessage.class));
+        ReflectionTestUtils.setField(service, "chatMessageRouteMapper", chatMessageRouteMapper);
+        ReflectionTestUtils.setField(service, "shardSchemaService", shardSchemaService);
+        shardRouter = new MessageShardRouter(new MessageShardProperties());
+        ReflectionTestUtils.setField(service, "shardRouter", shardRouter);
+        // 建表桩：收到什么表名就返回什么表名
+        lenient().when(shardSchemaService.ensureTableByName(anyString()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
     }
 
     @Test
@@ -73,8 +88,34 @@ class ChatMessageServiceImplTest {
 
         service.sendMessage(message);
 
-        verify(service).save(message);
+        // 分表：min(10,42)=10 → chat_message_friend_0
+        verify(chatMessageMapper).insertInto(eq("chat_message_friend_0"), eq(message));
         assertEquals(0, message.getStatus());
+    }
+
+    @Test
+    void sendMessage_shouldWriteShardRoute() {
+        ChatMessage message = message(10L, 42L, null);
+        message.setId(99L);
+
+        service.sendMessage(message);
+
+        // 只知 messageId 的撤回/回执要靠这条路由定位分表
+        ArgumentCaptor<ChatMessageRoute> captor = ArgumentCaptor.forClass(ChatMessageRoute.class);
+        verify(chatMessageRouteMapper).insert(captor.capture());
+        assertEquals(99L, captor.getValue().getId());
+        assertEquals("friend", captor.getValue().getTargetType());
+        assertEquals(10L, captor.getValue().getShardKey());
+    }
+
+    @Test
+    void sendMessage_groupMessage_shouldGoToGroupTable() {
+        ChatMessage message = message(10L, null, 7L);
+
+        service.sendMessage(message);
+
+        // 群 7 / 100 = 0
+        verify(chatMessageMapper).insertInto(eq("chat_message_group_0"), eq(message));
     }
 
     @Test
@@ -145,28 +186,34 @@ class ChatMessageServiceImplTest {
         ChatMessage message = message(10L, 42L, null);
         message.setId(99L);
         message.setPushStatus("server_received");
-        // stub getById：processReceipt 需查询消息获取发送方 ID 才能回推
-        doReturn(message).when(service).getById(99L);
-        // stub update：单元测试无法执行真实 SQL，返回 true 模拟成功
-        doReturn(true).when(service).update(any(Wrapper.class));
+        // 分片路由：messageId 99 → friend 会话，分片键 min(10,42)=10 → chat_message_friend_0
+        ChatMessageRoute route = new ChatMessageRoute();
+        route.setId(99L);
+        route.setTargetType("friend");
+        route.setShardKey(10L);
+        when(chatMessageRouteMapper.selectById(99L)).thenReturn(route);
+        // stub 按主键查询：processReceipt 需查询消息获取发送方 ID 才能回推
+        when(chatMessageMapper.selectByIdFrom("chat_message_friend_0", 99L)).thenReturn(message);
 
         // 执行：接收方 42L 发送回执，确认收到 messageId=99 的消息
         service.processReceipt(99L, 42L);
 
-        // 验证：update 被调用，捕获 wrapper 检查 SET 值
-        ArgumentCaptor<Wrapper> captor = ArgumentCaptor.forClass(Wrapper.class);
-        verify(service).update(captor.capture());
-        // UpdateWrapper 将 set 值存储在 paramNameValuePairs 中
-        UpdateWrapper<?> captured = (UpdateWrapper<?>) captor.getValue();
-        // 验证 SET 子句包含 push_status 列
-        assertTrue(captured.getSqlSet().contains("push_status"),
-                "SET 子句应包含 push_status 列");
-        // 验证 set 值为 delivered（接收方已确认收到，终端状态）
-        assertTrue(captured.getParamNameValuePairs().containsValue("delivered"),
-                "pushStatus 应被设为 delivered");
+        // 验证：分表上的 push_status 被推进到 delivered
+        verify(chatMessageMapper).updatePushStatus("chat_message_friend_0", 99L, "delivered");
 
         // 验证：向发送方 10L 推送 MSG_RECEIPT_ACK(2007)，通知"消息已送达"
         verify(mqttPushService).publish(eq("chat/user/10"), eq(2007), any());
+    }
+
+    @Test
+    void processReceipt_withoutRoute_shouldDoNothing() {
+        // 没有分片路由（历史数据未迁移）时不能瞎猜表，直接跳过
+        when(chatMessageRouteMapper.selectById(99L)).thenReturn(null);
+
+        service.processReceipt(99L, 42L);
+
+        verify(chatMessageMapper, never()).updatePushStatus(anyString(), anyLong(), anyString());
+        verify(mqttPushService, never()).publish(anyString(), anyInt(), any());
     }
 
     /**

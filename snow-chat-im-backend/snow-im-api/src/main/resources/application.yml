@@ -103,6 +103,17 @@ mqtt:
 
 
 # springdoc-openapi项目配置
+# 消息分表配置
+# 群聊消息：每 groups-per-table 个群一张表（chat_message_group_{groupId / 粒度}）
+# 私聊消息：每 users-per-table 个用户 ID 一张表（chat_message_friend_{min(双方ID) / 粒度}）
+# ⚠️ 上线后不要改这两个值：分片号 = id / 粒度，改了历史消息就查不到了（需全量重分布）
+chat:
+  message:
+    shard:
+      enabled: true
+      users-per-table: 1000
+      groups-per-table: 100
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html

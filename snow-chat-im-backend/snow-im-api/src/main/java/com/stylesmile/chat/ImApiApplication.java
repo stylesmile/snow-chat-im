@@ -1,6 +1,7 @@
 package com.stylesmile.chat;
 
 import com.stylesmile.chat.filter.AuthFilter;
+import com.stylesmile.chat.shard.MessageShardProperties;
 import com.stylesmile.chat.storage.AliyunOssProperties;
 import com.stylesmile.chat.storage.DiskProperties;
 import com.stylesmile.chat.storage.MinioProperties;
@@ -32,7 +33,8 @@ import org.springframework.context.annotation.Bean;
         MinioProperties.class,      // MinIO 配置绑定（storage.type=minio）
         SeaweedfsProperties.class,  // SeaweedFS 配置绑定（storage.type=seaweedfs）
         AliyunOssProperties.class,  // 阿里云 OSS 配置绑定（storage.type=aliyun-oss）
-        DiskProperties.class        // 本地磁盘存储配置绑定（storage.type=disk）
+        DiskProperties.class,       // 本地磁盘存储配置绑定（storage.type=disk）
+        MessageShardProperties.class // 消息分表粒度（chat.message.shard.*）
 })
 public class ImApiApplication {
     public static void main(String[] args) {

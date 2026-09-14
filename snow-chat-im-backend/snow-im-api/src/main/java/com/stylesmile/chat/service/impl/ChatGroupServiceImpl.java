@@ -11,6 +11,8 @@ import com.stylesmile.chat.service.ChatGroupMemberService;
 import com.stylesmile.chat.service.ChatGroupService;
 import com.stylesmile.chat.service.ChatMessageService;
 import com.stylesmile.chat.service.ChatUserService;
+import com.stylesmile.chat.shard.MessageShardRouter;
+import com.stylesmile.chat.shard.MessageShardSchemaService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -42,6 +44,12 @@ public class ChatGroupServiceImpl extends BaseServiceImpl<ChatGroupMapper, ChatG
     @Resource
     private MqttPushService mqttPushService;
 
+    @Resource
+    private MessageShardRouter shardRouter;
+
+    @Resource
+    private MessageShardSchemaService shardSchemaService;
+
     @Override
     public ChatGroup getGroupById(Long groupId) {
         return getById(groupId);
@@ -50,6 +58,24 @@ public class ChatGroupServiceImpl extends BaseServiceImpl<ChatGroupMapper, ChatG
     @Override
     public List<ChatGroup> getGroupsByUserId(Long userId) {
         return baseMapper.getGroupsByUserId(userId);
+    }
+
+    /**
+     * 建群成功后预建该群的群消息分表。
+     *
+     * <p>与注册时同理：建表失败不回滚建群，首次发群消息时还会兜底再建。
+     *
+     * @param groupId 群 ID
+     */
+    private void ensureMessageShardTable(Long groupId) {
+        try {
+            if (!shardRouter.isShardEnabled()) {
+                return;
+            }
+            shardSchemaService.ensureGroupTable(shardRouter, groupId);
+        } catch (Exception e) {
+            log.error("预建群消息分表失败，groupId={}（首次发群消息时会重试）", groupId, e);
+        }
     }
 
     @Override
@@ -64,6 +90,9 @@ public class ChatGroupServiceImpl extends BaseServiceImpl<ChatGroupMapper, ChatG
         group.setCreateTime(new Date());
         group.setUpdateTime(new Date());
         save(group);
+
+        // 消息分表：建群即预建该群的群消息表，避免第一条群消息到来时才建表
+        ensureMessageShardTable(group.getId());
 
         // 群主自动成为群成员（admin 角色）
         chatGroupMemberService.addMember(group.getId(), ownerId);
@@ -130,7 +159,7 @@ public class ChatGroupServiceImpl extends BaseServiceImpl<ChatGroupMapper, ChatG
             message.setContent(content);
             message.setStatus(0);
             message.setCreateTime(new Date());
-            chatMessageService.save(message);
+            chatMessageService.saveMessage(message); // 走分表：save() 会写进 chat_message 主表
 
             // 通过 MQTT 推送给用户
             Map<String, Object> data = new HashMap<>();
@@ -159,7 +188,7 @@ public class ChatGroupServiceImpl extends BaseServiceImpl<ChatGroupMapper, ChatG
             message.setContent(content);
             message.setStatus(0);
             message.setCreateTime(new Date());
-            chatMessageService.save(message);
+            chatMessageService.saveMessage(message); // 走分表：save() 会写进 chat_message 主表
 
             // 通过 MQTT 广播到群主题
             Map<String, Object> data = new HashMap<>();
