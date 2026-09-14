@@ -199,10 +199,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     final existing = (existingIndex != null && existingIndex >= 0)
         ? _chatProvider!.conversations[existingIndex]
         : Conversation(targetId: targetId, targetType: targetType);
+    // 会话摘要：媒体消息的 content 是对象存储 URL，需转成 [图片]/[视频] 等中文占位
+    final summary = MessageUtils.getMessagePreview(
+      data['type'] as String? ?? 'text',
+      content,
+    );
     final updated = Conversation(
       targetId: targetId,
       targetType: targetType,
-      lastMsg: content,
+      lastMsg: summary,
       lastMsgTime: createTime,
       unreadCount: existing.unreadCount + 1,
     );
@@ -211,7 +216,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       context: context,
       targetId: targetId,
       targetType: targetType,
-      lastMsg: content,
+      lastMsg: summary,
       lastMsgTime: createTime,
       unreadCount: updated.unreadCount,
     );

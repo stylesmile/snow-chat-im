@@ -770,7 +770,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     if (success) {
       await MessageCacheManager().appendMessage(_sessionId, sentModel.copyWith(status: 'sent').toModel());
       if (mounted) {
-        final summary = fileName != null ? '$type: $fileName' : type;
+        // 会话摘要用中文占位（[图片]/[视频]/[文件]/[语音]）：
+        // content 是对象存储 URL，直接存进摘要会让聊天列表显示一长串地址
+        final summary = MessageUtils.getMessagePreview(type, content);
         context.read<ChatProvider>().updateConversation(
           Conversation(
             targetId: widget.targetId,

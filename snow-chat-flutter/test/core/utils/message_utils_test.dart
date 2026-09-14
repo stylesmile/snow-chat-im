@@ -71,4 +71,45 @@ void main() {
       expect(canRecall, isFalse);
     });
   });
+
+  group('getMessagePreview 会话摘要', () {
+    test('媒体消息的 content 是 URL 时显示中文占位', () {
+      const url = 'http://192.168.0.100:8091/file/raw/images/uuid.png';
+      expect(MessageUtils.getMessagePreview('image', url), '[图片]');
+      expect(MessageUtils.getMessagePreview('video', url), '[视频]');
+      expect(MessageUtils.getMessagePreview('voice', url), '[语音]');
+      expect(
+        MessageUtils.getMessagePreview(
+            'file', 'http://192.168.0.100:8091/file/raw/files/a.pdf'),
+        '[文件]',
+      );
+      expect(MessageUtils.getMessagePreview('emoji', '😀'), '[表情]');
+      expect(MessageUtils.getMessagePreview('recall', ''), '[撤回消息]');
+    });
+
+    test('文本消息超长时截断，短文本原样显示', () {
+      expect(MessageUtils.getMessagePreview('text', '你好'), '你好');
+      final long = 'a' * 30;
+      expect(MessageUtils.getMessagePreview('text', long), '${'a' * 20}...');
+    });
+
+    test('self（文件传输助手）按 URL 扩展名反推占位，本地文本原样显示', () {
+      expect(
+        MessageUtils.getMessagePreview(
+            'self', 'http://192.168.0.100:8091/file/raw/images/x.jpg'),
+        '[图片]',
+      );
+      expect(
+        MessageUtils.getMessagePreview(
+            'self', 'http://192.168.0.100:8091/file/raw/videos/x.mp4'),
+        '[视频]',
+      );
+      expect(
+        MessageUtils.getMessagePreview(
+            'self', 'http://192.168.0.100:8091/file/raw/voices/x.mp3'),
+        '[语音]',
+      );
+      expect(MessageUtils.getMessagePreview('self', '随手记一段话'), '随手记一段话');
+    });
+  });
 }

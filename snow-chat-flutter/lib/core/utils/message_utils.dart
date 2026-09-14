@@ -1,4 +1,12 @@
 class MessageUtils {
+  /// 会话列表（及聊天页）里的一条消息摘要。
+  ///
+  /// 媒体消息的 content 是**对象存储 URL**（如
+  /// `http://host/file/raw/images/uuid.png`），直接展示会把一长串地址铺满列表，
+  /// 因此这里统一转换成微信风格的中文占位：图片/视频/文件/语音/表情。
+  ///
+  /// 之所以还要按扩展名兜底：文件传输助手发图时线上类型是 `self`（消息发给
+  /// 自己），此时拿不到 `image`，只能从 URL 后缀反推，否则摘要里同样会出现裸 URL。
   static String getMessagePreview(String type, String content) {
     switch (type) {
       case 'text':
@@ -9,11 +17,37 @@ class MessageUtils {
         return '[图片]';
       case 'video':
         return '[视频]';
+      case 'file':
+        return '[文件]';
+      case 'voice':
+        return '[语音]';
+      case 'emoji':
+        return '[表情]';
+      case 'recall':
+        return '[撤回消息]';
       case 'system':
-        return content;
+      case 'self':
+        return _placeholderForUrl(content);
       default:
         return '[未知消息]';
     }
+  }
+
+  /// 内容若形如媒体文件 URL，按其扩展名给出占位；否则原样返回（普通文本）。
+  static String _placeholderForUrl(String content) {
+    if (!content.startsWith('http://') && !content.startsWith('https://')) {
+      return content;
+    }
+    final path = Uri.tryParse(content)?.path ?? '';
+    final dot = path.lastIndexOf('.');
+    if (dot < 0) return '[文件]';
+    final ext = path.substring(dot + 1).toLowerCase();
+    return switch (ext) {
+      'jpg' || 'jpeg' || 'png' || 'gif' || 'webp' || 'bmp' => '[图片]',
+      'mp4' || 'mov' || 'avi' || 'mkv' || 'webm' => '[视频]',
+      'mp3' || 'wav' || 'aac' || 'm4a' || 'amr' => '[语音]',
+      _ => '[文件]',
+    };
   }
 
   static String getMessageTypeLabel(String type) {
@@ -24,6 +58,10 @@ class MessageUtils {
         return '图片消息';
       case 'video':
         return '视频消息';
+      case 'voice':
+        return '语音消息';
+      case 'file':
+        return '文件消息';
       case 'system':
         return '系统消息';
       default:
