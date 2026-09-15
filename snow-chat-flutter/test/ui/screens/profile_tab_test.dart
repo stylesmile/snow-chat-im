@@ -174,7 +174,8 @@ void main() {
           .toSet();
 
       expect(assetNames, contains('assets/icons/profile/collect.png'));
-      expect(assetNames, contains('assets/icons/profile/moments.png'));
+      // 朋友圈入口已按需求隐藏，不应再加载其图标
+      expect(assetNames, isNot(contains('assets/icons/profile/moments.png')));
       expect(assetNames, contains('assets/icons/profile/settings.png'));
 
       // 旧的彩色方块图标（统一用 Icons.apps）已不再使用

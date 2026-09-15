@@ -80,15 +80,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildScanSection(context, l10n),
             const SizedBox(height: 12),
 
-            // === 收藏 & 朋友圈 ===
+            // === 收藏（朋友圈入口已隐藏）===
             _buildMenuCard([
               ProfileMenuItem(
                 iconColor: const Color(0xFFFFB800),
                 label: l10n.favorites,
-              ),
-              ProfileMenuItem(
-                iconColor: const Color(0xFFEA580C),
-                label: l10n.moments,
               ),
             ]),
             const SizedBox(height: 12),

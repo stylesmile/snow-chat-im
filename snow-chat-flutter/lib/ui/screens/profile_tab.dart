@@ -66,9 +66,6 @@ class _ProfileTabState extends State<ProfileTab> {
   /// 收藏：五角星
   static const String _iconCollect = 'assets/icons/profile/collect.png';
 
-  /// 朋友圈：相机
-  static const String _iconMoments = 'assets/icons/profile/moments.png';
-
   /// 设置：齿轮
   static const String _iconSettings = 'assets/icons/profile/settings.png';
 
@@ -95,7 +92,7 @@ class _ProfileTabState extends State<ProfileTab> {
             _buildGenderEntry(context, auth, l10n),
             const SizedBox(height: 12),
 
-            // === 收藏 & 朋友圈 & 扫一扫 ===
+            // === 收藏 & 扫一扫（朋友圈入口已隐藏）===
             _buildMenuCard([
               ProfileMenuItem(
                 icon: Icons.qr_code_scanner,
@@ -118,11 +115,6 @@ class _ProfileTabState extends State<ProfileTab> {
                     MaterialPageRoute(builder: (_) => const FavoritesScreen()),
                   );
                 },
-              ),
-              ProfileMenuItem(
-                iconAsset: _iconMoments,
-                iconSize: 28,
-                label: l10n.moments,
               ),
             ]),
             const SizedBox(height: 12),
