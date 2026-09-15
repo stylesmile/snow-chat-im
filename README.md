@@ -1,89 +1,148 @@
-snow
+# Snow Chat IM
 
-#### 介绍
-##### app 功能
-加好友，群聊，私聊
+基于 Spring Boot + Flutter 的实时通讯系统，支持私聊、群聊、好友管理、图片/文件传输、离线消息投递。
 
-#### 
-github 地址
-```
-https://gitub.com/stylesmile/snow-chat-im
-```
-gitee 地址
 ```
 https://gitee.com/stylesmile/snow-chat-im
+https://github.com/stylesmile/snow-chat-im
 ```
-登陆
-![login.png](docs/img/login.png)
 
+## 目录结构
 
-通讯录
-![contact.png](docs/img/contact.png)
+```
+snow-chat-im/
+├── snow-chat-im-backend/     # 后端（Java / Spring Boot 3）
+│   ├── snow-common/          # 公共模块（工具类、基础实体、JWT）
+│   └── snow-im-api/          # IM 核心业务模块（REST API + MQTT + 文件存储）
+├── snow-chat-flutter/        # 移动端 / 桌面端客户端（Flutter）
+├── docs/                     # 项目文档（架构、数据库、API、部署等）
+└── plans/                    # 规划与 Gap 分析文档
+```
 
+## 技术栈
 
-java语言的基于springboot的极简的后台权限管理系统，可视化配置后台权限,精确控制每个用户每个菜单的权限。
+| 层 | 技术 |
+|---|---|
+| 后端 | Java 17、Spring Boot 3.5.14、MyBatis-Plus 3.5.14、MySQL 8.0、Flyway、Druid、JWT (jjwt) |
+| 实时通信 | MQTT（mica-mqtt 内置 Broker）、WebSocket |
+| 文件存储 | MinIO（S3 协议）/ 阿里云 OSS / 本地磁盘，可配置切换 |
+| 前端 | Flutter 3.41+、Dart、BLoC、Dio、GoRouter、GetIt/Injectable |
+| 本地缓存 | SQLite |
 
-已完成
-- 1.用户管理 
-- 2.角色管理 
-- 3.部门管理 
-- 4.菜单管理 
-- 5.权限管理 
-- 基于拦截器实现的权限管理
-- 6.登录日志（自定义注解，实现登录日志）
-待完成
-1.字典管理 2.业务日志 3.代码生成
+## 功能
 
-创建项目的那天，天空飘着雪。
-#### 软件架构
-软件架构说明
-springboot
-layui
-mybatisplus
+- 用户注册 / 登录 / 邮箱验证码 / 忘记密码
+- 好友管理：添加、备注、删除；好友请求（同意 / 拒绝）
+- 群聊：创建群、群成员管理、群消息广播
+- 实时消息：私聊 / 群聊，文本、图片、视频、文件
+- 消息撤回、已读回执
+- 离线消息投递（MQTT 离线 + 重新上线补发）
+- 会话列表与未读数管理
+- 文件上传 / 下载（MinIO / OSS / 本地磁盘三选一）
+- 图片查看器、聊天记录搜索、全局搜索
+- 多语言（l10n）
 
-#### 安装教程
+## 快速开始
 
-1. git 导出项目
-git clone git@gitee.com:stylesmile/snow.git
+### 环境要求
 
-2. 安装数据库 数据库sql在/db文件夹下
-创建数据库，用utf8mb4
+- JDK 17+（JDK 23+ 下 Lombok 需要 ≥ 1.18.48，本项目已锁定 1.18.48 并在 maven-compiler-plugin 配置了 `-proc:full`，JDK 17 和 JDK 26 均可正常编译）
+- Maven 3.6+
+- MySQL 8.0+
+- Flutter 3.41+（Android / iOS / macOS / Windows / Linux）
 
-#2. 编译
-最外层的pom.xml编译一下，会编译所有之项目
+### 1. 数据库
 
-maven install
-#3. 运行
-打开snow-system\src\main\java\com\stylesmile\SnowApplication.java
-idea 搜索文件快捷键: Ctrl+Shift+N
-右键 点击run SnowApplication.main()运行，
-#### 使用说明
+```bash
+mysql -u root -p
+CREATE DATABASE snow_chat_im CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+```
 
+Flyway 会自动执行迁移脚本（`snow-im-api/src/main/resources/db/migration/V1~V5`），无需手动导入 SQL。
 
-默认密码 admin 123456
+### 2. 配置
 
-#### 技术说明
-springboot2 最流行的java技术
-druid数据源 强大的监控特性,多维度的统计和分析功能
-mybatis  灵活，学习成本低的持久层框架
-spring-cache 减少数据库查询操作，大幅度降低服务器压力
+编辑 `snow-im-api/src/main/resources/application-dev.yml`：
 
+```yaml
+server:
+  port: 8091
 
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/snow_chat_im?useUnicode=true&characterEncoding=UTF-8&useSSL=false
+    username: root
+    password: your_password
 
-Words 'chat' and 'instant messaging' in Chinese, Russian, Persian and a few other languages.
+mqtt:
+  broker-url: tcp://127.0.0.1:1883
+```
 
-聊天室 即時通訊
-чат мессенджер
-インスタントメッセージ
-인스턴트 메신저
-پیام رسان فوری
-تراسل فوري
-فوری پیغام رسانی
-Nhắn tin tức thời
-anlık mesajlaşma sohbet
-mensageiro instantâneo
-pesan instan
-mensajería instantánea
-চ্যাট ইন্সট্যান্ট মেসেজিং
-चैट त्वरित संदेश
-তাৎক্ষণিক বার্তা আদান প্রদান
+MQTT Broker 由 mica-mqtt 内置，无需单独部署（默认监听 1883）。
+
+### 3. 构建并启动后端
+
+```bash
+cd snow-chat-im-backend
+mvn clean install -DskipTests     # 首次编译
+mvn package -pl snow-im-api       # 打包
+java -jar snow-im-api/target/snow-im-api-*.jar --spring.profiles.active=dev
+```
+
+启动后 REST API 监听 `8091`，MQTT 监听 `1883`。
+
+### 4. 运行 Flutter 客户端
+
+```bash
+cd snow-chat-flutter
+flutter pub get
+# 配置后端 / MQTT 地址（通过构建参数或修改 lib/config/config.dart）
+flutter run
+```
+
+常用平台：
+
+```bash
+flutter run -d android
+flutter run -d ios
+flutter run -d macos
+```
+
+## 测试
+
+### 后端（184 个用例）
+
+```bash
+cd snow-chat-im-backend/snow-im-api
+mvn test
+```
+
+### Flutter 客户端
+
+```bash
+cd snow-chat-flutter
+flutter test
+```
+
+## 文档
+
+| 文档 | 说明 |
+|---|---|
+| [docs/architecture.md](docs/architecture.md) | 系统架构（模块划分、MQTT 组件、实体类） |
+| [docs/message-flow.md](docs/message-flow.md) | 消息流转（私聊 / 群聊 / 离线） |
+| [docs/database-design.md](docs/database-design.md) | 数据库设计与 ER 图 |
+| [docs/api-reference.md](docs/api-reference.md) | REST API 与 MQTT 协议 |
+| [docs/deployment-guide.md](docs/deployment-guide.md) | 部署指南（含 MinIO Docker） |
+| [docs/docker-mysql.md](docs/docker-mysql.md) | MySQL Docker 快速启动 |
+| [docs/security-guide.md](docs/security-guide.md) | 安全指南 |
+| [docs/testing-guide.md](docs/testing-guide.md) | 测试指南 |
+| [docs/flutter-architecture.md](docs/flutter-architecture.md) | Flutter 端架构 |
+| [plans/tangdaodao-gap-analysis.md](plans/tangdaodao-gap-analysis.md) | 功能 Gap 分析 |
+
+## 相关项目
+
+- [with-chat](https://gitee.com/stylesmile/with-chat) — Flutter 聊天客户端（BLoC 架构）
+
+## License
+
+MIT
