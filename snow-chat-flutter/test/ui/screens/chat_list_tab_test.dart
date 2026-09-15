@@ -86,4 +86,55 @@ void main() {
     expect(FriendRequestProvider.friendListVersion.hasListeners, isFalse,
         reason: 'dispose 后 friendListVersion 不应残留监听');
   });
+
+  testWidgets('切换 Tab 再切回不应重建 State（保持会话列表不重新渲染）', (tester) async {
+    // 准备：用 TabBarView 承载 ChatListTab，模拟底部导航的左右切换
+    final controller = TabController(length: 2, vsync: tester);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<AuthProvider>.value(value: auth),
+          ChangeNotifierProvider<ChatProvider>(create: (_) => ChatProvider()),
+          ChangeNotifierProvider<FriendRequestProvider>.value(
+            value: friendRequestProvider,
+          ),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [Locale('zh'), Locale('en')],
+          locale: const Locale('zh'),
+          home: Scaffold(
+            body: TabBarView(
+              controller: controller,
+              children: const [ChatListTab(), SizedBox()],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    // 记录当前（第一个 tab）ChatListTab 的 State 实例
+    final stateBefore =
+        tester.state<State<ChatListTab>>(find.byType(ChatListTab).first);
+
+    // 执行：切到第二个 tab，再切回去
+    controller.animateTo(1);
+    await tester.pumpAndSettle();
+    controller.animateTo(0);
+    await tester.pumpAndSettle();
+
+    // 验证：切回后仍是同一个 State（keep-alive），
+    // 没有走 initState 重新加载会话（否则会出现 loading 闪屏）
+    final stateAfter =
+        tester.state<State<ChatListTab>>(find.byType(ChatListTab).first);
+    expect(identical(stateBefore, stateAfter), isTrue,
+        reason: '切换 Tab 后 ChatListTab 应保留原 State，避免重新渲染');
+  });
 }

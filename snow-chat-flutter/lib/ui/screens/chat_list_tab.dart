@@ -27,12 +27,17 @@ class ChatListTab extends StatefulWidget {
   State<ChatListTab> createState() => _ChatListTabState();
 }
 
-class _ChatListTabState extends State<ChatListTab> {
+class _ChatListTabState extends State<ChatListTab> with AutomaticKeepAliveClientMixin {
   bool _isLoading = true;
   /// 好友 userId -> 会话显示名（**备注优先，其次昵称**，与通讯录列表口径一致）
   final Map<int, String> _friendNames = {};
   /// 好友 userId -> 头像地址，用于在会话列表里展示真实头像
   final Map<int, String> _friendAvatars = {};
+
+  // 保持会话列表页存活：在 TabBarView 里切换 tab 时不销毁、不重建，
+  // 从而避免每次回到「聊天」都重新 initState 加载会话出现闪屏（与通讯录页一致）。
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -232,6 +237,9 @@ class _ChatListTabState extends State<ChatListTab> {
 
   @override
   Widget build(BuildContext context) {
+    // 必须先调用父类 build 以注册 keep-alive 请求（配合 wantKeepAlive），
+    // 否则 AutomaticKeepAliveClientMixin 不会真正让 TabBarView 保留本页
+    super.build(context);
     final l10n = AppLocalizations.of(context)!;
     final chatProvider = context.watch<ChatProvider>();
     final conversations = chatProvider.conversations;
