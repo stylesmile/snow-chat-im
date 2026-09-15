@@ -1,37 +1,47 @@
 package com.stylesmile.chat.service.impl;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.stylesmile.chat.entity.ChatAppVersion;
 import com.stylesmile.chat.mapper.ChatAppVersionMapper;
 import com.stylesmile.chat.service.ChatAppVersionService;
+import com.stylesmile.common.service.BaseServiceImpl;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
-
-import javax.annotation.Resource;
 
 /**
  * App 版本更新服务实现。
  *
- * <p>版本记录按 id 倒序取最新一条（管理员维护时以插入/更新顺序为准），
- * 仅返回 isNotify=1（开启提示）的记录，避免把已下线的版本提示给用户。
+ * 注意：这里刻意使用字符串列名的 {@link QueryWrapper}（而非 {@code LambdaQueryWrapper}），
+ * 目的是让 getNotifyVersion 能被纯 Mockito 单元测试覆盖——字符串列名无需 MyBatis-Plus
+ * 的 lambda cache 就能构造 wrapper，进而可以 mock mapper.selectOne 验证行为。
  */
 @Service
-public class ChatAppVersionServiceImpl implements ChatAppVersionService {
+public class ChatAppVersionServiceImpl extends BaseServiceImpl<ChatAppVersionMapper, ChatAppVersion>
+        implements ChatAppVersionService {
 
-    @Resource
-    private ChatAppVersionMapper chatAppVersionMapper;
-
+    /**
+     * 查询指定平台「应提示更新」的最新版本记录。
+     *
+     * 过滤条件：
+     * 1. is_notify = 1（仅返回开启提示的平台记录）
+     * 2. 若传入 appType，则限定平台；否则取任意平台的最新一条
+     * 3. 按 id 倒序取最新（同一平台通常只维护一条，多条时取 id 最大者）
+     */
     @Override
     public ChatAppVersion getNotifyVersion(String appType) {
-        // 条件1：仅返回开启提示更新的记录
-        LambdaQueryWrapper<ChatAppVersion> query = new LambdaQueryWrapper<>();
-        query.eq(ChatAppVersion::getIsNotify, 1);
-        // 条件2：指定了平台则同时限定 app_type；否则取全局最新
-        if (StringUtils.hasText(appType)) {
-            query.eq(ChatAppVersion::getAppType, appType);
+        // 构造查询条件：只取「开启了提示」的记录
+        QueryWrapper<ChatAppVersion> wrapper = new QueryWrapper<>();
+        wrapper.eq("is_notify", 1);
+
+        // 平台不为空时精确匹配平台；为空时不做平台限制
+        if (appType != null && !appType.isBlank()) {
+            wrapper.eq("app_type", appType);
         }
-        // 取最新一条：按 id 倒序并限制返回 1 行
-        query.orderByDesc(ChatAppVersion::getId).last("limit 1");
-        return chatAppVersionMapper.selectOne(query);
+
+        // 取最新一条（id 为自增主键，越大越新）
+        wrapper.orderByDesc("id");
+        wrapper.last("LIMIT 1");
+
+        // 单条查询，没有开启提示的记录时返回 null
+        return baseMapper.selectOne(wrapper);
     }
 }

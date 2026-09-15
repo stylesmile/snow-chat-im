@@ -1,17 +1,18 @@
 package com.stylesmile.chat.service;
 
 import com.stylesmile.chat.entity.ChatAppVersion;
+import com.stylesmile.common.service.BaseService;
 
 /**
  * App 版本更新服务。
  */
-public interface ChatAppVersionService {
+public interface ChatAppVersionService extends BaseService<ChatAppVersion> {
 
     /**
-     * 获取应提示更新的最新版本记录。
+     * 查询指定平台「应提示更新」的最新版本记录。
      *
-     * @param appType 平台（android/ios/desktop）；为空则不限定平台，返回最新一条
-     * @return 最新且 isNotify=1 的版本记录；无匹配时返回 null
+     * @param appType 平台：android/ios/desktop；为空时查询任意平台的最新一条
+     * @return 版本记录；没有开启提示的记录时返回 null
      */
     ChatAppVersion getNotifyVersion(String appType);
 }

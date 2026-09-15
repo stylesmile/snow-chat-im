@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
@@ -12,6 +15,8 @@ import '../../services/conversation_service.dart';
 import '../../services/group_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/notification_policy.dart';
+import '../../services/app_version_service.dart';
+import '../../utils/app_version.dart';
 import '../../config/config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/constants/ws_cmd.dart';
@@ -104,6 +109,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       }
       // 登录成功且首页首次出现即初始化通知服务并处理「首次打开提醒开启权限」
       _setupNotifications();
+      // 每次打开首页即检查是否有新版本，有则弹窗提示更新（静默失败）
+      _checkAppVersion();
     }
   }
 
@@ -186,7 +193,88 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  /// 初始化并连接全局 MQTT（登录时调用一次）
+  /// 启动时检查是否有新版本：拉取服务端最新可提示版本并比对当前版本。
+///
+/// 流程：
+/// 1. 用 package_info_plus 读取本地当前版本（读不到则跳过，避免逻辑误判）
+/// 2. 按平台调用 AppVersionService 拉取服务端应提示的最新版本
+/// 3. 仅当服务端版本更新 且 开启了提示 且 下载地址非空 时才弹更新对话框
+/// 4. 用户点「立即更新」用系统浏览器打开 downloadUrl
+/// 版本检查属增强能力，任何异常都静默降级，不影响 App 启动主流程。
+Future<void> _checkAppVersion() async {
+  try {
+    // 读取本机当前版本号，用作与服务端的比较基准
+    final info = await PackageInfo.fromPlatform();
+    final current = info.version;
+    final appType = _currentPlatformType();
+    // 拉取服务端应提示的最新版本；未开启提示/无地址时服务端返回空
+    final latest = await AppVersionService().fetchLatest(appType: appType);
+    // 用纯函数判定是否该弹窗（非空、开启提示、有地址、且比当前新）
+    if (!shouldShowUpdate(latest, current)) return;
+    // shouldShowUpdate 已保证 latest 非空，但函数调用不会提升可空性，这里显式判空
+    if (latest == null) return;
+    if (!mounted) return;
+    _showUpdateDialog(latest);
+  } catch (e) {
+    // 版本检查失败不应阻塞或崩溃，仅记录日志
+    debugPrint('[Home] version check skipped: $e');
+  }
+}
+
+/// 返回当前运行时平台的 appType：android/ios，其余（macos/windows/linux）统一 desktop。
+String _currentPlatformType() {
+  if (Platform.isAndroid) return 'android';
+  if (Platform.isIOS) return 'ios';
+  return 'desktop';
+}
+
+/// 弹出版本更新提示对话框，提供「以后再说」与「立即更新」两个动作。
+void _showUpdateDialog(AppVersion latest) {
+  // 与通知引导弹窗风格一致：近黑底、白标题、灰 body，匹配 App 深色主题
+  showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (dialogContext) => AlertDialog(
+      backgroundColor: const Color(0xFF1E1E1E),
+      title: const Text('发现新版本', style: TextStyle(color: Colors.white)),
+      content: Text(
+        // 说明文案：目标版本号 + 后端配置的更新说明
+        '当前版本可升级至 ${latest.version}\n${latest.updateMessage}',
+        style: const TextStyle(color: Colors.white70),
+      ),
+      actions: [
+        // 暂不更新：仅关闭弹窗，下次启动仍会再次提示
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('以后再说', style: TextStyle(color: Colors.grey)),
+        ),
+        // 立即更新：关闭弹窗后调用系统浏览器打开下载/跳转地址
+        TextButton(
+          onPressed: () {
+            Navigator.pop(dialogContext);
+            _openUpdateUrl(latest.downloadUrl);
+          },
+          child: const Text('立即更新', style: TextStyle(color: Colors.white)),
+        ),
+      ],
+    ),
+  );
+}
+
+/// 用系统浏览器打开下载地址；打不开时仅记录日志。
+Future<void> _openUpdateUrl(String url) async {
+  try {
+    final ok = await launchUrl(
+      Uri.parse(url),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!ok) debugPrint('[Home] open update url failed: $url');
+  } catch (e) {
+    debugPrint('[Home] open update url error: $e');
+  }
+}
+
+/// 初始化并连接全局 MQTT（登录时调用一次）
   void _initMqtt(int userId) {
     _mqttClient = MqttChatClient(
       host: AppConfig.mqttHost,

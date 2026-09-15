@@ -17,10 +17,10 @@ import static org.mockito.Mockito.when;
 /**
  * ChatAppVersionController 单元测试。
  *
- * <p>说明：ChatAppVersionServiceImpl 内部使用 MyBatisPlus 的 LambdaQueryWrapper
- * （需要 MyBatisPlus lambda cache 上下文），无法在纯 Mockito 中初始化，
- * 其「取最新 / isNotify 过滤」逻辑由集成测试与启动时 Flyway 迁移验证，
- * 此处聚焦 controller 正确的参数透传与 Result 包裹。
+ * 验证：
+ * 1. version 接口把客户端传入的 appType 透传给服务层
+ * 2. 服务层返回的记录被包进 Result 返回给前端
+ * 3. 服务层返回 null（无提示记录）时,Result 的 data 为 null
  */
 @ExtendWith(MockitoExtension.class)
 class ChatAppVersionControllerTest {
@@ -32,42 +32,48 @@ class ChatAppVersionControllerTest {
     private ChatAppVersionController controller;
 
     @Test
-    void returnsLatestNotifyVersionWhenQueriedWithoutAppType() {
-        // 准备 - 服务端返回一条提示更新的版本记录
+    void versionReturnsLatestNotifyRecordAndForwardsAppType() {
+        // 准备 - 服务层返回一条 android 平台的可提示版本
         ChatAppVersion version = new ChatAppVersion();
+        version.setAppType("android");
         version.setVersion("2.1.0");
-        version.setDownloadUrl("https://download.example.com/app.apk");
-        when(chatAppVersionService.getNotifyVersion(null)).thenReturn(version);
+        version.setDownloadUrl("https://dl.test/app.apk");
+        version.setIsNotify(1);
+        when(chatAppVersionService.getNotifyVersion("android")).thenReturn(version);
 
-        // 执行 - 不带 appType 查询
-        Result<ChatAppVersion> result = controller.version(null);
+        // 执行 - 携带 appType=android 调用接口
+        Result<ChatAppVersion> result = controller.version("android");
 
-        // 验证 - 成功包裹且透传服务端返回的实体
+        // 验证 - 透传 appType，且记录被包进 Result.data
+        verify(chatAppVersionService).getNotifyVersion("android");
         assertEquals("200", result.getCode());
-        assertEquals(version, result.getData());
+        assertEquals("2.1.0", result.getData().getVersion());
+        assertEquals("https://dl.test/app.apk", result.getData().getDownloadUrl());
     }
 
     @Test
-    void passesAppTypeThroughToService() {
-        // 准备 - 按平台查
-        when(chatAppVersionService.getNotifyVersion("android")).thenReturn(new ChatAppVersion());
+    void versionReturnsNullDataWhenNoNotifyRecord() {
+        // 准备 - 服务层返回 null（该平台未开启提示或有记录但无可提示的）
+        when(chatAppVersionService.getNotifyVersion("ios")).thenReturn(null);
 
         // 执行
-        controller.version("android");
+        Result<ChatAppVersion> result = controller.version("ios");
 
-        // 验证 - appType 正确下发到 service 层
-        verify(chatAppVersionService).getNotifyVersion("android");
+        // 验证 - data 为 null，前端据此判断"无需弹窗"
+        assertEquals("200", result.getCode());
+        assertNull(result.getData());
     }
 
     @Test
-    void returnsNullDataWhenServiceHasNoMatch() {
-        // 准备 - 无匹配（当前已是最新，或未开启提示）
+    void versionForwardsNullAppTypeWhenNotProvided() {
+        // 准备 - appType 为空时服务层取任意平台最新一条
         when(chatAppVersionService.getNotifyVersion(null)).thenReturn(null);
 
-        // 执行
+        // 执行 - 不传 appType
         Result<ChatAppVersion> result = controller.version(null);
 
-        // 验证 - code 仍成功，data 为 null（前端据此判断无需更新）
+        // 验证 - 以 null 传递，不报参数错误
+        verify(chatAppVersionService).getNotifyVersion(null);
         assertEquals("200", result.getCode());
         assertNull(result.getData());
     }

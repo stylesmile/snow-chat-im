@@ -1,7 +1,7 @@
 name: snow_chat
 description: A real-time chat application.
 publish_to: 'none'
-version: 2.0.8
+version: 2.0.9
 
 environment:
   sdk: '>=3.2.0 <4.0.0'
@@ -25,6 +25,9 @@ dependencies:
   
   # Network
   dio: ^5.4.0
+
+  # Launch external URL (版本更新打开浏览器)
+  url_launcher: ^6.3.0
   
   # Multimedia
   wechat_assets_picker: ^9.5.0

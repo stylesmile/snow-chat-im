@@ -7,8 +7,8 @@ import org.apache.ibatis.annotations.Mapper;
 /**
  * App 版本更新 mapper。
  *
- * <p>普通单表查询走 MyBatis-Plus BaseMapper 即可满足（取最新一条、按平台过滤，
- * 均可由 LambdaQueryWrapper 完成），无需自定义 SQL。
+ * 基于 BaseMapper 提供通用的增删改查（这里仅需要查询，无需自定义 SQL），
+ * 由 MyBatis-Plus 自动生成 CRUD 方法。
  */
 @Mapper
 public interface ChatAppVersionMapper extends BaseMapper<ChatAppVersion> {
