@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -177,32 +176,49 @@ class ImageLoader {
   }
 
   /// 默认下载实现：dio 拉取字节，异常时返回 null（UI 展示失败占位）
+  ///
+  /// 通过「多次尝试 + 延时重试」增强对弱网/跨境慢连接的鲁棒性：一次
+  /// 连接超时后稍作等待重试，往往可成功；仍失败则返回 null 交给 UI 兜底。
   static Future<Uint8List?> _dioFetch(String url) async {
     // 打印开始，便于在设备日志中定位下载是否真正发起
     debugPrint('[ImageLoader] downloading: ${url.length > 80 ? '${url.substring(0, 80)}...' : url}');
-    try {
-      final dio = Dio();
-      final resp = await dio.get<List<int>>(
-        url,
-        options: Options(
-          responseType: ResponseType.bytes,
-          // 缩短超时，避免网络挂起导致占位长时间转圈（可点击重试）
-          connectTimeout: const Duration(seconds: 8),
-          receiveTimeout: const Duration(seconds: 8),
-          followRedirects: true,
-        ),
-      );
-      final data = resp.data;
-      if (data == null || data.isEmpty) {
-        debugPrint('[ImageLoader] empty body for $url');
-        return null;
+    // 最多尝试 3 次，每次间隔递增，缓解瞬时网络抖动
+    const maxAttempts = 3;
+    var lastError = '';
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      // 连接超时给足裕量：OSS 跨境/非大陆连接建立常需数秒
+      const connectTimeout = Duration(seconds: 20);
+      // 接收（下载正文）超时，避免超慢响应耗尽内存窗口
+      const receiveTimeout = Duration(seconds: 25);
+      try {
+        final dio = Dio();
+        final resp = await dio.get<List<int>>(
+          url,
+          options: Options(
+            responseType: ResponseType.bytes,
+            connectTimeout: connectTimeout,
+            receiveTimeout: receiveTimeout,
+            followRedirects: true,
+          ),
+        );
+        final data = resp.data;
+        if (data == null || data.isEmpty) {
+          lastError = 'empty body';
+        } else {
+          debugPrint('[ImageLoader] downloaded ${data.length} bytes for $url');
+          return Uint8List.fromList(data);
+        }
+      } catch (e) {
+        lastError = '${e.runtimeType}: $e';
+        debugPrint('[ImageLoader] attempt $attempt/$maxAttempts failed for $url: $lastError');
       }
-      debugPrint('[ImageLoader] downloaded ${data.length} bytes for $url');
-      return Uint8List.fromList(data);
-    } catch (e) {
-      // 打印具体异常，便于在无日志真机上区分网络不可达/超时/解码问题
-      debugPrint('[ImageLoader] fetch failed for $url: ${e.runtimeType}: $e');
-      return null;
+      // 前几次失败后延时重试（指数式等待），最后一次不再等待
+      if (attempt < maxAttempts) {
+        await Future<void>.delayed(Duration(seconds: attempt));
+      }
     }
+    // 全部尝试失败，返回 null 由 UI 展示失败占位，等待用户点击重试
+    debugPrint('[ImageLoader] fetch failed after $maxAttempts attempts: $lastError');
+    return null;
   }
 }
