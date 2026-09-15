@@ -11,6 +11,7 @@ import 'sqlite_browser_screen.dart';
 import 'chat_background_screen.dart';
 import '../../services/cache_cleaner.dart';
 import '../../services/notification_service.dart';
+import '../../core/theme/app_theme.dart';
 
 /// 设置页面（从个人中心"设置"入口进入）
 ///
@@ -100,7 +101,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       children: [
         // 聊天背景入口：进入独立设置页（选图/恢复默认）
         ListTile(
-          leading: const Icon(Icons.wallpaper, color: Colors.grey, size: 24),
+          leading: const Icon(Icons.wallpaper, color: AppTheme.accent, size: 24),
           title: Text(
             l10n.chatBackground,
             style: const TextStyle(color: Colors.white, fontSize: 16),
@@ -116,7 +117,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         const Divider(height: 1, indent: 56, color: Color(0x0FFFFFFF)),
         // 清理缓存入口：计算并清理临时/图片缓存
         ListTile(
-          leading: const Icon(Icons.cleaning_services_outlined, color: Colors.grey, size: 24),
+          leading: const Icon(Icons.cleaning_services_outlined, color: AppTheme.accent, size: 24),
           title: Text(
             l10n.clearCache,
             style: const TextStyle(color: Colors.white, fontSize: 16),
@@ -200,7 +201,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       children: [
         // 新消息通知总开关
         SwitchListTile(
-          secondary: const Icon(Icons.notifications_active_outlined, color: Colors.grey, size: 24),
+          secondary: const Icon(Icons.notifications_active_outlined, color: AppTheme.accent, size: 24),
           title: const Text('新消息通知', style: TextStyle(color: Colors.white, fontSize: 16)),
           value: masterOn,
           activeThumbColor: Theme.of(context).colorScheme.primary,
@@ -209,7 +210,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         const Divider(height: 1, indent: 56, color: Color(0x0FFFFFFF)),
         // 提示音开关
         SwitchListTile(
-          secondary: const Icon(Icons.volume_up_outlined, color: Colors.grey, size: 24),
+          secondary: const Icon(Icons.volume_up_outlined, color: AppTheme.accent, size: 24),
           title: Text(
             '通知提示音',
             style: TextStyle(color: masterOn ? Colors.white : Colors.white30, fontSize: 16),
@@ -223,7 +224,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         const Divider(height: 1, indent: 56, color: Color(0x0FFFFFFF)),
         // 震动开关
         SwitchListTile(
-          secondary: const Icon(Icons.vibration, color: Colors.grey, size: 24),
+          secondary: const Icon(Icons.vibration, color: AppTheme.accent, size: 24),
           title: Text(
             '通知震动',
             style: TextStyle(color: masterOn ? Colors.white : Colors.white30, fontSize: 16),
