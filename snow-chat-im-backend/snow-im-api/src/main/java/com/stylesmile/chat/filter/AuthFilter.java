@@ -28,7 +28,8 @@ public class AuthFilter implements Filter {
             "/chat/user/register",
             "/chat/user/send/email/code",
             "/chat/user/verify/code",
-            "/chat/user/reset/password"
+            "/chat/user/reset/password",
+            "/chat/app/version"
     );
 
     private final ObjectMapper objectMapper = new ObjectMapper();
