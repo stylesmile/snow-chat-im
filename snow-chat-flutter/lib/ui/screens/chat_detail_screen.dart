@@ -1271,25 +1271,26 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     errorBuilder: (_, __, ___) =>
                         _mediaPlaceholder(Icons.broken_image),
                   )
-                : FutureBuilder<Uint8List?>(
-                    // 统一走 ImageLoader：dio 确定性加载 + 内存缓存 + 并发去重。
-                    // 彻底绕开 cached_network_image 在部分安卓环境下
-                    // "既不成功也不报错"的网络挂起问题。
-                    future: ImageLoader.fetch(msg.content),
+                : FutureBuilder<String?>(
+                    // 本地磁盘缓存方案：首次收到图片时下载到应用缓存目录，
+                    // 之后（含重启 App、重进聊天页）直接读本地文件渲染，
+                    // 不再每次进入聊天页面都重复下载。
+                    future: ImageLoader.localPath(msg.content),
                     builder: (context, snap) {
-                      // 加载中：显示等待占位，保持气泡尺寸稳定
+                      // 本地文件准备中：显示等待占位，保持气泡尺寸稳定
                       if (snap.connectionState == ConnectionState.waiting) {
                         return _mediaPlaceholder(Icons.image);
                       }
-                      final bytes = snap.data ?? Uint8List(0);
-                      // 下载失败 / 空响应：给出可点击重试的失败占位
-                      if (bytes.isEmpty) {
+                      final localPath = snap.data;
+                      // 下载/落盘失败：给出可点击重试的失败占位
+                      if (localPath == null) {
                         return _imageLoadFailedPlaceholder(msg.content);
                       }
-                      // 渲染内存图；cacheWidth 在解码期缩图，
-                      // 避免高像素原图解码占用过多内存（OOM）
-                      return Image.memory(
-                        bytes,
+                      // 本地文件渲染：Image.file 走系统解码，彻底绕开
+                      // Image.network / cached_network_image 的挂起问题；
+                      // cacheWidth 在解码期缩图，避免高像素原图 OOM
+                      return Image.file(
+                        File(localPath),
                         width: 180,
                         fit: BoxFit.cover,
                         cacheWidth: 360,
@@ -1398,14 +1399,15 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
 
   /// 图片加载失败占位：清晰标注失败，点击可重试下载。
   ///
-  /// 重试逻辑：清除该 URL 的内存缓存后触发重建，FutureBuilder 会
-  /// 以新的 Future 重新下载（见 [ImageLoader.fetch] / [ImageLoader.clear]）。
+  /// 重试逻辑：清除该 URL 的本地缓存（内存 + 磁盘）后触发重建，
+  /// FutureBuilder 会以新的 Future 重新下载并落盘
+  /// （见 [ImageLoader.localPath] / [ImageLoader.clear]）。
   Widget _imageLoadFailedPlaceholder(String url) {
     return GestureDetector(
-      // 点击清除该 URL 缓存并重建，重新触发下载
-      onTap: () {
-        ImageLoader.clear(url);
-        setState(() {});
+      // 点击清除该 URL 本地缓存并重建，重新触发下载
+      onTap: () async {
+        await ImageLoader.clear(url);
+        if (mounted) setState(() {});
       },
       child: _mediaPlaceholder(
         Icons.broken_image,

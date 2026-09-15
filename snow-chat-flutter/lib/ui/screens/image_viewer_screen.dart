@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:gal/gal.dart';
+import '../../services/image_loader.dart';
 
 /// 图片保存函数签名，便于测试注入替身（避免在测试中触发真实相册插件）
 typedef SaveImageCallback = Future<bool> Function(Uint8List bytes);
@@ -85,13 +87,27 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
         errorBuilder: (_, __, ___) => _errorPlaceholder(),
       );
     }
-    // 网络 URL：通过缓存网络图片展示并带加载占位
-    return Image.network(
-      content,
-      fit: BoxFit.contain,
-      loadingBuilder: (_, child, progress) =>
-          progress == null ? child : _loadingPlaceholder(),
-      errorBuilder: (_, __, ___) => _errorPlaceholder(),
+    // 网络 URL：走本地磁盘缓存——与聊天气泡共用同一份缓存文件，
+    // 气泡已下载过的图在大图页直接读本地，不再重复下载
+    return FutureBuilder<String?>(
+      future: ImageLoader.localPath(content),
+      builder: (context, snap) {
+        // 本地文件准备中：显示加载占位
+        if (snap.connectionState != ConnectionState.done) {
+          return _loadingPlaceholder();
+        }
+        final localPath = snap.data;
+        // 下载/落盘失败：显示错误占位
+        if (localPath == null) {
+          return _errorPlaceholder();
+        }
+        // 本地文件渲染，避免 Image.network 在部分设备上的挂起问题
+        return Image.file(
+          File(localPath),
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => _errorPlaceholder(),
+        );
+      },
     );
   }
 
@@ -123,7 +139,12 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
     if (content.startsWith('data:')) {
       return base64Decode(content.split(',').last);
     }
-    // 网络图片：下载并返回字节内容
+    // 优先读本地缓存文件（气泡/大图页已下载过则零网络开销）
+    final localPath = await ImageLoader.localPath(content);
+    if (localPath != null) {
+      return File(localPath).readAsBytes();
+    }
+    // 本地缓存不可用时兜底：直接下载并返回字节内容
     final response = await Dio().get<List<int>>(
       content,
       options: Options(responseType: ResponseType.bytes),

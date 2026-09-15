@@ -1,50 +1,101 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:snow_chat/services/image_loader.dart';
 
-/// ImageLoader 下载逻辑的单元测试。
+/// ImageLoader「本地磁盘缓存」加载逻辑的单元测试。
 ///
-/// 背景：cached_network_image 在部分安卓环境下对可访问的 HTTPS 图片
-/// 反复出现加载挂起/失败，且无磁盘之外的兜底。ImageLoader 用可注入的
-/// [BytesFetcher]（默认走 dio）下载字节，提供内存缓存与并发去重，
-/// 上传者/接收者都能用同一套可可靠复现、可测试的加载路径。
+/// 需求：收到聊天图片后下载到本地，预览直接读本地文件，
+/// 每次进入聊天页面不再重复下载（含 App 重启后）。
+/// 通过可注入的 [BytesFetcher] 与 [dirProvider] 隔离网络与文件系统根目录。
 void main() {
-  // 每次测试前清空静态缓存，避免用例间互相污染
-  setUp(ImageLoader.clearCache);
+  late Directory tempRoot;
 
-  test('成功下载时返回字节并只获取一次', () async {
-    // 准备：记录调用次数与返回的假字节
+  setUp(() async {
+    // 每个用例使用独立临时目录，避免互相污染
+    tempRoot = await Directory.systemTemp.createTemp('image_loader_test');
+    ImageLoader.dirProvider = () async => tempRoot;
+    ImageLoader.clearMemoryCache();
+  });
+
+  tearDown(() async {
+    // 恢复默认目录提供者并清理临时目录
+    ImageLoader.resetDirProvider();
+    ImageLoader.clearMemoryCache();
+    if (await tempRoot.exists()) {
+      await tempRoot.delete(recursive: true);
+    }
+  });
+
+  test('首次获取应下载并写入本地文件，返回本地路径', () async {
+    // 准备：假字节与计数 fetcher
     final bytes = Uint8List.fromList([1, 2, 3, 4]);
     var calls = 0;
-    // 注入假 fetcher：第一次返回 bytes，此后不应再被调用
     Future<Uint8List?> fakeFetch(String url) async {
       calls++;
       return bytes;
     }
 
-    // 执行：同一 URL 连续获取两次
-    final first = await ImageLoader.fetch('https://img/1.png', fetcher: fakeFetch);
-    final second = await ImageLoader.fetch('https://img/1.png', fetcher: fakeFetch);
+    // 执行
+    final path = await ImageLoader.localPath('https://img/1.png', fetcher: fakeFetch);
 
-    // 验证：两次都返回同一份字节，但底层只真正下载了一次（命中内存缓存）
-    expect(first, same(bytes));
-    expect(second, same(bytes));
-    expect(calls, 1, reason: '第二次应命中缓存，不再触发下载');
+    // 验证：返回本地路径且文件内容与下载字节一致
+    expect(path, isNotNull);
+    expect(calls, 1);
+    final file = File(path!);
+    expect(await file.exists(), isTrue);
+    expect(await file.readAsBytes(), bytes);
   });
 
-  test('下载失败（返回 null）时返回 null 且不缓存', () async {
-    // 注入假 fetcher：始终失败
+  test('同一 URL 再次获取应命中缓存，不再下载', () async {
+    var calls = 0;
+    Future<Uint8List?> fakeFetch(String url) async {
+      calls++;
+      return Uint8List.fromList([calls]);
+    }
+
+    // 执行：连续获取两次
+    final first = await ImageLoader.localPath('https://img/1.png', fetcher: fakeFetch);
+    final second = await ImageLoader.localPath('https://img/1.png', fetcher: fakeFetch);
+
+    // 验证：路径相同且只下载了一次
+    expect(second, first);
+    expect(calls, 1, reason: '第二次应命中本地缓存，不再触发下载');
+  });
+
+  test('内存缓存清空后仍应从磁盘读取，不重新下载（模拟重启 App）', () async {
+    var calls = 0;
+    Future<Uint8List?> fakeFetch(String url) async {
+      calls++;
+      return Uint8List.fromList([7, 8, 9]);
+    }
+
+    // 首次获取，落盘
+    final first = await ImageLoader.localPath('https://img/a.png', fetcher: fakeFetch);
+    expect(calls, 1);
+
+    // 清空内存缓存，模拟 App 重启后重新进入聊天页
+    ImageLoader.clearMemoryCache();
+    final second = await ImageLoader.localPath('https://img/a.png', fetcher: fakeFetch);
+
+    // 验证：磁盘文件仍在，直接复用，不再下载
+    expect(second, first);
+    expect(calls, 1, reason: '重启后应从磁盘缓存读取，不重复下载');
+  });
+
+  test('下载失败时返回 null 且不写入文件', () async {
     Future<Uint8List?> fakeFetch(String url) async => null;
 
-    final result = await ImageLoader.fetch('https://img/x.png', fetcher: fakeFetch);
+    final path = await ImageLoader.localPath('https://img/x.png', fetcher: fakeFetch);
 
-    // 失败的 URL 不缓存，因此后续仍会重新尝试（不会永久卡住）
-    expect(result, isNull);
+    expect(path, isNull);
+    // 目录下不应产生任何文件
+    final files = await tempRoot.list(recursive: true).toList();
+    expect(files.whereType<File>().length, 0);
   });
 
   test('并发相同 URL 时去重，只发起一次下载', () async {
-    // 准备：用 Completer 模拟一个尚未完成的慢请求
     final completer = Completer<Uint8List?>();
     var calls = 0;
     Future<Uint8List?> fakeFetch(String url) {
@@ -53,36 +104,37 @@ void main() {
     }
 
     // 执行：并发发起两个相同 URL 的请求
-    final f1 = ImageLoader.fetch('https://img/a.png', fetcher: fakeFetch);
-    final f2 = ImageLoader.fetch('https://img/a.png', fetcher: fakeFetch);
+    final f1 = ImageLoader.localPath('https://img/a.png', fetcher: fakeFetch);
+    final f2 = ImageLoader.localPath('https://img/a.png', fetcher: fakeFetch);
 
-    // 验证：重复请求共用同一 Future（未完成前第二发不触发新下载）
-    expect(calls, 1, reason: '进行中的相同请求应被去重');
+    // 放行慢请求并等待两个 Future 完成
+    completer.complete(Uint8List.fromList([9]));
+    final p1 = await f1;
+    final p2 = await f2;
 
-    // 放行并收集结果
-    final payload = Uint8List.fromList([9]);
-    completer.complete(payload);
-    expect(await f1, payload);
-    expect(await f2, payload);
+    // 验证：去重生效——两次请求拿到同一路径，且底层只下载了一次
+    expect(p2, p1);
+    expect(calls, 1, reason: '并发的相同请求应去重，只发起一次下载');
   });
 
-  test('清空缓存后同一 URL 会重新下载', () async {
-    // 准备：每次返回递增的唯一字节，便于区分是否走缓存
+  test('clear 后应删除本地文件，下次获取重新下载', () async {
     var calls = 0;
     Future<Uint8List?> fakeFetch(String url) async {
       calls++;
       return Uint8List.fromList([calls]);
     }
 
-    // 首次获取并缓存
-    final first = await ImageLoader.fetch('https://img/b.png', fetcher: fakeFetch);
-    expect(first!.first, 1);
+    // 首次获取并落盘
+    final first = await ImageLoader.localPath('https://img/b.png', fetcher: fakeFetch);
+    expect(await File(first!).exists(), isTrue);
 
-    // 清空缓存后再次获取
-    ImageLoader.clearCache();
-    final second = await ImageLoader.fetch('https://img/b.png', fetcher: fakeFetch);
+    // 清除该 URL 的本地缓存（用于「点击重试」场景）
+    await ImageLoader.clear('https://img/b.png');
+    expect(await File(first).exists(), isFalse);
 
-    // 验证：清空后重新下载，返回新的字节
-    expect(second!.first, 2);
+    // 再次获取应重新下载
+    final second = await ImageLoader.localPath('https://img/b.png', fetcher: fakeFetch);
+    expect(calls, 2);
+    expect(second, isNotNull);
   });
 }
