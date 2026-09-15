@@ -1,19 +1,25 @@
 PODS:
+  - flutter_local_notifications (0.0.1):
+    - FlutterMacOS
   - FlutterMacOS (1.0.0)
   - record_macos (0.2.0):
     - FlutterMacOS
 
 DEPENDENCIES:
+  - flutter_local_notifications (from `Flutter/ephemeral/.symlinks/plugins/flutter_local_notifications/macos`)
   - FlutterMacOS (from `Flutter/ephemeral`)
   - record_macos (from `Flutter/ephemeral/.symlinks/plugins/record_macos/macos`)
 
 EXTERNAL SOURCES:
+  flutter_local_notifications:
+    :path: Flutter/ephemeral/.symlinks/plugins/flutter_local_notifications/macos
   FlutterMacOS:
     :path: Flutter/ephemeral
   record_macos:
     :path: Flutter/ephemeral/.symlinks/plugins/record_macos/macos
 
 SPEC CHECKSUMS:
+  flutter_local_notifications: 7e5a17a1dbc00d83dc10d43c2c4c05f2ceed233c
   FlutterMacOS: d0db08ddef1a9af05a5ec4b724367152bb0500b1
   record_macos: fcfa993538261e6fdb5b3ce08b82000be6ddec71
 
