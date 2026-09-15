@@ -81,6 +81,10 @@ public class AliyunOssFileStorage implements FileStorage {
         if (contentType != null && !contentType.isBlank()) {
             metadata.setContentType(contentType);
         }
+        // 显式设置 Content-Disposition: inline，覆盖 bucket 级别的「强制下载」设置。
+        // 若不设置，OSS 会返回 Content-Disposition: attachment，导致部分移动端
+        // 图片加载库（如 cached_network_image）无法内联展示图片，出现 broken_image。
+        metadata.setContentDisposition("inline");
         // 执行上传（SDK 内部会消费 inputStream，由调用方负责关闭）
         ossClient.putObject(props.bucket(), fileName, inputStream, metadata);
         // 记录成功日志（只记 key，不记 URL 与凭证）

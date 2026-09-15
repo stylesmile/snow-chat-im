@@ -56,6 +56,8 @@ class AvatarWidget extends StatelessWidget {
           width: size,
           height: size,
           fit: BoxFit.cover,
+          // 限制解码尺寸，避免大图占满内存
+          memCacheWidth: (size * 2).toInt(),
           placeholder: (_, __) => _buildPlaceholder(initials, color, textColor),
           errorWidget: (_, __, ___) => _buildPlaceholder(initials, color, textColor),
         ),

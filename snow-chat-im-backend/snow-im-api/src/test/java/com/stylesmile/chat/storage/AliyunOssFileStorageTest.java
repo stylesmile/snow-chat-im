@@ -102,6 +102,10 @@ class AliyunOssFileStorageTest {
                 "putObject 应设置正确的 contentLength");
         assertEquals("image/jpeg", metadataCaptor.getValue().getContentType(),
                 "putObject 应设置正确的 contentType");
+        // 验证 Content-Disposition 被设为 inline，覆盖 bucket 级别的强制下载，
+        // 否则移动端图片加载库可能因 attachment 头无法内联展示图片
+        assertEquals("inline", metadataCaptor.getValue().getContentDisposition(),
+                "putObject 应设置 Content-Disposition: inline 以支持图片内联展示");
     }
 
     /**

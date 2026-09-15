@@ -1275,10 +1275,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     imageUrl: msg.content,
                     width: 180,
                     fit: BoxFit.cover,
+                    // 限制解码宽度，避免原图（如 1264x2736 RGBA 约 13.8MB）
+                    // 解码时占满内存导致 OOM，表现为 broken_image 占位。
+                    memCacheWidth: 360,
                     // 加载中与失败都给出明确占位，避免气泡塌陷成一条细线
                     placeholder: (_, __) => _mediaPlaceholder(Icons.image),
-                    errorWidget: (_, __, ___) =>
-                        _mediaPlaceholder(Icons.broken_image),
+                    errorWidget: (_, url, error) {
+                      // 打印实际错误，便于排查 OSS 图片加载失败原因
+                      debugPrint('[Chat] image load failed: $url, error: $error');
+                      return _mediaPlaceholder(Icons.broken_image);
+                    },
                   ),
           ),
         ),
