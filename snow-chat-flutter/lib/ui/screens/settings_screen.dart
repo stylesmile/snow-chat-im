@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../providers/settings_provider.dart';
 import '../../providers/auth_provider.dart';
 import 'login_screen.dart';
+import 'language_settings_screen.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'sqlite_browser_screen.dart';
 import 'chat_background_screen.dart';
@@ -204,37 +205,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  /// 构建语言切换 ExpansionTile
+  /// 语言入口：显示当前语言，点击进入独立的语言设置页
   Widget _buildLanguageTile(SettingsProvider settings, AppLocalizations l10n) {
-    return Column(
-      children: [
-        ExpansionTile(
-          leading: const Icon(Icons.language, color: Colors.grey, size: 24),
-          title: Text(
-            l10n.language,
-            style: const TextStyle(color: Colors.white, fontSize: 16),
+    return ListTile(
+      leading: const Icon(Icons.language, color: Colors.grey, size: 24),
+      title: Text(
+        l10n.language,
+        style: const TextStyle(color: Colors.white, fontSize: 16),
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            settings.getLocaleName(settings.locale),
+            style: const TextStyle(color: Colors.grey, fontSize: 13),
           ),
-          children: settings.availableLocales.map((localeInfo) {
-            // 判断当前是否选中该项
-            final isSelected = settings.locale.languageCode == localeInfo.locale.languageCode &&
-                settings.locale.countryCode == localeInfo.locale.countryCode;
-            return RadioListTile<String>(
-              title: Text(
-                '${localeInfo.flag} ${settings.getLocaleName(localeInfo.locale)}',
-                style: const TextStyle(color: Colors.white70),
-              ),
-              value: localeInfo.locale.languageCode,
-              groupValue: isSelected ? settings.locale.languageCode : null,
-              activeColor: Theme.of(context).colorScheme.primary,
-              onChanged: (value) {
-                if (value != null) {
-                  settings.setLocale(localeInfo.locale);
-                }
-              },
-            );
-          }).toList(),
-        ),
-      ],
+          const SizedBox(width: 4),
+          const Icon(Icons.chevron_right, color: Colors.grey, size: 18),
+        ],
+      ),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const LanguageSettingsScreen()),
+        );
+      },
     );
   }
 
