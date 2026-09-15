@@ -71,26 +71,49 @@ class NotificationService {
     }
   }
 
-  /// 显示一条新消息本地通知。
+  /// 构建 Android 通知渠道详情，提示音/震动跟随设置项开关。
   ///
-  /// @param title 通知标题（通常为发送方昵称）
-  /// @param body 通知正文（消息内容摘要）
-  Future<void> showMessageNotification({
-    required String title,
-    required String body,
-  }) async {
-    // 未初始化时直接跳过，避免空指针（正常流程总会先调用 initialize）
-    if (!_initialized) return;
-
-    // Android 渠道详情：默认优先级、显示时间，提示音/震动跟随系统开关
-    const androidDetails = AndroidNotificationDetails(
+  /// 抽成纯函数便于单测：仅根据 [soundEnabled]/[vibrateEnabled] 决定
+  /// `playSound`/`enableVibration`，不依赖平台通道。
+  ///
+  /// @param soundEnabled 是否播放提示音
+  /// @param vibrateEnabled 是否震动提醒
+  static AndroidNotificationDetails buildAndroidDetails({
+    required bool soundEnabled,
+    required bool vibrateEnabled,
+  }) {
+    return AndroidNotificationDetails(
       _channelId,
       _channelName,
       channelDescription: '收到新消息时提醒',
       importance: Importance.defaultImportance,
       priority: Priority.defaultPriority,
+      playSound: soundEnabled,
+      enableVibration: vibrateEnabled,
     );
-    const details = NotificationDetails(android: androidDetails);
+  }
+
+  /// 显示一条新消息本地通知。
+  ///
+  /// @param title 通知标题（通常为发送方昵称）
+  /// @param body 通知正文（消息内容摘要）
+  /// @param soundEnabled 是否播放提示音（跟随设置页「通知提示音」开关）
+  /// @param vibrateEnabled 是否震动提醒（跟随设置页「通知震动」开关）
+  Future<void> showMessageNotification({
+    required String title,
+    required String body,
+    bool soundEnabled = true,
+    bool vibrateEnabled = true,
+  }) async {
+    // 未初始化时直接跳过，避免空指针（正常流程总会先调用 initialize）
+    if (!_initialized) return;
+
+    // 根据设置项开关构建渠道详情：提示音/震动随开关联动
+    final androidDetails = buildAndroidDetails(
+      soundEnabled: soundEnabled,
+      vibrateEnabled: vibrateEnabled,
+    );
+    final details = NotificationDetails(android: androidDetails);
 
     // 使用自增 id，让每条新消息都能独立展示成一条通知
     await _plugin.show(_idCounter++, title, body, details);

@@ -336,9 +336,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   /// 安全地显示一条本地通知，任何异常都仅记录日志而不向上抛出。
   Future<void> _safeShowNotification(String title, String body) async {
     try {
+      // 读取「提示音」「震动」设置项，随开关联动通知的播放/震动行为
+      final settings = context.read<SettingsProvider>();
       await _notificationService!.showMessageNotification(
         title: title,
         body: body,
+        soundEnabled: settings.soundEnabled,
+        vibrateEnabled: settings.vibrateEnabled,
       );
     } catch (e) {
       // 通知属于增强能力，失败不阻塞消息收发主流程
