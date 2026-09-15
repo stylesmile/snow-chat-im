@@ -95,10 +95,11 @@
             <artifactId>hutool-all</artifactId>
         </dependency>
 
-        <!-- Lombok -->
+        <!-- Lombok（JDK 26 下需 1.18.48+） -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
+            <version>1.18.48</version>
             <optional>true</optional>
         </dependency>
 

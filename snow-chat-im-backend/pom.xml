@@ -144,6 +144,12 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <proc>full</proc>
+                    <compilerArgs>
+                        <arg>-proc:full</arg>
+                    </compilerArgs>
+                </configuration>
             </plugin>
         </plugins>
     </build>
