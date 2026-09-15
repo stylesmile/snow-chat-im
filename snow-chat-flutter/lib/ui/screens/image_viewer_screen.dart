@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:gal/gal.dart';
 import '../../services/image_loader.dart';
+import '../../utils/media_url.dart';
 
 /// 图片保存函数签名，便于测试注入替身（避免在测试中触发真实相册插件）
 typedef SaveImageCallback = Future<bool> Function(Uint8List bytes);
@@ -90,7 +91,8 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
     // 网络 URL：走本地磁盘缓存——与聊天气泡共用同一份缓存文件，
     // 气泡已下载过的图在大图页直接读本地，不再重复下载
     return FutureBuilder<String?>(
-      future: ImageLoader.localPath(content),
+      // OSS 直链改写为后端代理地址后下载，适配海外设备无法直连大陆 OSS
+      future: ImageLoader.localPath(MediaUrl.proxyMediaUrl(content)),
       builder: (context, snap) {
         // 本地文件准备中：显示加载占位
         if (snap.connectionState != ConnectionState.done) {
@@ -139,14 +141,16 @@ class _ImageViewerScreenState extends State<ImageViewerScreen> {
     if (content.startsWith('data:')) {
       return base64Decode(content.split(',').last);
     }
+    // 保存前同样改写为代理地址，与展示链路保持一致
+    final proxy = MediaUrl.proxyMediaUrl(content);
     // 优先读本地缓存文件（气泡/大图页已下载过则零网络开销）
-    final localPath = await ImageLoader.localPath(content);
+    final localPath = await ImageLoader.localPath(proxy);
     if (localPath != null) {
       return File(localPath).readAsBytes();
     }
     // 本地缓存不可用时兜底：直接下载并返回字节内容
     final response = await Dio().get<List<int>>(
-      content,
+      proxy,
       options: Options(responseType: ResponseType.bytes),
     );
     return Uint8List.fromList(response.data ?? []);

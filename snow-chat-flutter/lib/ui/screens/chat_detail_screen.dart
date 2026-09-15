@@ -15,6 +15,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/chat_service.dart';
 import '../../services/image_loader.dart';
+import '../../utils/media_url.dart';
 import '../../core/network/mqtt_client.dart';
 import '../../core/constants/ws_cmd.dart';
 import '../../config/config.dart';
@@ -212,8 +213,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   ///
   /// 幂等：已下载的图片命中缓存，不会重复请求。调用方在消息集合变化后调用。
   void _precacheImages() {
+    // 下载前把 OSS 直链改写为后端代理地址，再由 ImageLoader 落盘到本地缓存
     ImageLoader.precache(
-      _messages.where((m) => m.type == 'image').map((m) => m.content),
+      _messages
+          .where((m) => m.type == 'image')
+          .map((m) => MediaUrl.proxyMediaUrl(m.content)),
     );
   }
 
@@ -1293,7 +1297,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     // 本地磁盘缓存方案：首次收到图片时下载到应用缓存目录，
                     // 之后（含重启 App、重进聊天页）直接读本地文件渲染，
                     // 不再每次进入聊天页面都重复下载。
-                    future: ImageLoader.localPath(msg.content),
+                    // OSS 直链改写为后端代理地址后再下载，
+                    // 适配海外设备无法直连大陆 OSS 的场景
+                    future: ImageLoader.localPath(
+                        MediaUrl.proxyMediaUrl(msg.content)),
                     builder: (context, snap) {
                       // 本地文件准备中：显示等待占位，保持气泡尺寸稳定
                       if (snap.connectionState == ConnectionState.waiting) {
@@ -1302,7 +1309,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       final localPath = snap.data;
                       // 下载/落盘失败：给出可点击重试的失败占位
                       if (localPath == null) {
-                        return _imageLoadFailedPlaceholder(msg.content);
+                        return _imageLoadFailedPlaceholder(
+                            MediaUrl.proxyMediaUrl(msg.content));
                       }
                       // 本地文件渲染：Image.file 走系统解码，彻底绕开
                       // Image.network / cached_network_image 的挂起问题；
@@ -1314,7 +1322,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                         cacheWidth: 360,
                         gaplessPlayback: true,
                         errorBuilder: (_, __, ___) =>
-                            _imageLoadFailedPlaceholder(msg.content),
+                            _imageLoadFailedPlaceholder(
+                                MediaUrl.proxyMediaUrl(msg.content)),
                       );
                     },
                   ),
