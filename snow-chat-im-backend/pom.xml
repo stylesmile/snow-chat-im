@@ -33,7 +33,7 @@
     <modules>
 <!--        <module>snow-util</module>-->
         <module>snow-common</module>
-        <module>snow-system</module>
+<!--        <module>snow-system</module>-->
         <module>snow-im-api</module>
     </modules>
 
