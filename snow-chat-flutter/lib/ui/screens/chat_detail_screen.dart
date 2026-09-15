@@ -1275,15 +1275,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     imageUrl: msg.content,
                     width: 180,
                     fit: BoxFit.cover,
-                    // 限制解码宽度，避免原图（如 1264x2736 RGBA 约 13.8MB）
-                    // 解码时占满内存导致 OOM，表现为 broken_image 占位。
+                    // 解码时按 360 宽缩图，避免原图（可能是小体积但高像素，
+                    // 例如 1264x2736 RGBA 解码后约 13.8MB）占满内存导致 OOM，
+                    // 表现为 broken_image 占位。cached_network_image 的
+                    // memCacheWidth 会被映射为解码期 cacheWidth（ResizeImage）。
                     memCacheWidth: 360,
                     // 加载中与失败都给出明确占位，避免气泡塌陷成一条细线
                     placeholder: (_, __) => _mediaPlaceholder(Icons.image),
                     errorWidget: (_, url, error) {
-                      // 打印实际错误，便于排查 OSS 图片加载失败原因
-                      debugPrint('[Chat] image load failed: $url, error: $error');
-                      return _mediaPlaceholder(Icons.broken_image);
+                      // 调试：把真实异常直接显示在占位上，
+                      // 便于在无日志的环境下定位加载失败根因（如 404/握手/OOM）
+                      return _mediaPlaceholder(Icons.broken_image, detail: '$error');
                     },
                   ),
           ),
@@ -1351,13 +1353,35 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     }
   }
 
-  /// 媒体占位图：加载中/失败时保持气泡尺寸稳定
-  Widget _mediaPlaceholder(IconData icon) {
+  /// 媒体占位图：加载中/失败时保持气泡尺寸稳定。
+  ///
+  /// [detail] 非空时在图标下方追加一行小字错误描述，便于无日志环境下
+  /// 直接观察加载失败根因（如 404 / 证书握手 / 解码 OOM）。
+  Widget _mediaPlaceholder(IconData icon, {String? detail}) {
     return Container(
       width: 180,
       height: 140,
       color: const Color(0xFF2C2C2E),
-      child: Icon(icon, color: Colors.white38, size: 32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: Colors.white38, size: 32),
+          if (detail != null && detail.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            // 错误描述缩略显示（单行省略，避免撑破占位）
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Text(
+                detail,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    color: Colors.white38, fontSize: 9),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
