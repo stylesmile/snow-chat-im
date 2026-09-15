@@ -5,6 +5,12 @@
 
     <!-- Media permissions for Android 13+ -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <!-- 视频读取权限：缺失时相册选择器无法读取视频，导致「无法发送视频」 -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <!-- Android 14+ 部分访问权限：用户选择「仅允许部分资源」后，
+         photo_manager 依赖该权限在应用内引导追加授权，
+         缺失时会弹出「无法访问所有资源 / 前往系统设置」拦截页 -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
 
     <!-- Legacy storage permissions for Android 12 and below -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
