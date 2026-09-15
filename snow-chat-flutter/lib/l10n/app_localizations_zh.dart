@@ -635,6 +635,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get uploadFailed => '上传失败';
 
   @override
+  String get imageLoadFailed => '图片加载失败，点击重试';
+
+  @override
   String get voice => '语音';
 
   @override

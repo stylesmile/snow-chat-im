@@ -635,6 +635,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get uploadFailed => 'Upload failed';
 
   @override
+  String get imageLoadFailed => 'Image load failed, tap to retry';
+
+  @override
   String get voice => 'Voice';
 
   @override

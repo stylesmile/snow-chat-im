@@ -397,6 +397,8 @@
   "@uploading": {"description": "Uploading progress hint"},
   "uploadFailed": "Upload failed",
   "@uploadFailed": {"description": "Upload failure hint"},
+  "imageLoadFailed": "Image load failed, tap to retry",
+  "@imageLoadFailed": {"description": "Image load failure placeholder, tap to retry"},
   "voice": "Voice",
   "@voice": {"description": "Voice button tooltip"},
   "voicePermissionDenied": "Microphone permission required to record",

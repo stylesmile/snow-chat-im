@@ -408,6 +408,8 @@
   "@uploading": {"description": "上传中提示"},
   "uploadFailed": "上传失败",
   "@uploadFailed": {"description": "上传失败提示"},
+  "imageLoadFailed": "图片加载失败，点击重试",
+  "@imageLoadFailed": {"description": "图片加载失败占位提示，点击可重试下载"},
   "voice": "语音",
   "@voice": {"description": "语音按钮提示"},
   "voicePermissionDenied": "需要麦克风权限才能录音",

@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:convert';
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:video_player/video_player.dart';
@@ -15,6 +14,7 @@ import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/chat_service.dart';
+import '../../services/image_loader.dart';
 import '../../core/network/mqtt_client.dart';
 import '../../core/constants/ws_cmd.dart';
 import '../../config/config.dart';
@@ -1271,21 +1271,32 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     errorBuilder: (_, __, ___) =>
                         _mediaPlaceholder(Icons.broken_image),
                   )
-                : CachedNetworkImage(
-                    imageUrl: msg.content,
-                    width: 180,
-                    fit: BoxFit.cover,
-                    // 解码时按 360 宽缩图，避免原图（可能是小体积但高像素，
-                    // 例如 1264x2736 RGBA 解码后约 13.8MB）占满内存导致 OOM，
-                    // 表现为 broken_image 占位。cached_network_image 的
-                    // memCacheWidth 会被映射为解码期 cacheWidth（ResizeImage）。
-                    memCacheWidth: 360,
-                    // 加载中与失败都给出明确占位，避免气泡塌陷成一条细线
-                    placeholder: (_, __) => _mediaPlaceholder(Icons.image),
-                    errorWidget: (_, url, error) {
-                      // 调试：把真实异常直接显示在占位上，
-                      // 便于在无日志的环境下定位加载失败根因（如 404/握手/OOM）
-                      return _mediaPlaceholder(Icons.broken_image, detail: '$error');
+                : FutureBuilder<Uint8List?>(
+                    // 统一走 ImageLoader：dio 确定性加载 + 内存缓存 + 并发去重。
+                    // 彻底绕开 cached_network_image 在部分安卓环境下
+                    // "既不成功也不报错"的网络挂起问题。
+                    future: ImageLoader.fetch(msg.content),
+                    builder: (context, snap) {
+                      // 加载中：显示等待占位，保持气泡尺寸稳定
+                      if (snap.connectionState == ConnectionState.waiting) {
+                        return _mediaPlaceholder(Icons.image);
+                      }
+                      final bytes = snap.data ?? Uint8List(0);
+                      // 下载失败 / 空响应：给出可点击重试的失败占位
+                      if (bytes.isEmpty) {
+                        return _imageLoadFailedPlaceholder(msg.content);
+                      }
+                      // 渲染内存图；cacheWidth 在解码期缩图，
+                      // 避免高像素原图解码占用过多内存（OOM）
+                      return Image.memory(
+                        bytes,
+                        width: 180,
+                        fit: BoxFit.cover,
+                        cacheWidth: 360,
+                        gaplessPlayback: true,
+                        errorBuilder: (_, __, ___) =>
+                            _imageLoadFailedPlaceholder(msg.content),
+                      );
                     },
                   ),
           ),
@@ -1375,12 +1386,30 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 detail,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    color: Colors.white38, fontSize: 9),
+                style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.9), fontSize: 11),
               ),
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  /// 图片加载失败占位：清晰标注失败，点击可重试下载。
+  ///
+  /// 重试逻辑：清除该 URL 的内存缓存后触发重建，FutureBuilder 会
+  /// 以新的 Future 重新下载（见 [ImageLoader.fetch] / [ImageLoader.clear]）。
+  Widget _imageLoadFailedPlaceholder(String url) {
+    return GestureDetector(
+      // 点击清除该 URL 缓存并重建，重新触发下载
+      onTap: () {
+        ImageLoader.clear(url);
+        setState(() {});
+      },
+      child: _mediaPlaceholder(
+        Icons.broken_image,
+        detail: AppLocalizations.of(context)!.imageLoadFailed,
       ),
     );
   }

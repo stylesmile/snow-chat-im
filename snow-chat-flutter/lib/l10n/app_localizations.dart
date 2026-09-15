@@ -1324,6 +1324,12 @@ abstract class AppLocalizations {
   /// **'Upload failed'**
   String get uploadFailed;
 
+  /// Image load failure placeholder, tap to retry
+  ///
+  /// In en, this message translates to:
+  /// **'Image load failed, tap to retry'**
+  String get imageLoadFailed;
+
   /// Voice button tooltip
   ///
   /// In en, this message translates to:
