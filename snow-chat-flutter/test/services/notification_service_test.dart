@@ -1,3 +1,4 @@
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:snow_chat/services/notification_service.dart';
 
@@ -10,9 +11,11 @@ void main() {
         vibrateEnabled: true,
       );
 
-      // 验证 - 提示音与震动都应开启
+      // 验证 - 提示音与震动都应开启；渠道重要性须为 HIGH 保证发声
       expect(details.playSound, isTrue);
       expect(details.enableVibration, isTrue);
+      expect(details.importance, Importance.high);
+      expect(details.priority, Priority.high);
     });
 
     test('should 关闭震动后 enableVibration 为 false', () {

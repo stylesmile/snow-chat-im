@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// 新消息本地通知服务。
 ///
@@ -14,6 +16,9 @@ class NotificationService {
   // 通知渠道 id 与名称（渠道创建后用户可在系统设置里单独控制）
   static const String _channelId = 'chat_new_message';
   static const String _channelName = '新消息通知';
+
+  // 渠道升级迁移标记：用于一次性删除旧渠道以应用新配置
+  static const String _channelMigratedKey = 'notification_channel_migrated_v2';
 
   // 插件实例：允许测试注入替身；当使用有参构造时会跳过内置单例创建
   final FlutterLocalNotificationsPlugin _plugin;
@@ -38,6 +43,34 @@ class NotificationService {
     );
     await _plugin.initialize(settings);
     _initialized = true;
+    // 升级后重建一次旧渠道，使新的声音/优先级配置生效（见 _migrateChannelOnce）
+    await _migrateChannelOnce();
+  }
+
+  /// 一次性删除旧的[通知渠道]，让 [buildAndroidDetails] 的新配置在下一次
+  /// `show` 时以新渠道重建。
+  ///
+  /// 背景：Android 通知渠道在首次创建后会被系统锁定，之后改 Importance/
+  /// playSound 等都不会生效；除非卸载重装。早前版本用 defaultImportance
+  /// 建过同名渠道，导致用户更新后提示音/优先级仍是旧的。这里用本地标记
+  /// 保证只在本次升级后删除一次，避免每次启动都重置用户对角色的系统级个性化。
+  Future<void> _migrateChannelOnce() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      // 标记已迁移则跳过，避免重复删除
+      if (prefs.getBool(_channelMigratedKey) ?? false) return;
+      // Android 平台特定实现可能为 null（移除平台重建渠道）
+      final android = _plugin
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      if (android != null) {
+        await android.deleteNotificationChannel(_channelId);
+      }
+      // 无论删除是否发生都记录标记，保证只尝试一次
+      await prefs.setBool(_channelMigratedKey, true);
+    } catch (e) {
+      // 迁移失败不阻塞启动，渠道保持旧配置但通知仍可展示
+      debugPrint('[Notification] channel migration skipped: $e');
+    }
   }
 
   /// 检查通知权限是否已授予。
@@ -76,6 +109,9 @@ class NotificationService {
   /// 抽成纯函数便于单测：仅根据 [soundEnabled]/[vibrateEnabled] 决定
   /// `playSound`/`enableVibration`，不依赖平台通道。
   ///
+  /// 使用 [Importance.high] + [Priority.high]：IMPORTANCE_HIGH 才能保证
+  /// 通知真正发声并横幅提醒（defaultImportance 在部分 ROM 上易被降级到静音）。
+  ///
   /// @param soundEnabled 是否播放提示音
   /// @param vibrateEnabled 是否震动提醒
   static AndroidNotificationDetails buildAndroidDetails({
@@ -86,8 +122,8 @@ class NotificationService {
       _channelId,
       _channelName,
       channelDescription: '收到新消息时提醒',
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
+      importance: Importance.high,
+      priority: Priority.high,
       playSound: soundEnabled,
       enableVibration: vibrateEnabled,
     );
