@@ -117,6 +117,55 @@ void main() {
     expect(calls, 1, reason: '并发的相同请求应去重，只发起一次下载');
   });
 
+  test('precache 应在后台把图片下载落盘（fire-and-forget）', () async {
+    // 准备：计数 fetcher，并记录图片 URL
+    var calls = 0;
+    Future<Uint8List?> fakeFetch(String url) async {
+      calls++;
+      return Uint8List.fromList([5, 6, 7]);
+    }
+
+    // 执行：后台预下载（不 await），明确触发落盘
+    ImageLoader.precache(['https://img/pre.png'], fetcher: fakeFetch);
+
+    // 验证：轮询等待磁盘出现对应的缓存文件
+    final dir = Directory('${tempRoot.path}/image_cache');
+    var found = false;
+    for (var i = 0; i < 50 && !found; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      if (await dir.exists()) {
+        final files = await dir.list().toList();
+        found =
+            files.any((e) => e is File && e.path.endsWith('.png'));
+      }
+    }
+    expect(found, isTrue, reason: 'precache 应把图片下载并落盘到 image_cache');
+    expect(calls, 1);
+
+    // 预下载后 localPath 应直接命中本地文件，不再发起第二次下载
+    final path = await ImageLoader.localPath('https://img/pre.png', fetcher: fakeFetch);
+    expect(path, isNotNull);
+    expect(calls, 1, reason: '预下载后再次获取应命中本地缓存');
+  });
+
+  test('precache 应忽略空地址与 base64 data-URI（不触发下载）', () async {
+    var calls = 0;
+    Future<Uint8List?> fakeFetch(String url) async {
+      calls++;
+      return Uint8List.fromList([1]);
+    }
+
+    // 执行：传空串、base64 头、正常 url
+    ImageLoader.precache(
+      ['', 'data:image/png;base64,xxx', 'https://img/ok.png'],
+      fetcher: fakeFetch,
+    );
+
+    // 等待足够时间后断言：仅正常 url 触发了一次下载
+    await Future<void>.delayed(const Duration(milliseconds: 60));
+    expect(calls, 1, reason: '空地址与 data-URI 不应触发下载');
+  });
+
   test('clear 后应删除本地文件，下次获取重新下载', () async {
     var calls = 0;
     Future<Uint8List?> fakeFetch(String url) async {

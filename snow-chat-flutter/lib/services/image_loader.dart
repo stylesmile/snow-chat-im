@@ -146,6 +146,24 @@ class ImageLoader {
     return hash;
   }
 
+  /// 后台批量预下载一组图片到本地（fire-and-forget）。
+  ///
+  /// 用于「进入聊天页 / 收到图片消息」时提前落盘：这样图片气泡首次 build
+  /// 时 localPath 往往已命中本地文件，立即显示，不会长时间停留在加载占位。
+  /// 失败静默忽略——渲染侧 FutureBuilder 仍会兜底显示失败占位并可点击重试。
+  /// 重复调用幂等：已下载的 url 命中缓存，不会重复发起网络请求。
+  ///
+  /// @param urls 待预下载的图片地址集合
+  /// @param fetcher 下载实现，默认走 dio；测试可注入替身
+  static void precache(Iterable<String> urls, {BytesFetcher? fetcher}) {
+    for (final url in urls) {
+      // 跳过空串与 base64 data-URI（本地/内嵌数据无需下载）
+      if (url.isEmpty || url.startsWith('data:')) continue;
+      // 不 await：后台下载落盘，调用方无需等待
+      localPath(url, fetcher: fetcher);
+    }
+  }
+
   /// 清除某 url 的本地缓存（内存 + 磁盘），用于「点击重试」强制重新下载
   static Future<void> clear(String url) async {
     _pathCache.remove(url);
@@ -160,23 +178,30 @@ class ImageLoader {
 
   /// 默认下载实现：dio 拉取字节，异常时返回 null（UI 展示失败占位）
   static Future<Uint8List?> _dioFetch(String url) async {
+    // 打印开始，便于在设备日志中定位下载是否真正发起
+    debugPrint('[ImageLoader] downloading: ${url.length > 80 ? '${url.substring(0, 80)}...' : url}');
     try {
       final dio = Dio();
       final resp = await dio.get<List<int>>(
         url,
         options: Options(
           responseType: ResponseType.bytes,
-          // 连接/接收超时，避免网络挂起导致占位永久转圈
-          connectTimeout: const Duration(seconds: 15),
-          receiveTimeout: const Duration(seconds: 15),
+          // 缩短超时，避免网络挂起导致占位长时间转圈（可点击重试）
+          connectTimeout: const Duration(seconds: 8),
+          receiveTimeout: const Duration(seconds: 8),
           followRedirects: true,
         ),
       );
       final data = resp.data;
-      if (data == null || data.isEmpty) return null;
+      if (data == null || data.isEmpty) {
+        debugPrint('[ImageLoader] empty body for $url');
+        return null;
+      }
+      debugPrint('[ImageLoader] downloaded ${data.length} bytes for $url');
       return Uint8List.fromList(data);
     } catch (e) {
-      debugPrint('[ImageLoader] fetch failed: $e');
+      // 打印具体异常，便于在无日志真机上区分网络不可达/超时/解码问题
+      debugPrint('[ImageLoader] fetch failed for $url: ${e.runtimeType}: $e');
       return null;
     }
   }

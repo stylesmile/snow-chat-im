@@ -201,8 +201,20 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         _hasMore = _messages.isNotEmpty;
       });
     }
+    // 收到/加载到历史消息后，后台预下载其中的图片到本地，
+    // 使图片气泡首次 build 即命中本地文件，避免长时间加载占位
+    _precacheImages();
     await _loadHistory();
     _fetchUndelivered();
+  }
+
+  /// 后台预下载当前消息列表里的所有图片到本地缓存（见 [ImageLoader.precache]）。
+  ///
+  /// 幂等：已下载的图片命中缓存，不会重复请求。调用方在消息集合变化后调用。
+  void _precacheImages() {
+    ImageLoader.precache(
+      _messages.where((m) => m.type == 'image').map((m) => m.content),
+    );
   }
 
   void _initMqtt() async {
@@ -322,6 +334,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         });
         _scrollToBottom();
       }
+      // 实时收到的图片立即后台落盘，气泡可见即显示本地文件
+      _precacheImages();
     }
   }
 
@@ -354,6 +368,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       });
       _scrollToBottom();
     }
+    // 新收到的图片消息立即后台落盘，气泡首次可见即命中本地文件
+    _precacheImages();
   }
 
   Future<void> _loadHistory() async {
@@ -391,6 +407,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       _hasMore = messages.length >= 30;
       _isLoading = false;
     });
+    // 历史图片刚入库，后台预下载，避免用户滑动到图片时才转圈
+    _precacheImages();
   }
 
   Future<void> _loadMore() async {
