@@ -38,7 +38,6 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
     final auth = context.watch<AuthProvider>();
 
     final nickname = auth.nickname ?? '';
-    final username = auth.username ?? '-';
     final initials = nickname.isNotEmpty ? nickname.substring(0, 1) : 'U';
 
     return Scaffold(
@@ -86,16 +85,6 @@ class _PersonalInfoScreenState extends State<PersonalInfoScreen> {
                   title: l10n.nickname,
                   initialValue: nickname,
                   field: 'nickname',
-                ),
-              ),
-              _divider(),
-              _buildEditableTile(
-                label: l10n.username,
-                value: username,
-                onTap: () => _showEditDialog(
-                  title: l10n.username,
-                  initialValue: username,
-                  field: 'username',
                 ),
               ),
               _divider(),

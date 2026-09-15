@@ -58,12 +58,13 @@ void main() {
     );
   }
 
-  testWidgets('应展示登录态中的昵称与用户名', (tester) async {
+  testWidgets('应展示登录态中的昵称，且不再展示用户名', (tester) async {
     await tester.pumpWidget(makeTestableWidget());
     await tester.pumpAndSettle();
 
     expect(find.text('张三'), findsOneWidget, reason: '应显示当前昵称');
-    expect(find.text('zz_probe'), findsOneWidget, reason: '应显示当前用户名');
+    // 「用户名」行已按要求移除，不应再出现用户名文本
+    expect(find.text('zz_probe'), findsNothing, reason: '个人信息页不应再展示用户名');
     expect(find.text('个人信息'), findsOneWidget, reason: '标题应为「个人信息」');
   });
 
