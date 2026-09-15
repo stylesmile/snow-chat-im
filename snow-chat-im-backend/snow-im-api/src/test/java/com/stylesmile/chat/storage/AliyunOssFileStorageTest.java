@@ -2,6 +2,7 @@ package com.stylesmile.chat.storage;
 
 import com.aliyun.oss.OSS;
 import com.aliyun.oss.model.ObjectMetadata;
+import com.aliyun.oss.model.OSSObject;
 import com.aliyun.oss.model.PutObjectResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -231,6 +232,46 @@ class AliyunOssFileStorageTest {
         assertEquals(signedUrl.toString(), url, "私有读应返回签名 URL");
         // 断言确实调用了签名接口
         verify(ossClient).generatePresignedUrl(eq("snow-chat"), eq("avatars/y.jpg"), any(Date.class));
+    }
+
+    /**
+     * load 应从 OSS 拉取对象并返回对象内容流（供 /file/raw/** 反向代理下载）。
+     *
+     * <p>海外设备无法直连大陆 OSS 域名，前端把图片直链改写为 {@code /file/raw/{key}}，
+     * 由后端中转该文件流，从而让任意区域的用户都能预览图片。
+     */
+    @Test
+    void loadReturnsStreamFromOssClient() {
+        AliyunOssFileStorage storage = new AliyunOssFileStorage(ossClient, publicReadProps);
+        // mock OSS 返回一个对象及其内容流
+        InputStream content = new ByteArrayInputStream("image-bytes".getBytes(StandardCharsets.UTF_8));
+        OSSObject ossObject = mock(OSSObject.class);
+        when(ossObject.getObjectContent()).thenReturn(content);
+        when(ossClient.getObject("snow-chat", "images/a.png")).thenReturn(ossObject);
+
+        // 执行
+        InputStream result = storage.load("images/a.png");
+
+        // 断言返回 OSS 对象的内容流
+        assertEquals(content, result, "load 应返回 OSS 对象的内容流");
+    }
+
+    /**
+     * load 对不存在的对象（OSS 抛异常）应返回 null，而不是向上抛错导致请求 500。
+     */
+    @Test
+    void loadReturnsNullWhenObjectMissing() {
+        AliyunOssFileStorage storage = new AliyunOssFileStorage(ossClient, publicReadProps);
+        // mock getObject 抛异常，模拟对象不存在或网络异常
+        when(ossClient.getObject("snow-chat", "avatars/gone.jpg"))
+                .thenThrow(new com.aliyun.oss.ClientException("NoSuchObject"));
+
+        // 执行
+        InputStream result = storage.load("avatars/gone.jpg");
+
+        // 断言返回 null，由上层 /file/raw 端点转为 404
+        org.junit.jupiter.api.Assertions.assertNull(result,
+                "对象不存在时应返回 null 而非抛异常");
     }
 
     /**

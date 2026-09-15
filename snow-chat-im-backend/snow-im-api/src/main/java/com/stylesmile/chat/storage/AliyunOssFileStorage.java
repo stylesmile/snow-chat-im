@@ -1,6 +1,7 @@
 package com.stylesmile.chat.storage;
 
 import com.aliyun.oss.OSS;
+import com.aliyun.oss.model.OSSObject;
 import com.aliyun.oss.model.ObjectMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -134,6 +135,33 @@ public class AliyunOssFileStorage implements FileStorage {
         Date expiration = new Date(System.currentTimeMillis() + expirationMinutes * 60L * 1000L);
         // 生成签名 URL 并转为字符串
         return ossClient.generatePresignedUrl(props.bucket(), fileName, expiration).toString();
+    }
+
+    /**
+     * 读取 OSS 对象内容流，供 {@code /file/raw/**} 反向代理下载。
+     *
+     * <p>海外/非大陆设备无法直连大陆 OSS 域名，前端把图片直链改写为
+     * {@code {apiBase}/file/raw/{key}}，由后端中转对象流，从而让任意区域
+     * 的用户都能预览图片（后端通常与 OSS 同区域、网络可达）。
+     *
+     * @param fileName 对象 key（如 images/2026/09/15/uuid.jpg）
+     * @return 对象内容流；对象不存在或读取异常时返回 null（由上层转为 404）
+     */
+    @Override
+    public InputStream load(String fileName) {
+        // 空值保护，避免向 SDK 传 null 抛不必要的异常
+        if (fileName == null || fileName.isBlank()) {
+            return null;
+        }
+        try {
+            // 拉取对象并返回其内容流（调用方负责关闭流）
+            OSSObject object = ossClient.getObject(props.bucket(), fileName);
+            return object.getObjectContent();
+        } catch (Exception e) {
+            // 对象不存在（NoSuchKey）/网络异常：记日志并返回 null，交由上层转 404
+            log.warn("Aliyun OSS load failed for {}: {}", fileName, e.getMessage());
+            return null;
+        }
     }
 
     /**
