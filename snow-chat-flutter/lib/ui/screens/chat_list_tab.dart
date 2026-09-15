@@ -1,0 +1,481 @@
+import 'package:flutter/material.dart';
+import '../../l10n/app_localizations.dart';
+import 'package:provider/provider.dart';
+import '../../core/theme/app_theme.dart';
+import '../../models/friend_model.dart';
+import '../../providers/chat_provider.dart';
+import '../../providers/friend_request_provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../services/contact_service.dart';
+import '../../services/conversation_service.dart';
+import '../widgets/avatar_widget.dart';
+import 'add_friend_screen.dart';
+import 'chat_detail_screen.dart';
+import 'global_search_screen.dart';
+import 'scan_screen.dart';
+
+class ChatListTab extends StatefulWidget {
+  /// 好友关系变化通知（加好友/通过申请后由外层自增），收到后刷新好友目录
+  ///
+  /// 用途：刚加上的好友在本地会话里只有一个 targetId，若目录不刷新，
+  /// 会话就会一直显示「用户 1002」和占位头像，而实际上已经能正常聊天了。
+  final ValueNotifier<int>? friendAcceptedNotifier;
+
+  const ChatListTab({super.key, this.friendAcceptedNotifier});
+
+  @override
+  State<ChatListTab> createState() => _ChatListTabState();
+}
+
+class _ChatListTabState extends State<ChatListTab> with AutomaticKeepAliveClientMixin {
+  bool _isLoading = true;
+  /// 好友 userId -> 会话显示名（**备注优先，其次昵称**，与通讯录列表口径一致）
+  final Map<int, String> _friendNames = {};
+  /// 好友 userId -> 头像地址，用于在会话列表里展示真实头像
+  final Map<int, String> _friendAvatars = {};
+
+  // 保持会话列表页存活：在 TabBarView 里切换 tab 时不销毁、不重建，
+  // 从而避免每次回到「聊天」都重新 initState 加载会话出现闪屏（与通讯录页一致）。
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadConversations();
+    widget.friendAcceptedNotifier?.addListener(_onFriendAccepted);
+    FriendRequestProvider.friendListVersion.addListener(_onFriendAccepted);
+  }
+
+  /// 好友关系变化（新加好友 / 申请被通过）：重新拉好友目录并刷新会话列表
+  void _onFriendAccepted() => _loadConversations();
+
+  /// 好友的会话显示名：有备注用备注、否则用昵称（与 ContactTab 的列表一致）
+  static String _displayNameOf(FriendModel friend) =>
+      friend.remark.isNotEmpty ? friend.remark : friend.nickname;
+
+  /// 拉取「好友目录」（userId → 显示名 / 头像）
+  ///
+  /// 会话本身只存了 `targetId`，列表上的名字和头像全靠这份目录翻译。
+  /// 优先走后端（唯一可信数据源），拿不到时回退本地 SQLite 缓存 ——
+  /// 否则后端未启动时会满屏「用户 1002」和清一色的占位头像。
+  Future<void> _loadFriendDirectory() async {
+    final auth = context.read<AuthProvider>();
+    if (auth.userId == null) return;
+    final contactService = ContactService(auth.apiClient);
+
+    var friends = await contactService.getFriends(auth.userId!);
+    if (!mounted) return;
+    if (friends.isEmpty) {
+      // 后端不可用（或还没加过好友）时用上次同步的缓存兜底
+      friends = await contactService.getLocalFriends(context);
+    } else {
+      // 顺带刷新本地缓存，供下次离线展示
+      await contactService.saveLocalFriends(context, friends);
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _friendNames
+        ..clear()
+        ..addAll({for (final f in friends) f.userId: _displayNameOf(f)});
+      _friendAvatars
+        ..clear()
+        ..addAll({for (final f in friends) f.userId: f.avatar});
+    });
+  }
+
+  Future<void> _loadConversations() async {
+    final auth = context.read<AuthProvider>();
+    if (auth.userId == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+
+    await _loadFriendDirectory();
+    if (!mounted) return;
+
+    final conversations = await ConversationService().loadSessions(context);
+    if (!mounted) return;
+
+    context.read<ChatProvider>().setConversations(conversations);
+    setState(() => _isLoading = false);
+  }
+
+  /// 显示会话标题：按 targetId 查好友目录，查不到才回退带 id 的占位名
+  String _displayName(Conversation conv) {
+    // 文件传输助手：固定入口（targetId=0 不在好友目录里），名字用本地化文案
+    if (conv.targetType == 'file_helper') {
+      return AppLocalizations.of(context)?.fileHelper ?? '文件传输助手';
+    }
+    if (conv.targetType == 'group') {
+      return '群组 ${conv.targetId}';
+    }
+    final name = _friendNames[conv.targetId];
+    return name != null && name.isNotEmpty ? name : '用户 ${conv.targetId}';
+  }
+
+  /// 文件传输助手的会话头像：绿色圆角底 + 图标，与通讯录入口同款
+  Widget _buildFileHelperAvatar() {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: const BoxDecoration(
+        color: Color(0xFF07C160),
+        borderRadius: BorderRadius.all(Radius.circular(6)),
+      ),
+      child: Image.asset(
+        'assets/images/file_transfer.png',
+        width: 22,
+        height: 22,
+      ),
+    );
+  }
+
+  /// 构建带未读数角标的头像（类似微信）
+  ///
+  /// 好友用**真实头像**（无头像时退回名字首字占位），群聊仍用「群」字圆底，
+  /// 文件传输助手用专属图标。
+  Widget _buildAvatar(Conversation conv) {
+    final name = _displayName(conv);
+    final avatar = _friendAvatars[conv.targetId] ?? '';
+    final Widget base;
+    if (conv.targetType == 'file_helper') {
+      base = _buildFileHelperAvatar();
+    } else if (conv.targetType == 'group') {
+      base = const CircleAvatar(
+        // 群聊头像底色使用设计令牌：品牌蓝
+        backgroundColor: AppTheme.primary,
+        child: Text('群'),
+      );
+    } else {
+      base = AvatarWidget(
+        imageUrl: avatar,
+        // 没有头像图时显示名字首字，而不是一个与本人无关的「友」字
+        initials: name.isNotEmpty ? name[0] : '?',
+        size: 40,
+      );
+    }
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        base,
+        // 未读数角标：显示在头像右上角
+        if (conv.unreadCount > 0)
+          Positioned(
+            right: -4,
+            top: -4,
+            child: Container(
+              constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: const BoxDecoration(
+                color: Colors.red,
+                shape: BoxShape.circle,
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                conv.unreadCount > 99 ? '99+' : '${conv.unreadCount}',
+                style: const TextStyle(color: Colors.white, fontSize: 10, height: 1),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// 格式化时间：今天显示时分，昨天显示昨天，更早显示日期
+  String _formatTime(int timestamp) {
+    final date = DateTime.fromMillisecondsSinceEpoch(timestamp);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final messageDay = DateTime(date.year, date.month, date.day);
+
+    if (messageDay == today) {
+      // 今天：显示时分
+      return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+    } else if (messageDay == today.subtract(const Duration(days: 1))) {
+      // 昨天
+      return '昨天';
+    } else if (now.year == date.year) {
+      // 今年：显示月日
+      return '${date.month}/${date.day}';
+    } else {
+      // 更早：显示年月日
+      return '${date.year}/${date.month}/${date.day}';
+    }
+  }
+
+  /// 顶部搜索入口；点击进入全局搜索页。
+  Widget _buildSearchEntry(AppLocalizations l10n) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: GestureDetector(
+        onTap: () {
+          // 跳转到全局搜索页，检索联系人/聊天记录
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const GlobalSearchScreen()),
+          );
+        },
+        child: TextField(
+          // 仅作入口展示；不接收输入，点击整体跳转
+          enabled: false,
+          decoration: InputDecoration(
+            hintText: l10n.searchHint,
+            prefixIcon: const Icon(Icons.search),
+            filled: true,
+            isDense: true,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(24),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // 必须先调用父类 build 以注册 keep-alive 请求（配合 wantKeepAlive），
+    // 否则 AutomaticKeepAliveClientMixin 不会真正让 TabBarView 保留本页
+    super.build(context);
+    final l10n = AppLocalizations.of(context)!;
+    final chatProvider = context.watch<ChatProvider>();
+    final conversations = chatProvider.conversations;
+
+    // 顶部搜索入口，点击进入全局搜索页
+    final Widget searchBar = _buildSearchEntry(l10n);
+    Widget content;
+
+    if (_isLoading) {
+      // 会话列表加载中
+      content = const Center(child: CircularProgressIndicator());
+    } else if (conversations.isEmpty) {
+      // 无会话时的空态引导
+      content = Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(l10n.noMessages, style: TextStyle(color: Colors.grey.shade500, fontSize: 16)),
+          ],
+        ),
+      );
+    } else {
+      // 会话列表（支持下拉刷新：重新拉好友目录 + 重新读本地会话，
+      // 后端恢复后不必重启 app 就能把「用户 1002」刷新成真实昵称与头像）
+      content = RefreshIndicator(
+        onRefresh: _loadConversations,
+        child: ListView.separated(
+          padding: const EdgeInsets.only(top: 8),
+          itemCount: conversations.length,
+          separatorBuilder: (_, __) => const Divider(height: 1, indent: 72),
+          itemBuilder: (context, index) {
+            final conv = conversations[index];
+            return ListTile(
+              leading: _buildAvatar(conv),
+              title: Text(
+                _displayName(conv),
+                style: const TextStyle(fontSize: 16),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(
+                conv.lastMsg.isNotEmpty ? conv.lastMsg : l10n.noMessages,
+                style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: Text(
+                _formatTime(conv.lastMsgTime),
+                // 深色底上用 shade400（亮度 0.52）而非 shade500（0.34），
+                // 后者在 #111111 背景上几乎看不清
+                style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+              ),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ChatDetailScreen(
+                      targetId: conv.targetId,
+                      targetType: conv.targetType,
+                      targetName: _displayName(conv),
+                    ),
+                  ),
+                );
+              },
+              onLongPress: () => _showConversationActions(conv),
+            );
+          },
+        ),
+      );
+    }
+
+    // 自带 Scaffold + AppBar，写法与 ContactTab 一致：
+    // 标题栏由本页持有，外层 HomeScreen 不再按 tab 索引动态增删 AppBar，
+    // 从而消除左右滑动切换 tab 时的布局抖动与双标题栏。
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(l10n.chatList),
+        centerTitle: true,
+        actions: [
+          // 搜索：进入全局搜索（检索联系人与聊天记录）
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: l10n.search,
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const GlobalSearchScreen()),
+              );
+            },
+          ),
+          // 更多：添加朋友 / 扫一扫
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.add_circle_outline),
+            tooltip: l10n.addFriend,
+            onSelected: (value) => _onMoreAction(value),
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'add_friend',
+                child: Row(children: [
+                  const Icon(Icons.person_add, size: 18),
+                  const SizedBox(width: 8),
+                  Text(l10n.addFriend),
+                ]),
+              ),
+              PopupMenuItem(
+                value: 'scan',
+                child: Row(children: [
+                  const Icon(Icons.qr_code_scanner, size: 18),
+                  const SizedBox(width: 8),
+                  Text(l10n.scan),
+                ]),
+              ),
+            ],
+          ),
+        ],
+      ),
+      // 顶部搜索条 + 下方会话内容
+      body: Column(
+        children: [searchBar, Expanded(child: content)],
+      ),
+    );
+  }
+
+  /// 标题栏「+」菜单动作：添加朋友 / 扫一扫
+  void _onMoreAction(String value) {
+    switch (value) {
+      case 'add_friend':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AddFriendScreen()),
+        );
+        break;
+      case 'scan':
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ScanScreen()),
+        );
+        break;
+    }
+  }
+
+  /// 长按会话弹出操作菜单：置顶/取消置顶、免打扰/取消免打扰、删除会话
+  ///
+  /// 每个操作都会更新内存状态（ChatProvider）并持久化到本地 SQLite
+  Future<void> _showConversationActions(Conversation conv) async {
+    final chatProvider = context.read<ChatProvider>();
+    final conversationService = ConversationService();
+    final isPinned = conv.isPinned;
+    final isMuted = conv.isMuted;
+
+    // 底部弹出操作面板，供用户选择针对当前会话的操作
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 面板标题：显示会话名称
+              ListTile(
+                title: Text(
+                  _displayName(conv),
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                dense: true,
+              ),
+              const Divider(height: 1),
+              // 置顶/取消置顶
+              ListTile(
+                leading: Icon(isPinned ? Icons.push_pin_outlined : Icons.push_pin),
+                title: Text(isPinned ? '取消置顶' : '置顶会话'),
+                onTap: () => Navigator.pop(ctx, 'pin'),
+              ),
+              // 免打扰/取消免打扰
+              ListTile(
+                leading: Icon(isMuted ? Icons.notifications_off_outlined : Icons.notifications_off),
+                title: Text(isMuted ? '取消免打扰' : '消息免打扰'),
+                onTap: () => Navigator.pop(ctx, 'mute'),
+              ),
+              // 删除会话
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: const Text('删除会话', style: TextStyle(color: Colors.red)),
+                onTap: () => Navigator.pop(ctx, 'delete'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    // 面板关闭后，若组件已卸载则直接返回，避免使用失效的 context
+    if (!mounted) return;
+
+    // 根据用户选择执行对应操作
+    switch (action) {
+      case 'pin':
+        // 切换置顶状态，并持久化到本地数据库
+        chatProvider.togglePinned(conv.targetId, conv.targetType, pinned: !isPinned);
+        await conversationService.updateSessionFlags(
+          context: context,
+          targetId: conv.targetId,
+          targetType: conv.targetType,
+          isPinned: !isPinned,
+        );
+        break;
+      case 'mute':
+        // 切换免打扰状态，并持久化到本地数据库
+        chatProvider.toggleMuted(conv.targetId, conv.targetType, muted: !isMuted);
+        await conversationService.updateSessionFlags(
+          context: context,
+          targetId: conv.targetId,
+          targetType: conv.targetType,
+          isMuted: !isMuted,
+        );
+        break;
+      case 'delete':
+        // 删除会话：先从数据库删除，再从内存列表移除
+        await conversationService.deleteSession(
+          context: context,
+          targetId: conv.targetId,
+          targetType: conv.targetType,
+        );
+        chatProvider.removeConversation(conv.targetId, conv.targetType);
+        break;
+    }
+  }
+
+  @override
+  void dispose() {
+    // 解除好友关系变化监听，防止已卸载的 State 被全局广播器回调造成
+    // "This widget has been unmounted" 崩溃；两个监听都必须移除
+    widget.friendAcceptedNotifier?.removeListener(_onFriendAccepted);
+    FriendRequestProvider.friendListVersion.removeListener(_onFriendAccepted);
+    super.dispose();
+  }
+}

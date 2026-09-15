@@ -1,0 +1,157 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// 新消息本地通知服务。
+///
+/// 职责：
+/// 1. 初始化 flutter_local_notifications（创建 Android 通知渠道）
+/// 2. 通过 permission_handler 检查/申请通知权限（Android 13+ 需要 POST_NOTIFICATIONS）
+/// 3. 显示一条新消息通知
+///
+/// 权限申请复用手边已有的 permission_handler（与扫码相机权限一致），
+/// flutter_local_notifications 仅负责任何系统通知的渲染，职责分离。
+class NotificationService {
+  // 通知渠道 id 与名称（渠道创建后用户可在系统设置里单独控制）
+  static const String _channelId = 'chat_new_message';
+  static const String _channelName = '新消息通知';
+
+  // 渠道升级迁移标记：用于一次性删除旧渠道以应用新配置
+  static const String _channelMigratedKey = 'notification_channel_migrated_v2';
+
+  // 插件实例：允许测试注入替身；当使用有参构造时会跳过内置单例创建
+  final FlutterLocalNotificationsPlugin _plugin;
+
+  // 通知 id 自增计数，保证多次消息各自成条、不互相覆盖
+  int _idCounter = 0;
+
+  /// 是否已完成初始化。调用 [initialize] 后为 true。
+  bool _initialized = false;
+
+  bool get isInitialized => _initialized;
+
+  NotificationService({FlutterLocalNotificationsPlugin? plugin})
+      : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
+
+  /// 初始化通知插件（创建消息渠道）。应在应用启动后调用一次。
+  Future<void> initialize() async {
+    // Android 初始化：使用应用启动图标作为通知小图标
+    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const settings = InitializationSettings(
+      android: androidSettings,
+    );
+    await _plugin.initialize(settings);
+    _initialized = true;
+    // 升级后重建一次旧渠道，使新的声音/优先级配置生效（见 _migrateChannelOnce）
+    await _migrateChannelOnce();
+  }
+
+  /// 一次性删除旧的[通知渠道]，让 [buildAndroidDetails] 的新配置在下一次
+  /// `show` 时以新渠道重建。
+  ///
+  /// 背景：Android 通知渠道在首次创建后会被系统锁定，之后改 Importance/
+  /// playSound 等都不会生效；除非卸载重装。早前版本用 defaultImportance
+  /// 建过同名渠道，导致用户更新后提示音/优先级仍是旧的。这里用本地标记
+  /// 保证只在本次升级后删除一次，避免每次启动都重置用户对角色的系统级个性化。
+  Future<void> _migrateChannelOnce() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      // 标记已迁移则跳过，避免重复删除
+      if (prefs.getBool(_channelMigratedKey) ?? false) return;
+      // Android 平台特定实现可能为 null（移除平台重建渠道）
+      final android = _plugin
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      if (android != null) {
+        await android.deleteNotificationChannel(_channelId);
+      }
+      // 无论删除是否发生都记录标记，保证只尝试一次
+      await prefs.setBool(_channelMigratedKey, true);
+    } catch (e) {
+      // 迁移失败不阻塞启动，渠道保持旧配置但通知仍可展示
+      debugPrint('[Notification] channel migration skipped: $e');
+    }
+  }
+
+  /// 检查通知权限是否已授予。
+  Future<bool> checkNotificationPermission() async {
+    return await Permission.notification.isGranted;
+  }
+
+  /// 请求通知权限并返回是否已授予。
+  ///
+  /// 用户选择「永久拒绝」时返回 false；需要跳系统设置引导由调用方处理。
+  Future<bool> requestNotificationPermission() async {
+    final status = await Permission.notification.request();
+    return status.isGranted;
+  }
+
+  /// 打开系统的应用设置页（权限被永久拒绝时引导用户手动开启）。
+  Future<void> openSystemAppSettings() async {
+    // permission_handler 顶层函数，跳转到系统「此应用」设置页
+    await openAppSettings();
+  }
+
+  /// 关闭/开启新消息通知渠道。
+  Future<void> setNotificationsEnabled(bool enabled) async {
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    if (android == null) return;
+    if (enabled) {
+      await android.requestNotificationsPermission();
+    } else {
+      await android.cancelAll();
+    }
+  }
+
+  /// 构建 Android 通知渠道详情，提示音/震动跟随设置项开关。
+  ///
+  /// 抽成纯函数便于单测：仅根据 [soundEnabled]/[vibrateEnabled] 决定
+  /// `playSound`/`enableVibration`，不依赖平台通道。
+  ///
+  /// 使用 [Importance.high] + [Priority.high]：IMPORTANCE_HIGH 才能保证
+  /// 通知真正发声并横幅提醒（defaultImportance 在部分 ROM 上易被降级到静音）。
+  ///
+  /// @param soundEnabled 是否播放提示音
+  /// @param vibrateEnabled 是否震动提醒
+  static AndroidNotificationDetails buildAndroidDetails({
+    required bool soundEnabled,
+    required bool vibrateEnabled,
+  }) {
+    return AndroidNotificationDetails(
+      _channelId,
+      _channelName,
+      channelDescription: '收到新消息时提醒',
+      importance: Importance.high,
+      priority: Priority.high,
+      playSound: soundEnabled,
+      enableVibration: vibrateEnabled,
+    );
+  }
+
+  /// 显示一条新消息本地通知。
+  ///
+  /// @param title 通知标题（通常为发送方昵称）
+  /// @param body 通知正文（消息内容摘要）
+  /// @param soundEnabled 是否播放提示音（跟随设置页「通知提示音」开关）
+  /// @param vibrateEnabled 是否震动提醒（跟随设置页「通知震动」开关）
+  Future<void> showMessageNotification({
+    required String title,
+    required String body,
+    bool soundEnabled = true,
+    bool vibrateEnabled = true,
+  }) async {
+    // 未初始化时直接跳过，避免空指针（正常流程总会先调用 initialize）
+    if (!_initialized) return;
+
+    // 根据设置项开关构建渠道详情：提示音/震动随开关联动
+    final androidDetails = buildAndroidDetails(
+      soundEnabled: soundEnabled,
+      vibrateEnabled: vibrateEnabled,
+    );
+    final details = NotificationDetails(android: androidDetails);
+
+    // 使用自增 id，让每条新消息都能独立展示成一条通知
+    await _plugin.show(_idCounter++, title, body, details);
+  }
+}

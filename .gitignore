@@ -35,3 +35,11 @@ target/
 *.iml
 *.ipr
 *.iws
+
+./snow-chat-im-backend/**/target
+./snow-chat-flutter/**/build
+./snow-chat-flutter/android/.gradle
+./snow-chat-flutter/android/.kotlin
+./snow-chat-flutter/ios/build
+./snow-chat-flutter/.idea
+./snow-chat-flutter/.dart_tool

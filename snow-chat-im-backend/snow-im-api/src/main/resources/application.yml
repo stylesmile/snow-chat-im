@@ -1,0 +1,138 @@
+spring:
+  profiles:
+    # 默认激活 dev：dev/prod 才是当前实际维护的 profile
+    # 注意：原用的 test profile 已在提交 4ba09f3「优化sql」中连同 application-test.yml 一并删除，
+    #      此处若继续指向 test，启动时会因找不到任何数据源配置而失败：
+    #      "Failed to configure a DataSource: 'url' attribute is not specified"
+    # 需要临时切换环境时用命令行/环境变量覆盖即可（优先级高于此处）：
+    #       --spring.profiles.active=prod  或  SPRING_PROFILES_ACTIVE=prod
+    active: dev
+  application:
+    name: snow-im-api
+  main:
+    allow-circular-references: true
+# mqtt 服务端配置
+mqtt:
+  client:
+    enabled: true               # 是否开启客户端，默认：true
+    ip: 127.0.0.1               # 连接的服务端 ip ，默认：127.0.0.1
+    port: 1883                  # 端口：默认：1883
+    name: Mica-Mqtt-Client      # 名称，默认：Mica-Mqtt-Client
+    clientId: "000001"          # 客户端Id（非常重要，一般为设备 sn，不可重复）
+    username: mica              # 认证的用户名，注意：2.5.x 开始将 user-name 改成了 username
+    password: 123456            # 认证的密码
+    timeout: 5                  # 超时时间，单位：秒，默认：5秒
+    reconnect: true             # 是否重连，默认：true
+    re-interval: 5000           # 重连时间，默认 5000 毫秒
+    version: mqtt_5         # mqtt 协议版本，可选 MQTT_3_1、mqtt_3_1_1、mqtt_5，默认：mqtt_3_1_1
+    read-buffer-size: 8KB       # 接收数据的 buffer size，默认：8k
+    max-bytes-in-message: 10MB  # 消息解析最大 bytes 长度，默认：10M
+    keep-alive-secs: 60         # keep-alive 时间，单位：秒
+    heartbeat-mode: LAST_REQ    # 心跳模式，支持最后发送或接收心跳时间来计算心跳，默认：最后发送心跳的时间。（2.4.3 开始支持）
+    heartbeat-timeout-strategy: PING # 心跳超时策略，支持发送 PING 和 CLOSE 断开连接，默认：最大努力发送 PING。（2.4.3 开始支持）
+    clean-start: true           # session 保留 2.5.x 使用 clean-start，老版本用 clean-session，默认：true
+    group-executor-size: 8      # AIO AsynchronousChannelGroup 的线程池，默认：2。（2.5.12 开始支持）
+    tio-executor-size: 8        # tio 编解码等线程数，默认：3，如果消息量比较大，处理较慢，例如做 emqx 的转发消息处理，可以调大此参数（2.5.12 开始支持）
+    mqtt-executor-size: 8       # mqtt 业务线程数，默认：2或CPU核心数，如果消息量比较大，处理较慢，例如做 emqx 的转发消息处理，可以调大此参数（取较大值）（2.5.12 开始支持）
+    biz-thread-pool-size: 2     # 同 mqtt-executor-size（2.4.2 开始支持，2.5.12 已经弃用）
+    will-message:
+      topic: /test/offline
+      message: down
+    ssl:
+      enabled: false            # 是否开启 ssl 认证，2.1.0 开始支持双向认证
+      keystore-path:            # 可选参数：ssl 双向认证 keystore 目录，支持 classpath:/ 路径。
+      keystore-pass:            # 可选参数：ssl 双向认证 keystore 密码
+      truststore-path:          # 可选参数：ssl 双向认证 truststore 目录，支持 classpath:/ 路径。
+      truststore-pass:          # 可选参数：ssl 双向认证 truststore 密码
+  server:
+    enabled: true               # 是否开启服务端，默认：true
+    name: Mica-Mqtt-Server      # 名称，默认：Mica-Mqtt-Server
+    heartbeat-timeout: 120000   # 心跳超时，单位毫秒，默认: 1000 * 120
+    read-buffer-size: 8KB       # 接收数据的 buffer size，默认：8k
+    max-bytes-in-message: 10MB  # 消息解析最大 bytes 长度，默认：10M
+    properties:                 # MQTT 5.0 服务端能力属性（CONNACK Properties）
+      receive-maximum: 65535    # 服务端允许客户端同时处理的 QoS1/QoS2 未确认报文上限，默认：65535（2.6.8 开始支持）
+      maximum-qos: 2            # 服务端支持的最大 QoS，默认：2（2.6.8 开始支持）
+      retain-available: true    # 服务端是否支持保留消息，默认：true（2.6.8 开始支持）
+      maximum-packet-size: 268435456 # 服务端可处理的最大报文大小（字节），默认：268435456（2.6.8 开始支持）
+      topic-alias-maximum: 0    # 服务端支持的最大主题别名数，0 表示不启用，默认：0（2.6.8 开始支持）
+      wildcard-subscription-available: true # 服务端是否支持通配符订阅，默认：true（2.6.8 开始支持）
+      shared-subscription-available: true   # 服务端是否支持共享订阅，默认：true（2.6.8 开始支持）
+      subscription-identifier-available: false # 服务端是否支持订阅标识符，默认：false（2.6.8 开始支持）
+      server-keep-alive: 0      # 服务端下发给 MQTT 5.0 客户端的 Keep Alive，0 表示不接管，默认：0（2.6.8 开始支持）
+    auth:
+      enable: false             # 是否开启 mqtt 认证
+      username: mica            # mqtt 认证用户名
+      password: 123456            # mqtt 认证密码
+    debug: true                 # 如果开启 prometheus 指标收集建议关闭
+    stat-enable: true           # 开启指标收集，debug 和 prometheus 开启时需要打开，默认开启，关闭节省内存
+    mqtt-listener:              # mqtt 监听器
+      enable: true              # 是否开启，默认：false
+      #      ip: "0.0.0.0"            # 服务端 ip 默认为空，0.0.0.0，建议不要设置
+      port: 1883                # 端口，默认：1883
+    mqtt-ssl-listener:          # mqtt ssl 监听器
+      enable: false             # 是否开启，默认：false
+      port: 8883                # 端口，默认：8883
+      ssl:                      # ssl 配置，必须
+        keystore-path:          # 必须参数：ssl keystore 目录，支持 classpath:/ 路径。
+        keystore-pass:          # 必选参数：ssl keystore 密码
+        truststore-path:        # 可选参数：ssl 双向认证 truststore 目录，支持 classpath:/ 路径。
+        truststore-pass:        # 可选参数：ssl 双向认证 truststore 密码
+        client-auth: NONE       # 是否需要客户端认证（双向认证），默认：NONE（不需要）
+    ws-listener:                # websocket mqtt 监听器
+      enable: true              # 是否开启，默认：false
+      port: 8083                # websocket 端口，默认：8083
+    wss-listener:               # websocket ssl mqtt 监听器
+      enable: false             # 是否开启，默认：false
+      port: 8084                # 端口，默认：8084
+      ssl:                      # ssl 配置，必须
+        keystore-path:          # 必须参数：ssl keystore 目录，支持 classpath:/ 路径。
+        keystore-pass:          # 必选参数：ssl keystore 密码
+        truststore-path:        # 可选参数：ssl 双向认证 truststore 目录，支持 classpath:/ 路径。
+        truststore-pass:        # 可选参数：ssl 双向认证 truststore 密码
+        client-auth: NONE       # 是否需要客户端认证（双向认证），默认：NONE（不需要）
+    http-listener:
+      enable: true
+      port: 18083
+      basic-auth:               # 基础认证
+        enable: true
+        username: mica
+        password: mica
+      mcp:                      # 大模型 mcp
+        enable: true
+
+
+# springdoc-openapi项目配置
+# 消息分表配置
+# 群聊消息：每 groups-per-table 个群一张表（chat_message_group_{groupId / 粒度}）
+# 私聊消息：每 users-per-table 个用户 ID 一张表（chat_message_friend_{min(双方ID) / 粒度}）
+# ⚠️ 上线后不要改这两个值：分片号 = id / 粒度，改了历史消息就查不到了（需全量重分布）
+chat:
+  message:
+    shard:
+      enabled: true
+      users-per-table: 1000
+      groups-per-table: 100
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+  group-configs:
+    - group: 'default'
+      paths-to-match: '/**'
+      packages-to-scan: com.stylesmile.chat.controller
+# Knife4j 配置
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
+    swagger-model-name: 实体类
+  production: false
+  basic:
+    enable: true
+    username: admin
+    password: admin123

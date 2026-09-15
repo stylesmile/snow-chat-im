@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.stylesmile.chat.mapper.ChatGroupMapper">
+
+    <!-- 查询用户所在的群组列表 -->
+    <select id="getGroupsByUserId" resultType="com.stylesmile.chat.entity.ChatGroup">
+        SELECT g.*
+        FROM chat_group g
+        INNER JOIN chat_group_member m ON g.id = m.group_id
+        WHERE m.user_id = #{userId}
+        AND g.del_flag = 0
+        ORDER BY g.create_time DESC
+    </select>
+
+</mapper>

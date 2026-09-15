@@ -1,0 +1,17 @@
+# Android 发布签名配置示例
+# 将此文件复制为 key.properties（不要提交到 git）
+#
+# Android Release Keystore Configuration Example
+# Copy this file to key.properties (do not commit to git)
+
+# 密钥库密码 / Keystore password
+storePassword=YOUR_KEYSTORE_PASSWORD
+
+# 密钥密码 / Key password
+keyPassword=YOUR_KEY_PASSWORD
+
+# 密钥别名 / Key alias
+keyAlias=upload
+
+# 密钥库文件路径 / Keystore file path
+storeFile=/path/to/your/keystore.jks

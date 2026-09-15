@@ -1,0 +1,115 @@
+package com.stylesmile.modules.system.controller;
+
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.stylesmile.modules.system.service.SysUserRoleService;
+import com.stylesmile.modules.system.service.SysUserService;
+import com.stylesmile.modules.system.vo.query.SysRoleQuery;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.web.servlet.MockMvc;
+
+import jakarta.servlet.http.HttpSession;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+
+@RunWith(SpringRunner.class)
+@WebMvcTest(value = SysUserRoleController.class, excludeFilters = @org.springframework.context.annotation.ComponentScan.Filter(type = org.springframework.context.annotation.FilterType.ASSIGNABLE_TYPE, classes = com.stylesmile.config.WebMvcConfig.class))
+public class SysUserRoleControllerTest extends SystemWebMvcTestSupport {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockBean
+    private SysUserRoleService mockSysUserRoleService;
+
+    @MockBean
+    private SysUserService mockSysUserService;
+
+    @Test
+    public void testUserRole() throws Exception {
+        // Setup
+        // Run the test
+        final MockHttpServletResponse response = mockMvc.perform(get("/userRole/userRole.html")
+                        .param("userId", "userId")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andReturn().getResponse();
+
+        // Verify the results
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
+        assertThat(response.getContentAsString()).isNotNull();
+    }
+
+    @Test
+    public void testSelectRolePage() throws Exception {
+        // Setup
+        when(mockSysUserRoleService.getUserRoleList(any(SysRoleQuery.class))).thenReturn(new Page<>(0L, 0L, 0L));
+
+        // Run the test
+        final MockHttpServletResponse response = mockMvc.perform(get("/userRole/userRoleList.json")
+                        .accept(MediaType.TEXT_HTML))
+                .andReturn().getResponse();
+
+        // Verify the results
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
+        assertThat(response.getContentAsString()).isNotNull();
+    }
+
+    @Test
+    public void testUserRoleAdd() throws Exception {
+        // Setup
+        // Run the test
+        final MockHttpServletResponse response = mockMvc.perform(get("/userRole/userRoleAdd.html")
+                        .param("userId", "0")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andReturn().getResponse();
+
+        // Verify the results
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
+        assertThat(response.getContentAsString()).isNotNull();
+    }
+
+    @Test
+    public void testAddRole() throws Exception {
+        // Setup
+        when(mockSysUserRoleService.addRole(eq(0), eq("roleIds"), any(HttpSession.class))).thenReturn(false);
+
+        // Run the test
+        final MockHttpServletResponse response = mockMvc.perform(post("/userRole/addRole.json")
+                        .param("userId", "0")
+                        .param("roleIds", "roleIds")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andReturn().getResponse();
+
+        // Verify the results
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
+        assertThat(response.getContentAsString()).isNotNull();
+    }
+
+    @Test
+    public void testDeleteRole() throws Exception {
+        // Setup
+        when(mockSysUserRoleService.deleteRole(0)).thenReturn(false);
+
+        // Run the test
+        final MockHttpServletResponse response = mockMvc.perform(post("/userRole/deleteRole.json")
+                        .param("id", "0")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andReturn().getResponse();
+
+        // Verify the results
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
+        assertThat(response.getContentAsString()).isNotNull();
+    }
+}

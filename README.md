@@ -1,17 +1,36 @@
 snow
 
 #### 介绍
+##### app 功能
+加好友，群聊，私聊
+
+#### 
+github 地址
+```
+https://gitub.com/stylesmile/snow-chat-im
+```
+gitee 地址
+```
+https://gitee.com/stylesmile/snow-chat-im
+```
+登陆
+![login.png](docs/img/login.png)
+
+
+通讯录
+![contact.png](docs/img/contact.png)
+
+
 java语言的基于springboot的极简的后台权限管理系统，可视化配置后台权限,精确控制每个用户每个菜单的权限。
 
-管理系统功能
 已完成
-1.用户管理 
-2.角色管理 
-3.部门管理 
-4.菜单管理 
-5.权限管理 
-基于拦截器实现的权限管理
-6.登录日志（自定义注解，实现登录日志）
+- 1.用户管理 
+- 2.角色管理 
+- 3.部门管理 
+- 4.菜单管理 
+- 5.权限管理 
+- 基于拦截器实现的权限管理
+- 6.登录日志（自定义注解，实现登录日志）
 待完成
 1.字典管理 2.业务日志 3.代码生成
 
@@ -48,3 +67,23 @@ springboot2 最流行的java技术
 druid数据源 强大的监控特性,多维度的统计和分析功能
 mybatis  灵活，学习成本低的持久层框架
 spring-cache 减少数据库查询操作，大幅度降低服务器压力
+
+
+
+Words 'chat' and 'instant messaging' in Chinese, Russian, Persian and a few other languages.
+
+聊天室 即時通訊
+чат мессенджер
+インスタントメッセージ
+인스턴트 메신저
+پیام رسان فوری
+تراسل فوري
+فوری پیغام رسانی
+Nhắn tin tức thời
+anlık mesajlaşma sohbet
+mensageiro instantâneo
+pesan instan
+mensajería instantánea
+চ্যাট ইন্সট্যান্ট মেসেজিং
+चैट त्वरित संदेश
+তাৎক্ষণিক বার্তা আদান প্রদান

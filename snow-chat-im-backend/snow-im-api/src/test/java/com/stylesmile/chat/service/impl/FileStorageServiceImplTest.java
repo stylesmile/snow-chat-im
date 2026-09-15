@@ -1,0 +1,342 @@
+package com.stylesmile.chat.service.impl;
+
+import com.stylesmile.chat.dto.UploadResult;
+import com.stylesmile.chat.storage.FileStorage;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.LocalDate;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+/**
+ * FileStorageServiceImpl 单元测试。
+ *
+ * <p>验证 uploadAndSign 两个重载方法：
+ * <ol>
+ *   <li>{@code uploadAndSign(MultipartFile)}：默认 avatars/ 前缀；</li>
+ *   <li>{@code uploadAndSign(MultipartFile, String)}：按 mediaType 动态前缀。</li>
+ * </ol>
+ *
+ * <p>mock 策略：使用 {@code generateUrl} 替代已废弃的 {@code generatePresignedUrl} 调用链，
+ * 与新实现保持一致（公共读存储直接返回完整 URL，私有读存储由实现类内部生成签名 URL）。
+ *
+ * @author mmm
+ */
+@ExtendWith(MockitoExtension.class)
+class FileStorageServiceImplTest {
+
+    @Mock
+    private FileStorage fileStorage;
+
+    // 被测对象
+    private FileStorageServiceImpl service;
+
+    /** 固定时钟：2026-09-14（Asia/Shanghai），用于断言日期目录 */
+    private static final Clock FIXED_CLOCK =
+            Clock.fixed(Instant.parse("2026-09-14T02:00:00Z"), ZoneId.of("Asia/Shanghai"));
+
+    /** 注入固定时钟的 service，key 里的日期目录可预测 */
+    private FileStorageServiceImpl datedService;
+
+    @BeforeEach
+    void setUp() {
+        // 手动构造 service，注入 mock 的 FileStorage
+        service = new FileStorageServiceImpl(fileStorage);
+        datedService = new FileStorageServiceImpl(fileStorage, FIXED_CLOCK);
+    }
+
+    // ==================== uploadAndSign(MultipartFile) ====================
+
+    @Test
+    void uploadAndSignReturnsKeyAndUrl() {
+        // 准备：模拟一个图片文件
+        byte[] content = "fake-image".getBytes();
+        MultipartFile file = new MockMultipartFile("file", "avatar.jpg", "image/jpeg", content);
+        // mock upload 返回固定的 key（UUID 随机，无法预测具体值）
+        when(fileStorage.upload(any(), any(), eq("image/jpeg"), anyLong()))
+                .thenReturn("avatars/uuid.jpg");
+        // mock generateUrl 返回一个完整可访问 URL
+        when(fileStorage.generateUrl(eq("avatars/uuid.jpg"))).thenReturn("https://cdn.example.com/avatars/uuid.jpg");
+
+        // 执行
+        UploadResult result = service.uploadAndSign(file);
+
+        // 验证：key 和 url 均非空，且与 mock 返回值一致
+        assertNotNull(result);
+        assertEquals("avatars/uuid.jpg", result.key());
+        assertEquals("https://cdn.example.com/avatars/uuid.jpg", result.url());
+    }
+
+    @Test
+    void uploadAndSignGeneratesAvatarPrefixKey() {
+        // 准备
+        byte[] content = "fake-image".getBytes();
+        MultipartFile file = new MockMultipartFile("file", "photo.png", "image/png", content);
+        // mock upload 时用 ArgumentCaptor 捕获 key 参数
+        when(fileStorage.upload(any(), any(), eq("image/png"), anyLong()))
+                .thenAnswer(invocation -> invocation.getArgument(1)); // 返回传入的 key
+        when(fileStorage.generateUrl(anyString())).thenReturn("https://cdn.example.com/presigned/url");
+
+        // 执行
+        UploadResult result = service.uploadAndSign(file);
+
+        // 验证：key 以 avatars/ 开头，且以 .png 结尾（保留原始扩展名）
+        assertNotNull(result.key());
+        assertTrue(result.key().startsWith("avatars/"), "key 应以 avatars/ 开头");
+        assertTrue(result.key().endsWith(".png"), "key 应保留原始扩展名 .png");
+    }
+
+    @Test
+    void uploadAndSignCallsUploadThenGenerateUrl() {
+        // 准备
+        byte[] content = "data".getBytes();
+        MultipartFile file = new MockMultipartFile("file", "a.jpg", "image/jpeg", content);
+        when(fileStorage.upload(any(), any(), any(), anyLong()))
+                .thenReturn("avatars/uuid.jpg");
+        when(fileStorage.generateUrl(eq("avatars/uuid.jpg"))).thenReturn("https://cdn.example.com/presigned");
+
+        // 执行
+        service.uploadAndSign(file);
+
+        // 验证：upload 被调用，contentType 正确传递
+        verify(fileStorage).upload(any(), any(), eq("image/jpeg"), eq((long) content.length));
+        // generateUrl 被调用（与旧实现中 generatePresignedUrl + 7天有效期的行为等价）
+        verify(fileStorage).generateUrl(eq("avatars/uuid.jpg"));
+    }
+
+    @Test
+    void uploadAndSignHandlesFileWithoutExtension() {
+        // 准备：文件名无扩展名
+        byte[] content = "data".getBytes();
+        MultipartFile file = new MockMultipartFile("file", "noext", "application/octet-stream", content);
+        when(fileStorage.upload(any(), any(), any(), anyLong()))
+                .thenAnswer(invocation -> invocation.getArgument(1));
+        when(fileStorage.generateUrl(anyString())).thenReturn("https://cdn.example.com/presigned");
+
+        // 执行
+        UploadResult result = service.uploadAndSign(file);
+
+        // 验证：key 以 avatars/ 开头（无扩展名时不需要追加 .ext）
+        assertNotNull(result.key());
+        assertTrue(result.key().startsWith("avatars/"));
+    }
+
+    // ==================== uploadAndSign(MultipartFile, String) ====================
+
+    @Test
+    void uploadAndSignWithMediaTypeUsesCorrectPrefix() {
+        // 准备：images 类型文件
+        byte[] content = "fake-image".getBytes();
+        MultipartFile file = new MockMultipartFile("file", "pic.jpg", "image/jpeg", content);
+        when(fileStorage.upload(any(), any(), eq("image/jpeg"), anyLong()))
+                .thenAnswer(invocation -> invocation.getArgument(1)); // 返回传入的 key
+        when(fileStorage.generateUrl(anyString())).thenReturn("https://cdn.example.com/images/pic.jpg");
+
+        // 执行
+        UploadResult result = service.uploadAndSign(file, "images");
+
+        // 验证：key 前缀为 images/
+        assertNotNull(result.key());
+        assertTrue(result.key().startsWith("images/"), "key 应以 images/ 开头");
+        assertTrue(result.key().endsWith(".jpg"), "key 应保留原始扩展名");
+    }
+
+    @Test
+    void uploadAndSignWithMediaTypeVideos() {
+        // 准备
+        byte[] content = "fake-video".getBytes();
+        MultipartFile file = new MockMultipartFile("file", "clip.mp4", "video/mp4", content);
+        when(fileStorage.upload(any(), any(), eq("video/mp4"), anyLong()))
+                .thenAnswer(invocation -> invocation.getArgument(1));
+        when(fileStorage.generateUrl(anyString())).thenReturn("https://cdn.example.com/videos/clip.mp4");
+
+        // 执行
+        UploadResult result = service.uploadAndSign(file, "videos");
+
+        // 验证：key 前缀为 videos/
+        assertNotNull(result.key());
+        assertTrue(result.key().startsWith("videos/"), "key 应以 videos/ 开头");
+    }
+
+    @Test
+    void uploadAndSignWithMediaTypeFiles() {
+        // 准备
+        byte[] content = "fake-doc".getBytes();
+        MultipartFile file = new MockMultipartFile("file", "doc.pdf", "application/pdf", content);
+        when(fileStorage.upload(any(), any(), eq("application/pdf"), anyLong()))
+                .thenAnswer(invocation -> invocation.getArgument(1));
+        when(fileStorage.generateUrl(anyString())).thenReturn("https://cdn.example.com/files/doc.pdf");
+
+        // 执行
+        UploadResult result = service.uploadAndSign(file, "files");
+
+        // 验证：key 前缀为 files/
+        assertNotNull(result.key());
+        assertTrue(result.key().startsWith("files/"), "key 应以 files/ 开头");
+    }
+
+    @Test
+    void uploadAndSignWithMediaTypeVoices() {
+        // 准备
+        byte[] content = "fake-voice".getBytes();
+        MultipartFile file = new MockMultipartFile("file", "voice.ogg", "audio/ogg", content);
+        when(fileStorage.upload(any(), any(), eq("audio/ogg"), anyLong()))
+                .thenAnswer(invocation -> invocation.getArgument(1));
+        when(fileStorage.generateUrl(anyString())).thenReturn("https://cdn.example.com/voices/voice.ogg");
+
+        // 执行
+        UploadResult result = service.uploadAndSign(file, "voices");
+
+        // 验证：key 前缀为 voices/
+        assertNotNull(result.key());
+        assertTrue(result.key().startsWith("voices/"), "key 应以 voices/ 开头");
+    }
+
+    // ==================== 日期目录（年/月/日） ====================
+
+    @Test
+    void mediaKeyIsNestedUnderUploadDate() {
+        // 准备：固定时钟 2026-09-14
+        byte[] content = "fake-image".getBytes();
+        MultipartFile file = new MockMultipartFile("file", "pic.jpg", "image/jpeg", content);
+        when(fileStorage.upload(any(), any(), any(), anyLong()))
+                .thenAnswer(invocation -> invocation.getArgument(1));
+        when(fileStorage.generateUrl(anyString())).thenReturn("https://cdn.example.com/x");
+
+        // 执行
+        UploadResult result = datedService.uploadAndSign(file, "images");
+
+        // 验证：images/2026/09/14/{uuid}.jpg
+        assertTrue(
+                result.key().matches("images/2026/09/14/[0-9a-f\\-]{36}\\.jpg"),
+                "key 应形如 images/2026/09/14/{uuid}.jpg，实际：" + result.key());
+    }
+
+    @Test
+    void mediaKeyUsesCurrentDateFromClock() {
+        // 准备：换一个时钟（2025-01-02），验证目录跟随时钟而不是写死
+        Clock anotherDay = Clock.fixed(Instant.parse("2025-01-02T10:00:00Z"), ZoneId.of("Asia/Shanghai"));
+        FileStorageServiceImpl svc = new FileStorageServiceImpl(fileStorage, anotherDay);
+        byte[] content = "v".getBytes();
+        MultipartFile file = new MockMultipartFile("file", "clip.mp4", "video/mp4", content);
+        when(fileStorage.upload(any(), any(), any(), anyLong()))
+                .thenAnswer(invocation -> invocation.getArgument(1));
+        when(fileStorage.generateUrl(anyString())).thenReturn("https://cdn.example.com/x");
+
+        // 执行
+        UploadResult result = svc.uploadAndSign(file, "videos");
+
+        // 验证：月/日补零
+        assertTrue(result.key().startsWith("videos/2025/01/02/"), "实际：" + result.key());
+    }
+
+    @Test
+    void allMediaTypesGetDateDirectory() {
+        // 准备
+        byte[] content = "x".getBytes();
+        MultipartFile file = new MockMultipartFile("file", "a.bin", "application/octet-stream", content);
+        when(fileStorage.upload(any(), any(), any(), anyLong()))
+                .thenAnswer(invocation -> invocation.getArgument(1));
+        when(fileStorage.generateUrl(anyString())).thenReturn("https://cdn.example.com/x");
+        String today = LocalDate.now(FIXED_CLOCK).toString().replace('-', '/');
+
+        // 执行 + 验证：四类媒体目录都带日期
+        for (String mediaType : new String[]{"images", "videos", "files", "voices"}) {
+            UploadResult result = datedService.uploadAndSign(file, mediaType);
+            assertTrue(
+                    result.key().startsWith(mediaType + "/" + today + "/"),
+                    mediaType + " 的 key 应含日期目录，实际：" + result.key());
+        }
+    }
+
+    @Test
+    void avatarKeyHasNoDateDirectory() {
+        // 准备：头像目录保持扁平，避免影响 avatars/ 前缀判断与历史数据
+        byte[] content = "fake-image".getBytes();
+        MultipartFile file = new MockMultipartFile("file", "avatar.png", "image/png", content);
+        when(fileStorage.upload(any(), any(), any(), anyLong()))
+                .thenAnswer(invocation -> invocation.getArgument(1));
+        when(fileStorage.generateUrl(anyString())).thenReturn("https://cdn.example.com/x");
+
+        // 执行
+        UploadResult result = datedService.uploadAndSign(file);
+
+        // 验证：avatars/{uuid}.png，中间没有日期目录
+        assertTrue(
+                result.key().matches("avatars/[0-9a-f\\-]{36}\\.png"),
+                "头像 key 不应含日期目录，实际：" + result.key());
+    }
+
+    @Test
+    void mediaKeyDateMatchesServerTodayByDefault() {
+        // 准备：默认构造器走系统时钟
+        byte[] content = "fake-image".getBytes();
+        MultipartFile file = new MockMultipartFile("file", "pic.jpg", "image/jpeg", content);
+        when(fileStorage.upload(any(), any(), any(), anyLong()))
+                .thenAnswer(invocation -> invocation.getArgument(1));
+        when(fileStorage.generateUrl(anyString())).thenReturn("https://cdn.example.com/x");
+
+        // 执行
+        UploadResult result = service.uploadAndSign(file, "images");
+
+        // 验证：目录等于系统默认时区的今天
+        String today = LocalDate.now().toString().replace('-', '/');
+        assertTrue(result.key().startsWith("images/" + today + "/"), "实际：" + result.key());
+    }
+
+    @Test
+    void uploadAndSignWithMediaTypeThrowsOnInvalidType() {
+        // 准备：非法 mediaType（路径穿越风险）
+        byte[] content = "evil".getBytes();
+        MultipartFile file = new MockMultipartFile("file", "x.txt", "text/plain", content);
+
+        // 执行+验证：应抛出 IllegalArgumentException，阻止任意目录写入
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.uploadAndSign(file, "etc_passwd")
+        );
+        // 验证异常信息包含非法类型，便于排查
+        assertTrue(ex.getMessage().contains("etc_passwd"), "异常信息应包含非法类型");
+    }
+
+    @Test
+    void uploadAndSignWithMediaTypeCallsStorageWithCorrectArgs() {
+        // 准备
+        byte[] content = "data".getBytes();
+        MultipartFile file = new MockMultipartFile("file", "a.mp4", "video/mp4", content);
+        // 用 anyString() 捕获任意 key 参数，避免 strict stubbing 对引用相等的约束
+        when(fileStorage.upload(any(), anyString(), any(), anyLong()))
+                .thenAnswer(invocation -> invocation.getArgument(1));
+        when(fileStorage.generateUrl(anyString())).thenReturn("https://cdn.example.com/presigned");
+
+        // 执行
+        service.uploadAndSign(file, "videos");
+
+        // 验证：upload 被调用，contentType="video/mp4"，size 正确
+        ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
+        verify(fileStorage).upload(any(), keyCaptor.capture(), eq("video/mp4"), eq((long) content.length));
+        // key 必须以 videos/ 开头
+        assertTrue(keyCaptor.getValue().startsWith("videos/"), "key 应以 videos/ 开头");
+        // generateUrl 被调用
+        verify(fileStorage).generateUrl(keyCaptor.getValue());
+    }
+}

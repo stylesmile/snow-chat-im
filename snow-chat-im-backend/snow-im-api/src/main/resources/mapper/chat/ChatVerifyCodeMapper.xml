@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.stylesmile.chat.mapper.ChatVerifyCodeMapper">
+
+    <!-- 查询最新一条未使用的指定类型验证码 -->
+    <select id="selectLatestUnused" resultType="com.stylesmile.chat.entity.ChatVerifyCode">
+        SELECT * FROM chat_verify_code
+        WHERE email = #{email} AND type = #{type} AND used = 0
+        ORDER BY create_time DESC
+        LIMIT 1
+    </select>
+
+    <!-- 标记验证码为已使用 -->
+    <update id="markUsed">
+        UPDATE chat_verify_code SET used = 1 WHERE id = #{id}
+    </update>
+
+</mapper>

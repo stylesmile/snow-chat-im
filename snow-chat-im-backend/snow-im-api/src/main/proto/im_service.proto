@@ -1,0 +1,194 @@
+syntax = "proto3";
+option java_multiple_files = true;
+option java_package = "com.stylesmile.grpc";
+
+package imsdk;
+
+service ImUserService {
+  rpc Login (LoginRequest) returns (LoginResponse);
+  rpc GetUser (GetUserRequest) returns (UserInfo);
+  rpc SearchUser (SearchUserRequest) returns (UserList);
+  rpc UpdateProfile (UpdateProfileRequest) returns (Result);
+}
+
+service ImFriendService {
+  rpc SendFriendRequest (SendFriendRequestRequest) returns (Result);
+  rpc HandleFriendRequest (HandleFriendRequestRequest) returns (Result);
+  rpc GetFriendList (GetFriendListRequest) returns (FriendList);
+  rpc DeleteFriend (DeleteFriendRequest) returns (Result);
+}
+
+service ImGroupService {
+  rpc CreateGroup (CreateGroupRequest) returns (GroupInfo);
+  rpc GetGroupInfo (GetGroupInfoRequest) returns (GroupInfo);
+  rpc GetGroupList (GetGroupListRequest) returns (GroupList);
+  rpc AddGroupMembers (AddGroupMembersRequest) returns (Result);
+  rpc RemoveGroupMembers (RemoveGroupMembersRequest) returns (Result);
+  rpc GetGroupMembers (GetGroupMembersRequest) returns (GroupMemberList);
+}
+
+service ImMessageService {
+  rpc GetHistoryMessages (GetHistoryMessagesRequest) returns (MessageList);
+  rpc RecallMessage (RecallMessageRequest) returns (Result);
+  rpc MarkAsRead (MarkAsReadRequest) returns (Result);
+}
+
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  int32 user_id = 1;
+  string nickname = 2;
+  string avatar = 3;
+  string token = 4;
+}
+
+message GetUserRequest {
+  int32 user_id = 1;
+}
+
+message SearchUserRequest {
+  string keyword = 1;
+  int32 page = 2;
+  int32 size = 3;
+}
+
+message UserInfo {
+  int32 id = 1;
+  string username = 2;
+  string nickname = 3;
+  string avatar = 4;
+  string signature = 5;
+  string status = 6;
+}
+
+message UserList {
+  repeated UserInfo users = 1;
+}
+
+message UpdateProfileRequest {
+  int32 user_id = 1;
+  string nickname = 2;
+  string avatar = 3;
+  string signature = 4;
+}
+
+message Result {
+  bool success = 1;
+  string message = 2;
+}
+
+message SendFriendRequestRequest {
+  int32 from_user_id = 1;
+  int32 to_user_id = 2;
+  string remark = 3;
+}
+
+message HandleFriendRequestRequest {
+  int32 from_user_id = 1;
+  int32 to_user_id = 2;
+  bool accept = 3;
+}
+
+message GetFriendListRequest {
+  int32 user_id = 1;
+}
+
+message FriendList {
+  repeated UserInfo friends = 1;
+}
+
+message DeleteFriendRequest {
+  int32 user_id = 1;
+  int32 friend_id = 2;
+}
+
+message CreateGroupRequest {
+  int32 owner_id = 1;
+  string name = 2;
+  string avatar = 3;
+  int32 max_members = 4;
+  repeated int32 member_ids = 5;
+}
+
+message GetGroupInfoRequest {
+  int32 group_id = 1;
+}
+
+message GroupInfo {
+  int32 id = 1;
+  string name = 2;
+  string avatar = 3;
+  int32 owner_id = 4;
+  int32 member_count = 5;
+  repeated UserInfo members = 6;
+}
+
+message GetGroupListRequest {
+  int32 user_id = 1;
+}
+
+message GroupList {
+  repeated GroupInfo groups = 1;
+}
+
+message AddGroupMembersRequest {
+  int32 group_id = 1;
+  repeated int32 user_ids = 2;
+}
+
+message RemoveGroupMembersRequest {
+  int32 group_id = 1;
+  repeated int32 user_ids = 2;
+}
+
+message GetGroupMembersRequest {
+  int32 group_id = 1;
+}
+
+message GroupMember {
+  int32 user_id = 1;
+  string nickname = 2;
+  string avatar = 3;
+  string role = 4;
+}
+
+message GroupMemberList {
+  repeated GroupMember members = 1;
+}
+
+message GetHistoryMessagesRequest {
+  int32 user_id = 1;
+  int32 target_id = 2;
+  string target_type = 3;
+  int32 page = 4;
+  int32 size = 5;
+}
+
+message MessageList {
+  repeated ChatMessage messages = 1;
+}
+
+message RecallMessageRequest {
+  int32 user_id = 1;
+  int64 message_id = 2;
+}
+
+message MarkAsReadRequest {
+  int32 user_id = 1;
+  int32 target_id = 2;
+  string target_type = 3;
+}
+
+message ChatMessage {
+  int64 id = 1;
+  int32 from_user_id = 2;
+  int32 to_user_id = 3;
+  int32 group_id = 4;
+  string type = 5;
+  string content = 6;
+  string status = 7;
+  int64 create_time = 8;
+}

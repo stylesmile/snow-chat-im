@@ -1,0 +1,106 @@
+name: snow_chat
+description: A real-time chat application.
+publish_to: 'none'
+version: 2.0.8
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+  flutter: '>=3.41.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  
+  # State management
+  provider: ^6.1.1
+  
+  # MQTT
+  mqtt_client: ^10.5.1
+  
+  # Local storage
+  sqflite: ^2.3.0
+  sqlite3_flutter_libs: ^0.5.0
+  
+  # Network
+  dio: ^5.4.0
+  
+  # Multimedia
+  wechat_assets_picker: ^9.5.0
+  file_picker: ^8.0.0
+  video_player: ^2.8.0
+  cached_network_image: ^3.3.0
+  record: ^4.4.4
+  audioplayers: ^6.0.0
+
+  # Internationalization
+  intl: ^0.20.2
+
+  # Utilities
+  uuid: ^4.2.0
+  path_provider: ^2.1.0
+  permission_handler: ^11.2.0
+  shared_preferences: ^2.2.2
+  package_info_plus: ^8.0.2
+  
+  # UI
+  flutter_slidable: ^3.0.1
+  flutter_staggered_grid_view: ^0.7.0
+
+  # Gallery (保存图片到相册)
+  gal: ^2.3.2
+
+  # Pinyin
+  lpinyin: ^2.0.3
+
+  # QR scanning (扫一扫添加好友)
+  mobile_scanner: ^6.0.0
+
+  # QR generation (我的二维码展示)
+  qr_flutter: ^4.1.0
+  emoji_picker_flutter: ^4.5.4
+
+  # Local notifications (新消息本地通知)
+  flutter_local_notifications: ^17.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  sqflite_common_ffi: 2.4.0+3
+  mockito: ^5.4.4
+  build_runner: ^2.4.8
+  http_mock_adapter: ^0.6.1
+
+flutter:
+  uses-material-design: true
+  
+  # Enable localization
+  generate: true
+  
+  assets:
+    # 图片资源：显式声明包含子目录，确保 navigation 等子目录下的图片能被正确打包
+    - assets/images/
+    - assets/images/navigation/
+    # 图标资源：显式声明各功能模块的图标子目录
+    - assets/icons/
+    - assets/icons/chat/
+    - assets/icons/contacts/
+    - assets/icons/profile/
+
+flutter_intl:
+  enabled: true
+  class_name: AppLocalizations
+  locales:
+    - zh
+    - en
+    - zh_TW
+    - ja
+    - ko
+
+# 配置 sqlite3 使用系统/已打包的 SQLite 库，避免构建时从 GitHub 下载预编译库失败。
+hooks:
+  user_defines:
+    sqlite3:
+      source: system

@@ -1,0 +1,18 @@
+# snow-chat-im 后端服务编排
+# 启动 MinIO：docker compose up -d minio
+# 停止：docker compose down
+# 数据持久化到 ./minio-data 卷
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: snow-chat-minio
+    ports:
+      - "9000:9000"   # S3 API 端口
+      - "9001:9001"   # Web Console 端口
+    environment:
+      MINIO_ROOT_USER: minioadmin         # 管理员账号
+      MINIO_ROOT_PASSWORD: minioadmin     # 管理员密码
+    command: server /data --console-address ":9001"
+    volumes:
+      - ./minio-data:/data                # 数据持久化到宿主机
+    restart: unless-stopped
