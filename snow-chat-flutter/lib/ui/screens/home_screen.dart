@@ -1,12 +1,17 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/chat_provider.dart';
 import '../../providers/friend_request_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../../services/chat_service.dart';
 import '../../services/conversation_service.dart';
 import '../../services/group_service.dart';
+import '../../services/notification_service.dart';
+import '../../services/notification_policy.dart';
 import '../../config/config.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/constants/ws_cmd.dart';
@@ -32,6 +37,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   // 登录后全局 MQTT 连接，用于推送聊天列表新消息、好友请求通知
   MqttChatClient? _mqttClient;
   final ValueNotifier<int> _friendAcceptedNotifier = ValueNotifier<int>(0);
+  // 新消息本地通知服务（懒初始化，收到消息时才真正调用）
+  NotificationService? _notificationService;
 
   // ---------------------------------------------------------------------------
   // 底部导航图标资源路径
@@ -95,7 +102,88 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           debugPrint('[Home] MQTT disabled by config, relying on REST polling');
         }
       }
+      // 登录成功且首页首次出现即初始化通知服务并处理「首次打开提醒开启权限」
+      _setupNotifications();
     }
+  }
+
+  /// 初始化本地通知，并在首次打开 App 时引导用户开启通知权限。
+  ///
+  /// 流程：
+  /// 1. 初始化 flutter_local_notifications，保证后续能弹系统通知
+  /// 2. 若用户已开启「新消息通知」开关，申请 POST_NOTIFICATIONS 运行时权限
+  /// 3. 仅首次启动时弹权限解释框，拒绝后引导用户去系统设置手动开启
+  Future<void> _setupNotifications() async {
+    // 通知为增强能力，任何平台/生命周期异常都不应阻碍主流程（如单测无插件）
+    try {
+      // 每个登录会话只初始化一次，避免重复创建渠道
+      if (_notificationService == null) {
+        _notificationService = NotificationService();
+        await _notificationService!.initialize();
+      }
+
+      // 读取是否首次启动标记；App 每次全新安装后在首页首次出现时触发
+      final prefs = await SharedPreferences.getInstance();
+      final isFirstLaunch = prefs.getBool('is_first_launch') ?? true;
+      if (!isFirstLaunch) return;
+
+      // 立即消费首次启动标记，避免下次登录重复弹窗
+      await prefs.setBool('is_first_launch', false);
+
+      // 会话已销毁则不再弹任何 UI（防止 unmounted 崩溃）
+      if (!mounted) return;
+
+      // 仅当「新消息通知」总开关开启时才引导开启系统权限
+      final settings = context.read<SettingsProvider>();
+      if (!settings.notificationEnabled) return;
+
+      // 申请通知权限；用户此前拒绝过（permanentlyDenied）会直接失败
+      final granted = await _notificationService!.requestNotificationPermission();
+      if (!mounted) return;
+      // 首次启动且拒绝授权时，弹窗说明并给出「去设置」入口
+      if (!granted) {
+        _showNotificationPermissionDialog();
+      }
+    } catch (e) {
+      // 通知初始化在无插件环境（单测）或极少数设备上可能失败，降级静默
+      debugPrint('[Home] notification setup skipped: $e');
+    }
+  }
+
+  /// 弹窗引导用户开启通知权限；被永久拒绝时提供跳转系统设置入口。
+  void _showNotificationPermissionDialog() {
+    // 系统统一弹窗已拒绝过，需引导去应用设置手动开启
+    final l10n = AppLocalizations.of(context);
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: Text(
+          l10n?.settingsMenu ?? '开启通知',
+          style: const TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          '开启新消息通知后，好友发来的消息会及时提醒你\n请在上方弹窗或系统设置中允许通知',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          // 暂不开启：仅关闭弹窗，之后可在「设置-新消息通知」再次开启
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('暂不开启', style: TextStyle(color: Colors.grey)),
+          ),
+          // 引导跳转系统设置页手动开启通知权限
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              _notificationService?.openSystemAppSettings();
+            },
+            child: const Text('去设置', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   /// 初始化并连接全局 MQTT（登录时调用一次）
@@ -220,6 +308,42 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       lastMsgTime: createTime,
       unreadCount: updated.unreadCount,
     );
+
+    // 新消息通知：总开关开启且收到的是需要打扰用户的消息时，弹系统通知
+    _tryNotifyIncomingMessage(data, userId);
+  }
+
+  /// 根据「新消息通知」开关与消息内容决定是否弹本地通知。
+  void _tryNotifyIncomingMessage(Map<String, dynamic> data, int userId) {
+    // 会话已销毁或通知服务未初始化则跳过
+    if (!mounted || _notificationService == null) return;
+    // 用户关闭了「新消息通知」总开关；不打扰
+    if (!context.read<SettingsProvider>().notificationEnabled) return;
+
+    // 由纯策略构造通知内容；文件助手自回推等返回 null 会自动跳过
+    final notif = NotificationPolicy.buildIncomingMessageNotification(
+      data: data,
+      currentUserId: userId,
+    );
+    if (notif == null) return;
+
+    // 异步弹系统通知，失败不影响主流程
+    unawaited(
+      _safeShowNotification(notif.title, notif.body),
+    );
+  }
+
+  /// 安全地显示一条本地通知，任何异常都仅记录日志而不向上抛出。
+  Future<void> _safeShowNotification(String title, String body) async {
+    try {
+      await _notificationService!.showMessageNotification(
+        title: title,
+        body: body,
+      );
+    } catch (e) {
+      // 通知属于增强能力，失败不阻塞消息收发主流程
+      debugPrint('[Home] show notification failed: $e');
+    }
   }
 
   /// 订阅用户所在的所有群主题

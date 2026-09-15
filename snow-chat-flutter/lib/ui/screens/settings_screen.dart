@@ -10,6 +10,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'sqlite_browser_screen.dart';
 import 'chat_background_screen.dart';
 import '../../services/cache_cleaner.dart';
+import '../../services/notification_service.dart';
 
 /// 设置页面（从个人中心"设置"入口进入）
 ///
@@ -159,6 +160,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  /// 新消息通知总开关切换：先持久化，再在开启时确保系统通知权限已授予。
+  ///
+  /// 首次安装用户若在首页申请权限时拒绝过，这里提供再次申请的机会；
+  /// 被永久拒绝时提示用户前往系统设置手动开启。
+  Future<void> _onNotificationMasterChanged(bool value) async {
+    // 持久化开关状态（内部会 notifyListeners 刷新界面）
+    await context.read<SettingsProvider>().setNotificationEnabled(value);
+    // 关闭通知无需处理权限，直接返回
+    if (!value) return;
+
+    // 仅当权限未授予时才申请，避免每次切换都弹系统框
+    final service = NotificationService();
+    try {
+      if (await service.checkNotificationPermission()) return;
+      final granted = await service.requestNotificationPermission();
+      // 页面可能已被销毁，停止后续 UI 操作
+      if (!mounted) return;
+      // 拒绝（尤其永久拒绝）时用 SnackBar 引导手动开启
+      if (!granted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('未获得通知权限，无法接收新消息提醒，可到系统设置中开启'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      // 无插件环境（单测）或权限 API 异常时静默降级，不影响开关状态持久化
+      debugPrint('[Settings] notification permission check failed: $e');
+    }
+  }
+
   /// 新消息通知设置区：总开关 + 提示音 + 震动
   Widget _buildNotificationSection(SettingsProvider settings) {
     // 通知总开关关闭时，提示音/震动子项禁用（置灰）
@@ -171,7 +204,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           title: const Text('新消息通知', style: TextStyle(color: Colors.white, fontSize: 16)),
           value: masterOn,
           activeThumbColor: Theme.of(context).colorScheme.primary,
-          onChanged: (value) => settings.setNotificationEnabled(value),
+          onChanged: (value) => _onNotificationMasterChanged(value),
         ),
         const Divider(height: 1, indent: 56, color: Color(0x0FFFFFFF)),
         // 提示音开关
