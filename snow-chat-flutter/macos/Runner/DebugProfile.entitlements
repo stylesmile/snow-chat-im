@@ -11,5 +11,8 @@
 	<!-- 客户端需联网访问后端 API 与 MQTT -->
 	<key>com.apple.security.network.client</key>
 	<true/>
+	<!-- 扫码添加好友需访问摄像头 -->
+	<key>com.apple.security.device.camera</key>
+	<true/>
 </dict>
 </plist>

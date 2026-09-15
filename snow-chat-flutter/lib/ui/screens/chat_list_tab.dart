@@ -464,7 +464,10 @@ class _ChatListTabState extends State<ChatListTab> {
 
   @override
   void dispose() {
+    // 解除好友关系变化监听，防止已卸载的 State 被全局广播器回调造成
+    // "This widget has been unmounted" 崩溃；两个监听都必须移除
     widget.friendAcceptedNotifier?.removeListener(_onFriendAccepted);
+    FriendRequestProvider.friendListVersion.removeListener(_onFriendAccepted);
     super.dispose();
   }
 }

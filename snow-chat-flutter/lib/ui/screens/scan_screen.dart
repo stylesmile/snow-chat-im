@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import '../../core/utils/qr_payload.dart';
 import '../../l10n/app_localizations.dart';
@@ -32,6 +33,31 @@ class _ScanScreenState extends State<ScanScreen> {
   MobileScannerController? _controller;
   // 处理中标记：防止同一二维码被连续回调导致重复跳转或重复请求
   bool _processing = false;
+  // 相机权限是否已授予；进入页面即主动申请，避免真机上不弹窗直接黑屏
+  bool _cameraPermissionGranted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // 生产环境（未注入伪扫描器）进入页面立即申请相机运行时权限；
+    // 测试注入 scannerBuilder 时跳过，避免测试环境走真实平台权限链路。
+    if (widget.scannerBuilder == null) {
+      _requestCameraPermission();
+    }
+  }
+
+  /// 主动申请相机权限
+  ///
+  /// permission_handler 会在真机上弹出系统授权对话框；若用户已授权则直接放行，
+  /// 未授权则保持 [_cameraPermissionGranted] 为 false，渲染友好占位而非纯黑屏。
+  Future<void> _requestCameraPermission() async {
+    // 请求后无论结果如何都更新状态，通知界面重绘以决定展示取景框或错误占位
+    final PermissionStatus status = await Permission.camera.request();
+    if (!mounted) return;
+    setState(() {
+      _cameraPermissionGranted = status.isGranted;
+    });
+  }
 
   @override
   void dispose() {
@@ -117,6 +143,10 @@ class _ScanScreenState extends State<ScanScreen> {
     // 允许测试注入伪扫描器以规避相机依赖
     if (widget.scannerBuilder != null) {
       return widget.scannerBuilder!(_handleCode);
+    }
+    // 相机权限未授予时展示友好占位，避免在未授权情况下直接创建相机导致黑屏
+    if (!_cameraPermissionGranted) {
+      return _buildCameraError();
     }
     _controller ??= MobileScannerController(
       // 只识别二维码，提升识别精度与性能

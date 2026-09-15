@@ -58,21 +58,24 @@ class MyQrScreen extends StatelessWidget {
                       ),
                     )
                   // 用 qr_flutter 生成二维码：data 为约定的 protocol 串
-                  : QrImageView(
-                      data: MyQrPayload.encode(userId),
-                      version: QrVersions.auto,
-                      size: 240,
-                      // 显式指定深色模块与眼区颜色，保证可扫性（避免默认 color 为 null）
-                      backgroundColor: Colors.white,
-                      eyeStyle: const QrEyeStyle(
-                        eyeShape: QrEyeShape.square,
-                        // 眼区使用黑色，提高识别率
-                        color: Color(0xFF000000),
-                      ),
-                      dataModuleStyle: const QrDataModuleStyle(
-                        dataModuleShape: QrDataModuleShape.square,
-                        // 数据区使用黑色模块
-                        color: Color(0xFF000000),
+                  // 外层 Center 保证二维码在卡片内水平居中（默认靠左会偏左）
+                  : Center(
+                      child: QrImageView(
+                        data: MyQrPayload.encode(userId),
+                        version: QrVersions.auto,
+                        size: 240,
+                        // 显式指定深色模块与眼区颜色，保证可扫性（避免默认 color 为 null）
+                        backgroundColor: Colors.white,
+                        eyeStyle: const QrEyeStyle(
+                          eyeShape: QrEyeShape.square,
+                          // 眼区使用黑色，提高识别率
+                          color: Color(0xFF000000),
+                        ),
+                        dataModuleStyle: const QrDataModuleStyle(
+                          dataModuleShape: QrDataModuleShape.square,
+                          // 数据区使用黑色模块
+                          color: Color(0xFF000000),
+                        ),
                       ),
                     ),
             ),

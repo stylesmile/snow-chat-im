@@ -74,4 +74,27 @@ void main() {
     );
     expect(qrFinder, findsOneWidget);
   });
+
+  testWidgets('二维码在卡片内水平居中（不偏左）', (tester) async {
+    // 执行：渲染页面，等待布局完成
+    await tester.pumpWidget(buildScreen());
+    await tester.pumpAndSettle();
+
+    // 定位二维码控件（QrImageView 的 RenderObject）
+    final qrFinder = find.byWidgetPredicate(
+      (w) => w.runtimeType.toString() == 'QrImageView',
+    );
+    final qrRect = tester.getRect(qrFinder);
+
+    // 定位包裹二维码的白色卡片容器：
+    // ListenableBuilder 之上的首个 Container 即 <卡片>（内含 padding 24 与 Center）
+    final cardFinder = find.ancestor(
+      of: qrFinder,
+      matching: find.byType(Container),
+    );
+    final cardRect = tester.getRect(cardFinder.first);
+
+    // 验证：二维码中心与卡片中心水平误差在合理范围内（容差 24）
+    expect((qrRect.center.dx - cardRect.center.dx).abs(), lessThan(24));
+  });
 }
