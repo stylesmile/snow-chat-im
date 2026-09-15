@@ -34,10 +34,13 @@ class SettingsProvider extends ChangeNotifier {
 
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
-    // 恢复语言设置
+    // 恢复语言设置（含国家码：繁体中文是 zh_TW，只恢复 languageCode 会退化成简体）
     final lang = prefs.getString(_languageKey);
     if (lang != null) {
-      _locale = Locale(lang);
+      final country = prefs.getString('locale_country');
+      _locale = (lang == 'zh' && country != null && country.isNotEmpty)
+          ? Locale('zh', country)
+          : Locale(lang);
     }
     // 恢复新消息通知三项开关（不存在则保持默认开启）
     _notificationEnabled = prefs.getBool(_notifyKey) ?? true;
