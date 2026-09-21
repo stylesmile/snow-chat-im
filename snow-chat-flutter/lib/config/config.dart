@@ -6,7 +6,8 @@ class AppConfig {
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
     // defaultValue: 'http://192.168.0.101:8091',
-    defaultValue: 'http://192.168.0.100:8091',
+    // defaultValue: 'http://192.168.0.100:8091',
+    defaultValue: 'http://18.166.28.15:8091',
   );
 
   // MQTT 连接配置
@@ -14,7 +15,8 @@ class AppConfig {
   static const String mqttHost = String.fromEnvironment(
     'MQTT_HOST',
     // defaultValue: '192.168.0.101',
-    defaultValue: '192.168.0.100',
+    // defaultValue: '192.168.0.100',
+    defaultValue: '18.166.28.15',
   );
   static const int mqttPort = int.fromEnvironment('MQTT_PORT', defaultValue: 1883);
   static const String mqttUsername = String.fromEnvironment(
