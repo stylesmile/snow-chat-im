@@ -21,6 +21,14 @@ class BubblePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    canvas.drawPath(buildPath(size), Paint()..color = color);
+  }
+
+  /// 构造气泡轮廓路径。
+  ///
+  /// 抽成公开方法是为了让几何形状（圆角大小、箭头与气泡的衔接）可被单测精确断言，
+  /// paint 与测试使用同一条路径，避免"测试过了但画出来不对"。
+  Path buildPath(Size size) {
     final w = size.width;
     final h = size.height;
     // 箭头位于头像侧直边下部；气泡过矮时整体下移，保证画在直边范围内
@@ -46,12 +54,17 @@ class BubblePainter extends CustomPainter {
         ..lineTo(0, _radius)
         ..quadraticBezierTo(0, 0, _radius, 0);
     } else {
-      // 对方：箭头在左下，指向左侧头像；左下角收小圆角
+      // 对方：箭头在左下，指向左侧头像；左下角收小圆角。
+      //
+      // 顺序必须与上方「我方」分支严格镜像：先沿左直边下行画箭头，再收小圆角，
+      // 最后走底边、右下大圆角、左直边上行回到左上角。
+      // 修复前此分支先绕完左下大圆角再折回画箭头，箭头基座被 20dp 圆角切掉、
+      // 与气泡之间留下断口，视觉上表现为"左下角没连上"。
       path
-        ..lineTo(w, h - _smallRadius)
-        ..quadraticBezierTo(w, h, w - _smallRadius, h)
-        ..lineTo(_radius, h)
-        ..quadraticBezierTo(0, h, 0, h - _radius)
+        ..lineTo(w, h - _radius)
+        ..quadraticBezierTo(w, h, w - _radius, h)
+        ..lineTo(_smallRadius, h)
+        ..quadraticBezierTo(0, h, 0, h - _smallRadius)
         ..lineTo(0, arrowBottom)
         ..lineTo(-_arrowLen, arrowTipY)
         ..lineTo(0, arrowTop)
@@ -59,8 +72,7 @@ class BubblePainter extends CustomPainter {
         ..quadraticBezierTo(0, 0, _radius, 0);
     }
     path.close();
-
-    canvas.drawPath(path, Paint()..color = color);
+    return path;
   }
 
   @override
