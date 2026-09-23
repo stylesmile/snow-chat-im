@@ -20,8 +20,12 @@ public class JwtUtil {
     // 签名密钥：至少 256 位（32 字节），生产环境建议从配置读取
     private static final String SECRET = "snow-chat-im-jwt-secret-key-2024-snow-chat";
 
-    // Token 有效期：7 天
-    private static final long EXPIRE_MS = 7L * 24 * 60 * 60 * 1000;
+    // Token 有效期：30 天
+    //
+    // 原为 7 天，但服务端没有 refresh token、客户端也没有过期处理，
+    // 用户每隔 7 天就会在"界面仍是已登录"的状态下遇到全部接口 401（发消息失败）。
+    // 放宽到 30 天只是降低触发频率，客户端侧仍需在收到 401 时提示重新登录。
+    private static final long EXPIRE_MS = 30L * 24 * 60 * 60 * 1000;
 
     // Header 中 token 的字段名（前端发送：Authorization: Bearer <token>）
     public static final String HEADER = "Authorization";

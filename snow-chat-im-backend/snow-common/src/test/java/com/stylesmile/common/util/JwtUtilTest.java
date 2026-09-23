@@ -3,6 +3,9 @@ package com.stylesmile.common.util;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -52,5 +55,43 @@ class JwtUtilTest {
     void validateToken_beyondIntRange() {
         assertEquals(true, JwtUtil.validateToken(JwtUtil.createToken(BEYOND_INT_USER_ID, "qq")));
         assertEquals(false, JwtUtil.validateToken("garbage"));
+    }
+
+    @Test
+    @DisplayName("token 有效期为 30 天")
+    void createToken_ttlIsThirtyDays() {
+        // 背景：有效期原为 7 天，客户端没有续期/过期处理，用户每隔 7 天就会遇到
+        // "token 过期 → 所有接口 401 → 发消息失败"，这里把 30 天的有效期锁死。
+        String token = JwtUtil.createToken(1001L, "ttl_probe");
+
+        // JWT 由 header.payload.signature 三段组成，第二段是 base64url 编码的 payload
+        String[] segments = token.split("\\.");
+        assertEquals(3, segments.length, "JWT 必须是三段式结构");
+
+        // 解码 payload，用正则取出 exp（过期时间）与 iat（签发时间）两个秒级时间戳
+        String payload = new String(Base64.getUrlDecoder().decode(segments[1]), StandardCharsets.UTF_8);
+        long issuedAt = parseClaim(payload, "iat");
+        long expiration = parseClaim(payload, "exp");
+
+        // 有效期 = exp - iat，必须正好是 30 天（秒）
+        assertEquals(30L * 24 * 60 * 60, expiration - issuedAt,
+                "token 有效期应为 30 天，实际 payload: " + payload);
+    }
+
+    /**
+     * 从 JWT payload 的 JSON 文本中取出指定字段的数值。
+     *
+     * @param payload JSON 文本（如 {"sub":"1","iat":1789459106,"exp":1802051106}）
+     * @param claim   字段名（iat / exp）
+     * @return 该字段的 long 值
+     */
+    private static long parseClaim(String payload, String claim) {
+        // 用非贪婪匹配定位 "<claim>":<数字>，避免与 payload 中其它数字串混淆
+        java.util.regex.Matcher matcher =
+                java.util.regex.Pattern.compile("\"" + claim + "\":(\\d+)").matcher(payload);
+        if (!matcher.find()) {
+            throw new AssertionError("payload 中缺少字段 " + claim + ": " + payload);
+        }
+        return Long.parseLong(matcher.group(1));
     }
 }
